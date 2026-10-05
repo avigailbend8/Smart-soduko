@@ -60,17 +60,23 @@
                 <!-- Numbers 1-9, filled in code -->
                 <StackPanel x:Name="NumberPad" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" />
 
-                <StackPanel Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center">
-                    <Button MinWidth="200" Click="EraseButton_Click">
+                <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
+                    <Button MinWidth="150" Padding="24,12" Click="EraseButton_Click">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <FontIcon Glyph="&#xE75C;" FontSize="18" />
                             <TextBlock Text="מחק" />
                         </StackPanel>
                     </Button>
-                    <Button MinWidth="200" Click="NewGameButton_Click">
+                    <Button MinWidth="150" Padding="24,12" Click="RestartButton_Click">
                         <StackPanel Orientation="Horizontal" Spacing="10">
                             <FontIcon Glyph="&#xE72C;" FontSize="18" />
                             <TextBlock Text="משחק חוזר" />
+                        </StackPanel>
+                    </Button>
+                    <Button MinWidth="150" Padding="24,12" Click="NewBoardButton_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xE8B1;" FontSize="18" />
+                            <TextBlock Text="שנה את דף הסודוקו" />
                         </StackPanel>
                     </Button>
                 </StackPanel>

@@ -245,7 +245,17 @@ namespace Smart_Sudoku.Pages
             Refresh();
         }
 
-        private void NewGameButton_Click(object sender, RoutedEventArgs e)
+        // Same board, wipes everything the player entered
+        private void RestartButton_Click(object sender, RoutedEventArgs e)
+        {
+            board = (int[,])puzzle.Clone();
+            selRow = selCol = -1;
+            StatusText.Text = "בחרו משבצת ריקה ואז מספר";
+            Refresh();
+        }
+
+        // A different board at the same level
+        private void NewBoardButton_Click(object sender, RoutedEventArgs e)
         {
             NewGame();
         }
