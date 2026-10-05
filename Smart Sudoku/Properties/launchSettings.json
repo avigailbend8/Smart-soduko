@@ -1,0 +1,7 @@
+{
+  "profiles": {
+    "Smart_Sudoku": {
+      "commandName": "MsixPackage"
+    }
+  }
+}
