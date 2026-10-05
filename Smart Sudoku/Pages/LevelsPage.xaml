@@ -6,9 +6,27 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    Background="{StaticResource PageBackgroundBrush}">
 
     <Grid>
+        <Button Style="{StaticResource CircleButton}"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="24"
+                ToolTipService.ToolTip="חזרה"
+                AutomationProperties.Name="חזרה"
+                Click="BackButton_Click">
+            <FontIcon Glyph="&#xE72B;" FontSize="20" />
+        </Button>
 
+        <Viewbox Margin="24,90,24,24" Stretch="Uniform" StretchDirection="DownOnly">
+            <StackPanel Spacing="12">
+                <TextBlock Text="Levels" Style="{StaticResource TitleText}" />
+                <TextBlock Text="בחרו שלב — ככל שהמספר גבוה יותר, הלוח מאתגר יותר" Style="{StaticResource SubtitleText}" Margin="0,0,0,20" />
+
+                <!-- Filled with 10 level buttons in code -->
+                <Grid x:Name="LevelsGrid" ColumnSpacing="18" RowSpacing="18" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Viewbox>
     </Grid>
 </Page>

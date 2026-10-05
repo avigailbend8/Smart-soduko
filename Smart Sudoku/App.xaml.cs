@@ -1,6 +1,8 @@
 ﻿using System;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
+using Windows.Foundation;
+using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
@@ -19,6 +21,10 @@ namespace Smart_Sudoku
         public App()
         {
             InitializeComponent();
+
+            // Open tall enough to show the whole Sudoku board and number pad
+            ApplicationView.PreferredLaunchViewSize = new Size(900, 860);
+            ApplicationView.PreferredLaunchWindowingMode = ApplicationViewWindowingMode.PreferredLaunchViewSize;
 
             Suspending += OnSuspending;
         }

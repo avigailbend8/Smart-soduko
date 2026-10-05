@@ -1,4 +1,4 @@
-﻿<Page
+<Page
     x:Class="Smart_Sudoku.Pages.MenuPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -6,9 +6,128 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
-    Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    Background="{StaticResource PageBackgroundBrush}">
 
-    <Grid>
+    <Page.Resources>
+        <Style x:Key="Deco" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI Symbol" />
+            <Setter Property="Foreground" Value="{StaticResource RoseBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
 
-    </Grid>
+        <!-- "Let's play" panel pops in -->
+        <Storyboard x:Name="ShowPlayStoryboard">
+            <DoubleAnimation Storyboard.TargetName="PlayPanel" Storyboard.TargetProperty="Opacity"
+                             From="0" To="1" Duration="0:0:0.45" />
+            <DoubleAnimation Storyboard.TargetName="PlayScale" Storyboard.TargetProperty="ScaleX"
+                             From="0.8" To="1" Duration="0:0:0.6">
+                <DoubleAnimation.EasingFunction>
+                    <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="PlayScale" Storyboard.TargetProperty="ScaleY"
+                             From="0.8" To="1" Duration="0:0:0.6">
+                <DoubleAnimation.EasingFunction>
+                    <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+
+        <!-- Hearts float gently and sparkles twinkle -->
+        <Storyboard x:Name="DecorStoryboard" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetName="LeftHeartMove" Storyboard.TargetProperty="Y"
+                             From="0" To="-10" Duration="0:0:1.2" AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="RightHeartMove" Storyboard.TargetProperty="Y"
+                             From="-10" To="0" Duration="0:0:1.2" AutoReverse="True">
+                <DoubleAnimation.EasingFunction>
+                    <SineEase EasingMode="EaseInOut" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+            <DoubleAnimation Storyboard.TargetName="TopSparkles" Storyboard.TargetProperty="Opacity"
+                             From="1" To="0.45" Duration="0:0:1.2" AutoReverse="True" />
+            <DoubleAnimation Storyboard.TargetName="BottomSparkles" Storyboard.TargetProperty="Opacity"
+                             From="0.45" To="1" Duration="0:0:1.2" AutoReverse="True" />
+        </Storyboard>
+    </Page.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24,40" Spacing="16" MaxWidth="520">
+
+            <Image Source="ms-appx:///Assets/Square150x150Logo.png" Width="130" Height="130" />
+
+            <TextBlock Text="Smart Sudoku" Style="{StaticResource TitleText}" FontSize="46" />
+            <TextBlock Text="סודוקו חכם ומתוק 💕" Style="{StaticResource SubtitleText}" Margin="0,0,0,16" />
+
+            <!-- Step 1: choose how to play -->
+            <StackPanel x:Name="ChoicePanel" Spacing="16" Width="380">
+                <Button Content="התחבר למשתמש קיים"
+                        HorizontalAlignment="Stretch"
+                        Click="SignInButton_Click" />
+                <Button Content="המשך כאורח"
+                        HorizontalAlignment="Stretch"
+                        Click="GuestButton_Click" />
+            </StackPanel>
+
+            <!-- Step 2: "Let's play" with cute pink decorations -->
+            <StackPanel x:Name="PlayPanel"
+                        Spacing="14"
+                        Visibility="Collapsed"
+                        Opacity="0"
+                        RenderTransformOrigin="0.5,0.5">
+                <StackPanel.RenderTransform>
+                    <ScaleTransform x:Name="PlayScale" />
+                </StackPanel.RenderTransform>
+
+                <StackPanel x:Name="TopSparkles" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="18">
+                    <TextBlock Text="✿" FontSize="22" Style="{StaticResource Deco}" Foreground="#FFF48FB1" />
+                    <TextBlock Text="✦" FontSize="16" Style="{StaticResource Deco}" Foreground="#FFF6C6DA" />
+                    <TextBlock Text="♥" FontSize="26" Style="{StaticResource Deco}" />
+                    <TextBlock Text="✦" FontSize="16" Style="{StaticResource Deco}" Foreground="#FFF6C6DA" />
+                    <TextBlock Text="✿" FontSize="22" Style="{StaticResource Deco}" Foreground="#FFF48FB1" />
+                </StackPanel>
+
+                <TextBlock x:Name="GreetingText"
+                           Style="{StaticResource SubtitleText}"
+                           Foreground="{StaticResource BerryBrush}"
+                           FontSize="22"
+                           FontWeight="SemiBold" />
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="18">
+                    <TextBlock Text="♥" FontSize="34" Style="{StaticResource Deco}" Foreground="#FFF48FB1">
+                        <TextBlock.RenderTransform>
+                            <TranslateTransform x:Name="LeftHeartMove" />
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+
+                    <Button Content="Let's play  ▶"
+                            Width="300"
+                            FontSize="26"
+                            Padding="32,18"
+                            CornerRadius="24"
+                            BorderThickness="2.5"
+                            BorderBrush="{StaticResource RoseBrush}"
+                            Foreground="{StaticResource RoseBrush}"
+                            Click="LetsPlayButton_Click" />
+
+                    <TextBlock Text="♥" FontSize="34" Style="{StaticResource Deco}" Foreground="#FFF48FB1">
+                        <TextBlock.RenderTransform>
+                            <TranslateTransform x:Name="RightHeartMove" />
+                        </TextBlock.RenderTransform>
+                    </TextBlock>
+                </StackPanel>
+
+                <StackPanel x:Name="BottomSparkles" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="14">
+                    <TextBlock Text="✦" FontSize="14" Style="{StaticResource Deco}" Foreground="#FFF6C6DA" />
+                    <TextBlock Text="❀" FontSize="20" Style="{StaticResource Deco}" />
+                    <TextBlock Text="✦" FontSize="14" Style="{StaticResource Deco}" Foreground="#FFF6C6DA" />
+                    <TextBlock Text="❀" FontSize="20" Style="{StaticResource Deco}" Foreground="#FFF48FB1" />
+                    <TextBlock Text="✦" FontSize="14" Style="{StaticResource Deco}" Foreground="#FFF6C6DA" />
+                </StackPanel>
+            </StackPanel>
+        </StackPanel>
+    </ScrollViewer>
 </Page>
