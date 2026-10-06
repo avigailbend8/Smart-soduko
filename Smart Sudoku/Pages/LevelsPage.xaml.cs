@@ -8,7 +8,7 @@ namespace Smart_Sudoku.Pages
     /// </summary>
     public sealed partial class LevelsPage : Page
     {
-        private const int LevelCount = 10;
+        public const int LevelCount = 20;
         private const int Columns = 5;
 
         public LevelsPage()

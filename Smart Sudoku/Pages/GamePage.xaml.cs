@@ -54,7 +54,6 @@ namespace Smart_Sudoku.Pages
             if (e.Parameter is int chosenLevel)
                 level = chosenLevel;
 
-            LevelText.Text = $"Level {level}";
             NewGame();
         }
 
@@ -154,8 +153,34 @@ namespace Smart_Sudoku.Pages
             board = (int[,])puzzle.Clone();
             selRow = selCol = -1;
             hasGame = true;
+            LevelText.Text = $"Level {level}";
             StatusText.Text = "בחרו משבצת ריקה ואז מספר";
+            WinOverlay.Visibility = Visibility.Collapsed;
             Refresh();
+        }
+
+        private void ShowWin()
+        {
+            bool isLastLevel = level >= LevelsPage.LevelCount;
+            WinText.Text = isLastLevel
+                ? "סיימת את כל השלבים! איזו אלופה 💖"
+                : $"פתרת את שלב {level} 🎉";
+            NextLevelButton.Content = isLastLevel ? "חזרה לשלבים" : "לשלב הבא  ▶";
+            BackToLevelsButton.Visibility = isLastLevel ? Visibility.Collapsed : Visibility.Visible;
+            WinOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void NextLevelButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (level >= LevelsPage.LevelCount)
+            {
+                if (Frame.CanGoBack)
+                    Frame.GoBack();
+                return;
+            }
+
+            level++;
+            NewGame();
         }
 
         private void Refresh()
@@ -195,6 +220,31 @@ namespace Smart_Sudoku.Pages
                     cells[r, c].Background = bg;
                 }
             }
+
+            UpdateNumberPad();
+        }
+
+        // Hide a number's button once all 9 of it are correctly placed.
+        // The button keeps its spot so the other buttons don't jump around.
+        private void UpdateNumberPad()
+        {
+            var placed = new int[10];
+            for (int r = 0; r < 9; r++)
+            {
+                for (int c = 0; c < 9; c++)
+                {
+                    if (board[r, c] != 0 && board[r, c] == solution[r, c])
+                        placed[board[r, c]]++;
+                }
+            }
+
+            foreach (Button button in NumberPad.Children)
+            {
+                bool done = placed[(int)button.Tag] == 9;
+                button.Opacity = done ? 0 : 1;
+                button.IsHitTestVisible = !done;
+                button.IsTabStop = !done;
+            }
         }
 
         private bool IsSolved()
@@ -228,7 +278,7 @@ namespace Smart_Sudoku.Pages
             Refresh();
 
             if (IsSolved())
-                StatusText.Text = $"כל הכבוד! פתרת את שלב {level} 🎉";
+                ShowWin();
             else if (n != solution[selRow, selCol])
                 StatusText.Text = "אופס, המספר הזה לא מתאים כאן";
             else

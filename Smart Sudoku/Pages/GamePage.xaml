@@ -82,5 +82,44 @@
                 </StackPanel>
             </StackPanel>
         </Viewbox>
+
+        <!-- Shown when the board is solved -->
+        <Grid x:Name="WinOverlay"
+              Grid.RowSpan="2"
+              Background="#B3FCE1EC"
+              Visibility="Collapsed">
+            <Border Style="{StaticResource Card}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Padding="48,36"
+                    Margin="24"
+                    MinWidth="380">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="✿  ♥  ✦  ♥  ✿"
+                               FontFamily="Segoe UI Symbol"
+                               FontSize="24"
+                               Foreground="#FFF48FB1"
+                               HorizontalAlignment="Center" />
+                    <TextBlock Text="כל הכבוד!" Style="{StaticResource TitleText}" FontSize="48" />
+                    <TextBlock x:Name="WinText"
+                               Style="{StaticResource SubtitleText}"
+                               FlowDirection="RightToLeft" />
+                    <Button x:Name="NextLevelButton"
+                            HorizontalAlignment="Stretch"
+                            FontSize="22"
+                            Padding="32,16"
+                            Margin="0,8,0,0"
+                            BorderThickness="2.5"
+                            BorderBrush="{StaticResource RoseBrush}"
+                            Foreground="{StaticResource RoseBrush}"
+                            Click="NextLevelButton_Click" />
+                    <Button x:Name="BackToLevelsButton"
+                            Content="חזרה לשלבים"
+                            HorizontalAlignment="Stretch"
+                            FontSize="18"
+                            Click="BackButton_Click" />
+                </StackPanel>
+            </Border>
+        </Grid>
     </Grid>
 </Page>

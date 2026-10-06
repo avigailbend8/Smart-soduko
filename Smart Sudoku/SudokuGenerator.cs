@@ -17,7 +17,8 @@ namespace Smart_Sudoku
             Fill(solution, 0);
 
             var puzzle = (int[,])solution.Clone();
-            int target = Math.Min(30 + (level - 1) * 3, 58);
+            // Level 1 has 28 empty cells, level 20 about 56
+            int target = Math.Min(28 + (level - 1) * 3 / 2, 58);
             int removed = 0;
 
             foreach (int i in Enumerable.Range(0, 81).OrderBy(_ => Rnd.Next()))
