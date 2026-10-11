@@ -245,6 +245,39 @@ namespace Smart_Sudoku.Pages
             RefreshStore();
         }
 
+        private void GiftButton_Click(object sender, RoutedEventArgs e)
+        {
+            GiftPanel.Visibility = GiftPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+            if (GiftPanel.Visibility == Visibility.Visible)
+                GiftCodeBox.Focus(FocusState.Programmatic);
+        }
+
+        private void GiftCodeBox_KeyDown(object sender, Windows.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+                RedeemGift_Click(sender, e);
+        }
+
+        private void RedeemGift_Click(object sender, RoutedEventArgs e)
+        {
+            switch (GameData.RedeemGiftCode(GiftCodeBox.Password))
+            {
+                case GameData.GiftResult.Granted:
+                    Sounds.Play("coin");
+                    GiftResultText.Text = $"🍫 קיבלת {GameData.GiftCoins} מטבעות!";
+                    GiftPanel.Visibility = Visibility.Collapsed;
+                    break;
+                case GameData.GiftResult.AlreadyUsed:
+                    GiftResultText.Text = "כבר השתמשת בסיסמה הזאת 🙂";
+                    break;
+                default:
+                    GiftResultText.Text = "סיסמה לא נכונה";
+                    break;
+            }
+            GiftCodeBox.Password = "";
+            RefreshStore();
+        }
+
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
             if (Frame.CanGoBack)

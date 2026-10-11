@@ -532,9 +532,25 @@ function storeView() {
     <div class="card stack"><h3>🎨 ערכות נושא</h3><div class="tiles">${THEMES.map(t => tile(t, "theme",
       t.pics ? `<div class="swatch pic"><img src="${imgSrc(t.pics[0])}" alt=""></div>` : `<div class="swatch" style="background:linear-gradient(135deg,${t.bg.join(",")})">${t.decor ? t.decor.slice(0, 3).join(" ") : `<span><span style="color:${t.c[1]}">●</span> <span style="color:${t.c[0]}">●</span></span>`}</div>`,
       (setForTheme(t.id) ? `<span class="credit">כולל סמלים בלוח: ${setForTheme(t.id).s.slice(0, 3).join(" ")}</span>` : "") + (t.credit ? `<span class="credit">${t.credit}</span>` : ""))).join("")}</div></div>
-    <div class="card stack"><h3>🍓 סמלים בלוח</h3><div class="tiles">${SYMBOLS.map(s => tile(s, "symbols", `<div class="swatch" style="background:var(--rel);font-weight:700;direction:ltr">${s.s.slice(0, 3).join(" ")}</div>`,
+    <div class="card stack" id="symbolsCard"><h3>🍓 סמלים בלוח</h3><div class="tiles">${SYMBOLS.map(s => tile(s, "symbols", `<div class="swatch" style="background:var(--rel);font-weight:700;direction:ltr">${s.s.slice(0, 3).join(" ")}</div>`,
       s.theme ? `<span class="credit">מתאים לערכה ${themeName(s.theme)}</span>` : "", s.price === 0 && s.theme ? `מגיע עם ${themeName(s.theme)}` : null)).join("")}</div></div>
+    <div class="stack" style="align-items:center;gap:8px">
+      <button class="btn" data-act="gift" style="font-size:14px;padding:6px 16px">🍫 טוויקס לבן</button>
+      ${giftOpen ? `<div class="row"><input id="giftCode" type="password" inputmode="numeric" placeholder="סיסמה" aria-label="סיסמה" style="width:160px"><button class="btn" data-act="redeem" style="padding:8px 18px">אישור</button></div>` : ""}
+      <p role="status" style="margin:0;font-weight:500;min-height:1.4em">${giftMsg}</p>
+    </div>
   </div>`;
+}
+// Secret gift code: each player can use it once
+const GIFT_CODE = "0109", GIFT_COINS = 500, GIFT_MARKER = "gift-twix";
+let giftOpen = false, giftMsg = "";
+function redeemGift() {
+  const code = ($("#giftCode")?.value || "").trim();
+  if (code !== GIFT_CODE) giftMsg = "סיסמה לא נכונה";
+  else if (P.owned.includes(GIFT_MARKER)) giftMsg = "כבר השתמשת בסיסמה הזאת 🙂";
+  else { P.owned.push(GIFT_MARKER); P.coins += GIFT_COINS; persist(); play("coin"); giftMsg = `🍫 קיבלת ${GIFT_COINS} מטבעות!`; giftOpen = false; }
+  render();
+  if (giftOpen) $("#giftCode")?.focus();
 }
 function spend(price) { if (P.coins < price) { storeMsg = "אין מספיק מטבעות 😅 — אפשר להרוויח עוד בשלבים"; return false; } P.coins -= price; play("coin"); return true; }
 
@@ -559,7 +575,7 @@ document.addEventListener("click", e => {
   if (a === "pick") return login(b.dataset.name);
   if (a === "logout") { player = null; P = freshProgress(); applyTheme(); navStack = []; return go("menu", false); }
   if (a === "levels") return go("levels");
-  if (a === "store") { storeMsg = ""; return go("store"); }
+  if (a === "store") { storeMsg = ""; giftOpen = false; giftMsg = ""; return go("store"); }
   if (a === "help") { if (view === "game") stopTimer(); return go("help"); }
   if (a === "diff") { diff = +b.dataset.d; return render(); }
   if (a === "play") { newGame(+b.dataset.id); return go("game"); }
@@ -577,6 +593,8 @@ document.addEventListener("click", e => {
   if (a === "resume") { G.paused = false; $("#layer").innerHTML = ""; return startTimer(); }
   if (a === "sound") { P.sound = !P.sound; persist(); return drawGame(); }
   if (a === "buyheart") { if (P.coins < HEART_PRICE) { $("#goMsg").textContent = `אין מספיק מטבעות 😅 (צריך ${HEART_PRICE} 🪙)`; return; } P.coins -= HEART_PRICE; play("coin"); persist(); G.lives = 1; G.finished = false; G.status = "קיבלת לב נוסף! ממשיכים 💖"; $("#layer").innerHTML = ""; drawGame(); return startTimer(); }
+  if (a === "gift") { giftOpen = !giftOpen; giftMsg = ""; render(); if (giftOpen) $("#giftCode").focus(); return; }
+  if (a === "redeem") return redeemGift();
   if (a === "buyhints") { if (spend(HINT_PACK)) { P.bonusHints += 3; storeMsg = "קנית 3 רמזים! 💡"; persist(); } return render(); }
   if (a === "buylife") { if (spend(HEART_PRICE)) { P.bonusLives++; storeMsg = "קנית לב נוסף! 💖"; persist(); } return render(); }
   if (a === "buy") {
@@ -591,6 +609,7 @@ document.addEventListener("click", e => {
 });
 document.addEventListener("keydown", e => {
   if (view === "menu" && e.key === "Enter" && e.target.id === "name") return $('[data-act="login"]').click();
+  if (e.key === "Enter" && e.target.id === "giftCode") return redeemGift();
   if (view !== "game" || !G || G.finished || G.paused || $("#layer").innerHTML) return;
   if (/^[1-9]$/.test(e.key)) { if (!G.sel) G.sel = [0, 0]; place(+e.key); }
   else if (e.key === "Backspace" || e.key === "Delete") $('[data-act="erase"]').click();

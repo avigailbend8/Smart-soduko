@@ -148,6 +148,27 @@ namespace Smart_Sudoku
             return true;
         }
 
+        // ---------- Secret gift code ----------
+
+        private const string GiftCode = "0109";
+        private const string GiftMarker = "gift-twix";  // kept with the owned items, so each player redeems once
+        public const int GiftCoins = 500;
+
+        public enum GiftResult { WrongCode, AlreadyUsed, Granted }
+
+        public static GiftResult RedeemGiftCode(string code)
+        {
+            if (code.Trim() != GiftCode)
+                return GiftResult.WrongCode;
+            if (progress.Owned.Contains(GiftMarker))
+                return GiftResult.AlreadyUsed;
+
+            progress.Owned.Add(GiftMarker);
+            progress.Coins += GiftCoins;
+            Save();
+            return GiftResult.Granted;
+        }
+
         // ---------- Settings ----------
 
         public static void SelectTheme(string id)

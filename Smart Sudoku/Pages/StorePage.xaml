@@ -90,6 +90,28 @@
                         <Grid x:Name="SymbolsGrid" ColumnSpacing="14" RowSpacing="14" />
                     </StackPanel>
                 </Border>
+
+                <!-- Secret gift code -->
+                <StackPanel HorizontalAlignment="Center" Spacing="10" FlowDirection="RightToLeft">
+                    <Button Content="🍫 טוויקס לבן"
+                            HorizontalAlignment="Center"
+                            FontSize="14"
+                            Padding="16,6"
+                            Click="GiftButton_Click" />
+                    <StackPanel x:Name="GiftPanel" Orientation="Horizontal" Spacing="10" Visibility="Collapsed">
+                        <PasswordBox x:Name="GiftCodeBox"
+                                     PlaceholderText="סיסמה"
+                                     Width="160"
+                                     CornerRadius="12"
+                                     KeyDown="GiftCodeBox_KeyDown" />
+                        <Button Content="אישור" Padding="20,6" FontSize="15" Click="RedeemGift_Click" />
+                    </StackPanel>
+                    <TextBlock x:Name="GiftResultText"
+                               HorizontalAlignment="Center"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource BerryBrush}" />
+                </StackPanel>
             </StackPanel>
         </ScrollViewer>
 
