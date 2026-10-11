@@ -1,3 +1,4 @@
+using System;
 using Windows.System;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -6,7 +7,7 @@ using Windows.UI.Xaml.Input;
 namespace Smart_Sudoku.Pages
 {
     /// <summary>
-    /// Lets an existing player enter their user name.
+    /// Signs in a registered user with their user name and password.
     /// </summary>
     public sealed partial class SingInPage : Page
     {
@@ -21,7 +22,7 @@ namespace Smart_Sudoku.Pages
                 Frame.GoBack();
         }
 
-        private void UserNameBox_KeyDown(object sender, KeyRoutedEventArgs e)
+        private void Field_KeyDown(object sender, KeyRoutedEventArgs e)
         {
             if (e.Key == VirtualKey.Enter)
                 SignIn_Click(sender, e);
@@ -30,19 +31,46 @@ namespace Smart_Sudoku.Pages
         private void SignIn_Click(object sender, RoutedEventArgs e)
         {
             string name = UserNameBox.Text.Trim();
-            if (name.Length == 0)
+            if (name.Length == 0 || PasswordBox.Password.Length == 0)
             {
-                ErrorText.Text = "צריך להקליד שם משתמש";
-                ErrorText.Visibility = Visibility.Visible;
+                ShowError("צריך להקליד שם משתמש וסיסמה");
                 return;
             }
 
-            Session.PlayerName = name;
-            Session.IsGuest = false;
+            int? userId;
+            try
+            {
+                userId = Database.Login(name, PasswordBox.Password);
+            }
+            catch (Exception)
+            {
+                ShowError("הייתה בעיה בגישה למאגר המשתמשים. נסו שוב.");
+                return;
+            }
 
-            // Back to the menu, which now shows the "Let's play" button
-            if (Frame.CanGoBack)
-                Frame.GoBack();
+            if (userId is not int id)
+            {
+                ShowError("שם המשתמש או הסיסמה לא נכונים");
+                PasswordBox.Password = "";
+                return;
+            }
+
+            Session.SignIn(id, Database.GetUserName(id));
+
+            // Back to a fresh menu, which now shows the "Let's play" button
+            Frame.Navigate(typeof(MenuPage));
+            Frame.BackStack.Clear();
+        }
+
+        private void RegisterLink_Click(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(RegisterPage));
+        }
+
+        private void ShowError(string message)
+        {
+            ErrorText.Text = message;
+            ErrorText.Visibility = Visibility.Visible;
         }
     }
 }

@@ -7,7 +7,21 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     NavigationCacheMode="Enabled"
-    Background="{StaticResource PageBackgroundBrush}">
+    Background="Transparent">
+
+    <Page.Resources>
+        <Style x:Key="ToolButton" TargetType="Button" BasedOn="{StaticResource WhiteButton}">
+            <Setter Property="MinWidth" Value="130" />
+            <Setter Property="Padding" Value="18,10" />
+            <Setter Property="FontSize" Value="17" />
+        </Style>
+        <Style x:Key="StatText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Foreground" Value="{StaticResource BerryBrush}" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </Page.Resources>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -15,7 +29,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Top bar: back, level title, help -->
+        <!-- Top bar: back, level title, sound, help -->
         <Grid Margin="24,20,24,0">
             <Button Style="{StaticResource CircleButton}"
                     HorizontalAlignment="Left"
@@ -31,17 +45,50 @@
                        FontSize="36"
                        VerticalAlignment="Center" />
 
-            <Button Content="?"
-                    Style="{StaticResource CircleButton}"
-                    HorizontalAlignment="Right"
-                    FontSize="26"
-                    ToolTipService.ToolTip="איך משחקים?"
-                    AutomationProperties.Name="עזרה"
-                    Click="HelpButton_Click" />
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                <Button Style="{StaticResource CircleButton}"
+                        ToolTipService.ToolTip="עצירה"
+                        AutomationProperties.Name="עצירה"
+                        Click="PauseButton_Click">
+                    <FontIcon Glyph="&#xE769;" FontSize="20" />
+                </Button>
+                <Button Style="{StaticResource CircleButton}"
+                        ToolTipService.ToolTip="צלילים"
+                        AutomationProperties.Name="צלילים"
+                        Click="SoundButton_Click">
+                    <FontIcon x:Name="SoundIcon" Glyph="&#xE767;" FontSize="20" />
+                </Button>
+                <Button Content="?"
+                        Style="{StaticResource CircleButton}"
+                        FontSize="26"
+                        ToolTipService.ToolTip="איך משחקים?"
+                        AutomationProperties.Name="עזרה"
+                        Click="HelpButton_Click" />
+            </StackPanel>
         </Grid>
 
-        <Viewbox Grid.Row="1" Margin="24,12,24,24" Stretch="Uniform" StretchDirection="DownOnly">
-            <StackPanel Spacing="18">
+        <Viewbox Grid.Row="1" Margin="24,8,24,20" Stretch="Uniform" StretchDirection="DownOnly">
+            <StackPanel Spacing="14">
+
+                <!-- Timer, lives, coins -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="28">
+                    <TextBlock x:Name="TimerText" Style="{StaticResource StatText}" Text="⏱ 00:00" />
+                    <TextBlock x:Name="LivesText"
+                               Style="{StaticResource StatText}"
+                               FontFamily="Segoe UI Symbol"
+                               FontSize="24"
+                               Foreground="{StaticResource RoseBrush}"
+                               Text="♥♥♥" />
+                    <TextBlock x:Name="SpeedText"
+                               Style="{StaticResource StatText}"
+                               Text="⚡ +0"
+                               ToolTipService.ToolTip="בונוס מהירות: מטבע על כל 5 שניות מהר יותר מהיעד" />
+                    <TextBlock x:Name="BestText"
+                               Style="{StaticResource StatText}"
+                               Text="🏆 --:--"
+                               ToolTipService.ToolTip="השיא שלך בשלב הזה" />
+                    <TextBlock x:Name="CoinsText" Style="{StaticResource StatText}" Text="🪙 0" />
+                </StackPanel>
 
                 <!-- The 9x9 board, filled in code -->
                 <Border Background="White"
@@ -60,22 +107,43 @@
                 <!-- Numbers 1-9, filled in code -->
                 <StackPanel x:Name="NumberPad" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" />
 
-                <StackPanel Orientation="Horizontal" Spacing="14" HorizontalAlignment="Center">
-                    <Button MinWidth="150" Padding="24,12" Click="EraseButton_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <FontIcon Glyph="&#xE75C;" FontSize="18" />
+                <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                    <Button Style="{StaticResource ToolButton}" Click="UndoButton_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE7A7;" FontSize="16" />
+                            <TextBlock Text="ביטול" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ToolButton}" Click="EraseButton_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE75C;" FontSize="16" />
                             <TextBlock Text="מחק" />
                         </StackPanel>
                     </Button>
-                    <Button MinWidth="150" Padding="24,12" Click="RestartButton_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <FontIcon Glyph="&#xE72C;" FontSize="18" />
+                    <Button x:Name="NotesButton" Style="{StaticResource ToolButton}" Click="NotesButton_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE70F;" FontSize="16" />
+                            <TextBlock x:Name="NotesText" Text="פתקים" />
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ToolButton}" Click="HintButton_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE82F;" FontSize="16" />
+                            <TextBlock x:Name="HintText" Text="רמז (3)" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                    <Button Style="{StaticResource ToolButton}" Click="RestartButton_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE72C;" FontSize="16" />
                             <TextBlock Text="משחק חוזר" />
                         </StackPanel>
                     </Button>
-                    <Button MinWidth="150" Padding="24,12" Click="NewBoardButton_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="10">
-                            <FontIcon Glyph="&#xE8B1;" FontSize="18" />
+                    <Button Style="{StaticResource ToolButton}" Click="NewBoardButton_Click">
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <FontIcon Glyph="&#xE8B1;" FontSize="16" />
                             <TextBlock Text="שנה את דף הסודוקו" />
                         </StackPanel>
                     </Button>
@@ -86,23 +154,32 @@
         <!-- Shown when the board is solved -->
         <Grid x:Name="WinOverlay"
               Grid.RowSpan="2"
-              Background="#B3FCE1EC"
+              Background="{StaticResource OverlayBrush}"
               Visibility="Collapsed">
             <Border Style="{StaticResource Card}"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
-                    Padding="48,36"
+                    Padding="48,32"
                     Margin="24"
-                    MinWidth="380">
-                <StackPanel Spacing="16">
+                    MinWidth="400">
+                <StackPanel Spacing="14">
                     <TextBlock Text="✿  ♥  ✦  ♥  ✿"
                                FontFamily="Segoe UI Symbol"
                                FontSize="24"
-                               Foreground="#FFF48FB1"
+                               Foreground="{StaticResource DecoBrush}"
                                HorizontalAlignment="Center" />
                     <TextBlock Text="כל הכבוד!" Style="{StaticResource TitleText}" FontSize="48" />
-                    <TextBlock x:Name="WinText"
+                    <TextBlock x:Name="WinStarsText"
+                               FontFamily="Segoe UI Symbol"
+                               FontSize="44"
+                               Foreground="{StaticResource RoseBrush}"
+                               HorizontalAlignment="Center"
+                               Text="★★★" />
+                    <TextBlock x:Name="WinText" Style="{StaticResource SubtitleText}" FlowDirection="RightToLeft" />
+                    <TextBlock x:Name="WinDetailsText"
                                Style="{StaticResource SubtitleText}"
+                               Foreground="{StaticResource BerryBrush}"
+                               FontWeight="SemiBold"
                                FlowDirection="RightToLeft" />
                     <Button x:Name="NextLevelButton"
                             HorizontalAlignment="Stretch"
@@ -121,5 +198,76 @@
                 </StackPanel>
             </Border>
         </Grid>
+
+        <!-- Shown when all lives are used -->
+        <Grid x:Name="GameOverOverlay"
+              Grid.RowSpan="2"
+              Background="{StaticResource OverlayBrush}"
+              Visibility="Collapsed">
+            <Border Style="{StaticResource Card}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Padding="48,32"
+                    Margin="24"
+                    MinWidth="400">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="💔" FontSize="56" HorizontalAlignment="Center" />
+                    <TextBlock Text="אוי, נגמרו הלבבות" Style="{StaticResource TitleText}" FontSize="36" />
+                    <TextBlock x:Name="GameOverMessage" Style="{StaticResource SubtitleText}" FlowDirection="RightToLeft" />
+                    <Button x:Name="BuyHeartButton"
+                            HorizontalAlignment="Stretch"
+                            FontSize="22"
+                            Padding="32,16"
+                            Margin="0,8,0,0"
+                            BorderThickness="2.5"
+                            BorderBrush="{StaticResource RoseBrush}"
+                            Foreground="{StaticResource RoseBrush}"
+                            Click="BuyHeartButton_Click" />
+                    <Button Content="לנסות שוב מההתחלה"
+                            HorizontalAlignment="Stretch"
+                            FontSize="18"
+                            Click="RestartButton_Click" />
+                    <Button Content="חזרה לשלבים"
+                            HorizontalAlignment="Stretch"
+                            FontSize="18"
+                            Click="BackButton_Click" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Shown while the game is paused; hides the board so the timer is fair -->
+        <Grid x:Name="PauseOverlay"
+              Grid.RowSpan="2"
+              Background="{StaticResource PageBackgroundBrush}"
+              Visibility="Collapsed">
+            <Border Style="{StaticResource Card}"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Padding="48,32"
+                    Margin="24"
+                    MinWidth="400">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="⏸" FontSize="56" HorizontalAlignment="Center" Foreground="{StaticResource RoseBrush}" />
+                    <TextBlock Text="המשחק בהפסקה" Style="{StaticResource TitleText}" FontSize="36" />
+                    <TextBlock x:Name="PauseTimeText" Style="{StaticResource SubtitleText}" FlowDirection="RightToLeft" />
+                    <Button Content="המשך לשחק  ▶"
+                            HorizontalAlignment="Stretch"
+                            FontSize="22"
+                            Padding="32,16"
+                            Margin="0,8,0,0"
+                            BorderThickness="2.5"
+                            BorderBrush="{StaticResource RoseBrush}"
+                            Foreground="{StaticResource RoseBrush}"
+                            Click="ResumeButton_Click" />
+                    <Button Content="חזרה לשלבים"
+                            HorizontalAlignment="Stretch"
+                            FontSize="18"
+                            Click="BackButton_Click" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- Falling hearts and flowers when a level is solved -->
+        <Canvas x:Name="CelebrationCanvas" Grid.RowSpan="2" IsHitTestVisible="False" />
     </Grid>
 </Page>

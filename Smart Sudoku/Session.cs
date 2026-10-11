@@ -5,10 +5,34 @@ namespace Smart_Sudoku
     /// </summary>
     public static class Session
     {
-        public static string? PlayerName { get; set; }
+        public static string? PlayerName { get; private set; }
 
-        public static bool IsGuest { get; set; }
+        /// <summary>Database id of the signed-in user, or null for the guest.</summary>
+        public static int? UserId { get; private set; }
 
-        public static bool HasChosen => IsGuest || PlayerName != null;
+        public static bool IsGuest { get; private set; }
+
+        public static bool HasChosen => IsGuest || UserId != null;
+
+        public static void SignIn(int userId, string userName)
+        {
+            UserId = userId;
+            PlayerName = userName;
+            IsGuest = false;
+        }
+
+        public static void PlayAsGuest()
+        {
+            UserId = null;
+            PlayerName = null;
+            IsGuest = true;
+        }
+
+        public static void SignOut()
+        {
+            UserId = null;
+            PlayerName = null;
+            IsGuest = false;
+        }
     }
 }

@@ -15,6 +15,14 @@
   </PropertyGroup>
   <ItemGroup>
     <Content Include="Assets\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Sounds\*.wav" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Patterns\*.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Characters\*.jpg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- SQLite database, using the copy of SQLite built into Windows -->
+    <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="9.0.10" />
+    <PackageReference Include="SQLitePCLRaw.bundle_winsqlite3" Version="2.1.10" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Assets\BackGrounds\" />

@@ -5,7 +5,7 @@ using Windows.UI.Xaml.Navigation;
 namespace Smart_Sudoku.Pages
 {
     /// <summary>
-    /// Start screen: sign in or continue as a guest, then go to the levels.
+    /// Start screen: sign in, register or continue as a guest, then go to the levels.
     /// </summary>
     public sealed partial class MenuPage : Page
     {
@@ -23,13 +23,24 @@ namespace Smart_Sudoku.Pages
         private void UpdateChoice()
         {
             if (!Session.HasChosen)
+            {
+                ChoicePanel.Visibility = Visibility.Visible;
+                PlayPanel.Visibility = Visibility.Collapsed;
                 return;
+            }
+
+            // Each player has their own saved progress and theme
+            if (Session.UserId is int userId)
+                GameData.LoadUser(userId);
+            else
+                GameData.LoadGuest();
+            Themes.Apply(GameData.ThemeId);
 
             GreetingText.Text = Session.PlayerName != null
                 ? $"שלום, {Session.PlayerName}! 💖"
                 : "משחקים כאורח 💖";
 
-            // Swap the two choice buttons for "Let's play" and its decorations
+            // Swap the choice buttons for "Let's play" and its decorations
             ChoicePanel.Visibility = Visibility.Collapsed;
             PlayPanel.Visibility = Visibility.Visible;
             ShowPlayStoryboard.Begin();
@@ -41,10 +52,22 @@ namespace Smart_Sudoku.Pages
             Frame.Navigate(typeof(SingInPage));
         }
 
+        private void RegisterButton_Click(object sender, RoutedEventArgs e)
+        {
+            Frame.Navigate(typeof(RegisterPage));
+        }
+
         private void GuestButton_Click(object sender, RoutedEventArgs e)
         {
-            Session.PlayerName = null;
-            Session.IsGuest = true;
+            Session.PlayAsGuest();
+            UpdateChoice();
+        }
+
+        private void SwitchUserButton_Click(object sender, RoutedEventArgs e)
+        {
+            Session.SignOut();
+            Themes.Apply("pink");
+            DecorStoryboard.Stop();
             UpdateChoice();
         }
 

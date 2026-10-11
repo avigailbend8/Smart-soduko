@@ -1,0 +1,609 @@
+<title>Smart Sudoku</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Rubik:wght@400;500;700&display=swap">
+<style>
+/* Layout: one centered column per view; the board is the hero, controls stack under it.
+   Colors are game themes the player buys in the store, so the page commits to the active theme in both OS modes. */
+:root {
+  --bg1: #FFF4F8; --bg2: #FCE1EC; --bg3: #FCE1EC;
+  --dark: #8A2A55; --accent: #E75A97; --soft: #F6C6DA; --muted: #A0607E;
+  --deco: #F48FB1; --sel: #F9C5DA; --same: #FBD8E6; --rel: #FEF0F6; --hover: #FFF6FA; --press: #FBD6E5;
+  --card: #FFFFFF; --wrong: #D93A4A;
+  --font-display: "Varela Round", "Rubik", "Segoe UI", Arial, sans-serif;
+  --font-body: "Rubik", "Segoe UI", Arial, sans-serif;
+  color-scheme: light;
+}
+html, body { min-height: 100%; }
+body { background: linear-gradient(135deg, var(--bg1), var(--bg2) 55%, var(--bg3)); background-attachment: fixed; color: var(--dark); font-family: var(--font-body); font-size: 16px; }
+#backdrop { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+#backdrop canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.decor { position: absolute; opacity: .28; user-select: none; }
+.polaroid { position: absolute; background: #fff; padding: 8px 8px 22px; border-radius: 6px; box-shadow: 0 6px 18px rgba(0,0,0,.12); opacity: .9; }
+.polaroid img { display: block; width: 170px; height: 170px; object-fit: cover; border-radius: 3px; }
+@media (max-width: 900px) { .polaroid { display: none; } }
+#app { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 40px; direction: rtl; }
+h1, h2, h3 { font-family: var(--font-display); font-weight: 400; text-wrap: balance; margin: 0; }
+.title { font-size: clamp(30px, 6vw, 44px); text-align: center; color: var(--dark); }
+.sub { text-align: center; color: var(--muted); margin: 6px 0 0; line-height: 1.6; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; align-items: center; }
+.topbar { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; margin-bottom: 14px; }
+.topbar .title { font-size: clamp(22px, 5vw, 32px); min-width: 0; }
+.topbar > .row { justify-self: end; flex-wrap: nowrap; }
+@media (max-width: 600px) {
+  .topbar { grid-template-columns: auto 1fr; }
+  .topbar .title { grid-column: 1 / -1; grid-row: 2; font-size: 24px; }
+}
+.btn { font: 500 17px var(--font-body); color: var(--dark); background: var(--card); border: 1.5px solid var(--soft); border-radius: 16px; padding: 11px 22px; cursor: pointer; box-shadow: 0 4px 0 color-mix(in srgb, var(--accent) 16%, transparent); transition: background .15s, border-color .15s, transform .08s; }
+.btn:hover { background: var(--hover); border-color: var(--accent); }
+.btn:active { background: var(--press); transform: translateY(2px); box-shadow: none; }
+.btn:focus-visible, .cell:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.btn[disabled] { opacity: .5; cursor: default; transform: none; }
+.btn.big { font-size: 22px; padding: 15px 30px; border: 2.5px solid var(--accent); color: var(--accent); }
+.btn.wide { width: 100%; }
+.btn.on { background: var(--sel); border-color: var(--accent); }
+.circle { width: 48px; height: 48px; padding: 0; border-radius: 50%; font-size: 20px; display: inline-grid; place-items: center; }
+.card { background: var(--card); border: 1.5px solid var(--soft); border-radius: 22px; padding: 22px; }
+.coins { font: 500 20px var(--font-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.logo { width: 120px; height: 120px; margin: 0 auto; display: block; }
+input[type=text] { font: 18px var(--font-body); width: 100%; box-sizing: border-box; padding: 11px 14px; border: 1.5px solid var(--soft); border-radius: 12px; background: #fff; color: var(--dark); }
+label { font-weight: 500; }
+.err { color: var(--wrong); font-size: 15px; min-height: 1em; }
+.hearts span { display: inline-block; animation: bob 2.4s ease-in-out infinite; color: var(--deco); font-size: 30px; }
+.hearts span:last-child { animation-delay: 1.2s; }
+@keyframes bob { 50% { transform: translateY(-8px); } }
+.pop { animation: pop .5s cubic-bezier(.3,1.6,.6,1); }
+@keyframes pop { from { transform: scale(.8); opacity: 0; } }
+/* Levels */
+.tabs { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.levels { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; max-width: 560px; margin: 0 auto; }
+.lvl { aspect-ratio: 1 / 1.08; padding: 4px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-radius: 22px; }
+.lvl small { font-size: 12px; color: var(--muted); font-weight: 400; }
+.lvl b { font: 400 clamp(22px, 5vw, 32px) var(--font-display); }
+.lvl i { font-style: normal; font-size: 14px; letter-spacing: 1px; color: var(--accent); }
+@media (max-width: 420px) { .levels { gap: 8px; } .lvl { border-radius: 16px; } }
+/* Game */
+.stats { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; font: 500 18px var(--font-body); font-variant-numeric: tabular-nums; margin-bottom: 10px; }
+.stats .lives { color: var(--accent); letter-spacing: 2px; }
+.board { direction: ltr; display: grid; grid-template-columns: repeat(9, 1fr); width: min(100%, 470px); margin: 0 auto; background: #fff; border: 3px solid var(--accent); border-radius: 14px; overflow: hidden; position: relative; }
+.cell { aspect-ratio: 1; border: 0; border-left: 1px solid var(--soft); border-top: 1px solid var(--soft); background: #fff; padding: 0; position: relative; font: 500 clamp(17px, 5.4vw, 27px) var(--font-body); color: var(--accent); cursor: pointer; display: grid; place-items: center; }
+.cell.c0 { border-left: 0; } .cell.r0 { border-top: 0; }
+.cell.bl { border-left: 3px solid var(--accent); } .cell.bt { border-top: 3px solid var(--accent); }
+.cell.given { color: var(--dark); font-weight: 700; }
+.cell.wrong { color: var(--wrong); }
+.cell.hint { font-weight: 700; }
+.cell.rel { background: var(--rel); } .cell.same { background: var(--same); } .cell.sel { background: var(--sel); }
+.notes { position: absolute; inset: 2px; display: grid; grid-template-columns: repeat(3, 1fr); font-size: clamp(8px, 1.9vw, 11px); color: var(--muted); line-height: 1; }
+.notes span { display: grid; place-items: center; }
+.status { text-align: center; color: var(--muted); min-height: 1.5em; margin: 10px 0; }
+.pad { direction: ltr; display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 6px; width: min(100%, 520px); margin: 0 auto 10px; }
+.pad .btn { padding: 10px 0; font-size: clamp(18px, 5vw, 26px); border-radius: 14px; }
+.pad .btn.done { visibility: hidden; }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.tools .btn { font-size: 15px; padding: 9px 14px; }
+/* Overlays */
+.overlay { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--bg2) 78%, transparent); direction: rtl; }
+.overlay.solid { background: linear-gradient(135deg, var(--bg1), var(--bg2)); }
+.overlay .card { width: min(100%, 420px); text-align: center; display: flex; flex-direction: column; gap: 12px; }
+.stars { font-size: 42px; color: var(--accent); letter-spacing: 4px; }
+.breakdown { display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; text-align: right; font-variant-numeric: tabular-nums; margin: 0 auto; }
+.fall { position: fixed; top: -50px; z-index: 6; pointer-events: none; animation: fall linear forwards; }
+@keyframes fall { to { transform: translateY(110vh) rotate(var(--spin)); } }
+/* Store */
+.shop-row { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; }
+.shop-row .ico { font-size: 40px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.tile { border: 1.5px solid var(--soft); border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 8px; text-align: center; background: var(--hover); }
+.tile.selected { border: 2px solid var(--accent); background: var(--rel); }
+.swatch { height: 56px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; overflow: hidden; border: 1px solid rgba(0,0,0,.06); }
+.swatch img { width: 100%; height: 110px; object-fit: cover; }
+.swatch.pic { height: 110px; }
+.credit { font-size: 11px; color: var(--muted); line-height: 1.4; }
+/* Help */
+.help li { margin: 6px 0; line-height: 1.6; }
+.help ul { padding-inline-start: 4px; list-style: none; margin: 6px 0 14px; }
+.help li::before { content: "♥  "; color: var(--accent); }
+.help h3 { color: var(--accent); font-size: 22px; }
+.tip { background: var(--rel); border-radius: 14px; padding: 12px 16px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<div id="backdrop"><canvas id="pattern"></canvas><div id="decor"></div></div>
+<main id="app" aria-live="polite"></main>
+<div id="layer"></div>
+
+<script>
+"use strict";
+// ---------- Data ----------
+const PER = 20;
+const DIFFS = [
+  { name: "קל", emoji: "🌱", a: 28, b: 40 },
+  { name: "בינוני", emoji: "🌼", a: 40, b: 48 },
+  { name: "קשה", emoji: "🔥", a: 48, b: 54 },
+  { name: "מומחה", emoji: "👑", a: 54, b: 60 },
+];
+// [id, name, price, background stops, pattern, dark, accent, soft, muted, deco, sel, same, rel, hover, press, decorations, pictures, credit]
+const T = (id, name, price, bg, pattern, c, decor, pics, credit) => ({ id, name, price, bg, pattern, c, decor, pics, credit });
+const THEMES = [
+  T("pink", "ורוד", 0, ["#FFF4F8", "#FCE1EC"], null, ["#8A2A55", "#E75A97", "#F6C6DA", "#A0607E", "#F48FB1", "#F9C5DA", "#FBD8E6", "#FEF0F6", "#FFF6FA", "#FBD6E5"]),
+  T("purple", "סגול", 60, ["#F8F3FF", "#EADFFB"], null, ["#5B2A86", "#9B5DE5", "#DCCAF6", "#7E6A9E", "#C3A6F0", "#DCC8F7", "#E8DBFA", "#F6F0FE", "#FAF6FF", "#E6D9FA"]),
+  T("blue", "תכלת", 60, ["#F2F8FF", "#DCEBFB"], null, ["#1F4E79", "#4A90D9", "#C2DBF3", "#5F7FA0", "#9CC3EC", "#C7DDF5", "#D9E8F8", "#EEF5FD", "#F5FAFF", "#D6E6F7"]),
+  T("mint", "מנטה", 60, ["#F1FBF7", "#D6F2E6"], null, ["#1E6B52", "#2FB386", "#BBE7D5", "#5E9683", "#8FD8BC", "#C2EBDA", "#D5F2E6", "#EDF9F4", "#F4FCF8", "#D3F0E4"]),
+  T("rainbow", "קשת 🌈", 120, ["#FFE3EB", "#FFF0D4", "#E4F6D8", "#DCEFFF", "#EDE0FF"], null, ["#5E2A72", "#D6409F", "#F0CBE6", "#8A6A93", "#F7A8D0", "#F6CBE6", "#FADCEF", "#FEF1F8", "#FFF7FC", "#F6D3EA"]),
+  T("sunset", "שקיעה 🌅", 120, ["#FFE6D5", "#FFD3E2", "#E6D6FF"], null, ["#7A2E4D", "#F2667A", "#F8C9CF", "#9C6872", "#F9A3A8", "#FBCBD0", "#FCDDE0", "#FFF1F2", "#FFF8F8", "#FAD5D9"]),
+  T("galaxy", "גלקסיה ✨", 150, ["#E3DBFF", "#D6E4FF", "#F6DBF2"], "stars", ["#2E1A5E", "#6C4AB6", "#D3C8F2", "#6E6396", "#A996E3", "#D6CCF5", "#E3DCF8", "#F4F1FD", "#F9F7FF", "#E1D9F7"], ["🪐", "🌙", "⭐"]),
+  T("hero", "גיבור-על 🕸️", 150, ["#FFE5E5", "#F3ECF5", "#DDE8FF"], "web", ["#1D3557", "#D62828", "#F2C1C1", "#5A6B85", "#6C8CD5", "#F6C9C9", "#DCE6FA", "#F4F7FD", "#FFF7F7", "#F3D0D0"], ["⚡", "💥", "🦸", "🛡️", "⭐"]),
+  T("princess", "נסיכות 👑", 200, ["#FFE6F2", "#F6E1FF", "#FFF4D9"], null, ["#7B2D6B", "#D94F9F", "#F3C7E3", "#9A6A8E", "#F0B8DA", "#F7CBE6", "#FADDEF", "#FFF1F9", "#FFF8FC", "#F6D2E8"], ["👑", "🏰", "💎", "👸", "🎀", "✨"]),
+  T("unicorn", "חד-קרן 🦄", 200, ["#FFE3F1", "#E8E1FF", "#D9F4FF"], null, ["#5B3A8C", "#B565D9", "#E3CCF3", "#85709E", "#D4A9EC", "#E6D0F6", "#EFE0FA", "#F9F3FE", "#FCF8FF", "#EBDCF8"], ["🦄", "🌈", "☁️", "⭐", "💜", "✨"]),
+  T("ocean", "ים 🌊", 200, ["#DDF4FF", "#CDEFF5", "#E3FBF5"], null, ["#0E4C6B", "#1E9BC5", "#B9E3F0", "#55819A", "#8CCFE6", "#C4E8F4", "#D8F0F8", "#EFF9FC", "#F5FCFE", "#D2ECF5"], ["🐠", "🐚", "🐬", "🐙", "🦀", "🐳"]),
+  T("space", "חלל 🚀", 200, ["#E3E6FF", "#D8E9FF", "#F0E0FF"], "stars", ["#23295E", "#4F5BD5", "#CDD1F5", "#61668F", "#9FA7EC", "#D3D7F7", "#E2E5FA", "#F3F4FD", "#F8F9FF", "#DDE0F8"], ["🚀", "🪐", "🌙", "🛸", "☄️", "⭐"]),
+  T("candy", "ארץ הממתקים 🍭", 200, ["#FFE6F0", "#FFF2DA", "#E6F7FF"], null, ["#8A3B5C", "#F0599A", "#F8C8DC", "#A2667F", "#F7A6C8", "#FACDE0", "#FCDEEA", "#FFF2F7", "#FFF8FB", "#F9D6E5"], ["🍭", "🍬", "🧁", "🍩", "🍓", "🍦"]),
+  T("garden", "גן פרחים 🌸", 200, ["#F2FBEA", "#FFE9F1", "#FFF7DD"], null, ["#3D6B2F", "#E96A9A", "#D4EBC6", "#6F8A64", "#F2A9C4", "#F8CFDD", "#FBE1EA", "#FDF3F6", "#FFF9FB", "#F6D6E1"], ["🌸", "🌷", "🌼", "🦋", "🐝", "🌿"]),
+  T("kittens", "חתלתולים 🐱", 200, ["#FFF1E6", "#FFE6EE", "#F1E9FF"], null, ["#7A4B3A", "#F08A6B", "#F6D3C6", "#9A7568", "#F5B6A2", "#F9D8CD", "#FBE5DD", "#FFF4EF", "#FFF9F6", "#F8DCD2"], ["🐱", "🐾", "🧶", "🐟", "💕"]),
+  T("winter", "חורף ❄️", 200, ["#EEF6FF", "#E3EEFF", "#F5F0FF"], null, ["#2B4C7E", "#5C9DE0", "#CADDF3", "#64809F", "#A6C8EE", "#D2E3F7", "#E1ECFA", "#F3F8FE", "#F8FBFF", "#DCE8F8"], ["❄️", "⛄", "🌨️", "🧣", "✨"]),
+  T("peter", "פיטר הארנב 🐰", 250, ["#F4F8EE", "#FCEFE3", "#E9F1F8"], null, ["#4E5B3C", "#7FA05A", "#DCE6CC", "#7C8668", "#B9CF9E", "#DCEACB", "#E8F1DD", "#F5F9EF", "#FAFCF6", "#E2ECD4"], ["🥕", "🌿", "🐰"], ["peter1.jpg", "peter2.jpg", "peter3.jpg"], "איורים: Beatrix Potter, 1902 · נחלת הכלל"),
+  T("alice", "אליס בארץ הפלאות 🎩", 250, ["#EEF3FF", "#FFF1E8", "#F3EAFF"], null, ["#2F3E6E", "#5470C8", "#CFD9F2", "#6C7799", "#9DB0E6", "#D3DCF5", "#E2E8F8", "#F3F6FD", "#F8FAFF", "#DCE3F6"], ["🎩", "🫖", "⏰", "🃏"], ["alice1.jpg", "alice2.jpg"], "איורים: John Tenniel, 1890 · נחלת הכלל"),
+  T("fairytale", "אגדות קלאסיות 🏰", 250, ["#FFF3E3", "#FFE8EE", "#F1EAFF"], null, ["#6B3A2A", "#E07B39", "#F4D5BE", "#8E6B5C", "#F2B48A", "#F7D9C3", "#FAE6D8", "#FDF4EE", "#FFFAF6", "#F5DCCB"], ["👑", "🏰", "👠", "✨"], ["fairy1.jpg", "fairy3.jpg"], "איורים: Walter Crane ו-Arthur Rackham · נחלת הכלל"),
+];
+const SYMBOLS = [
+  { id: "numbers", name: "מספרים", price: 0, s: ["1", "2", "3", "4", "5", "6", "7", "8", "9"] },
+  { id: "fruits", name: "פירות", price: 80, s: ["🍓", "🍒", "🍑", "🍋", "🍏", "🍇", "🍉", "🥝", "🍊"] },
+  { id: "animals", name: "חיות", price: 80, s: ["🐱", "🐶", "🐰", "🦊", "🐼", "🐨", "🐸", "🐷", "🐵"] },
+  { id: "sweets", name: "ממתקים", price: 80, s: ["🍩", "🍪", "🧁", "🍭", "🍬", "🍫", "🍰", "🍦", "🎂"], theme: "candy" },
+  // Sets that come with a theme: buying the theme gives the set, choosing the theme switches the board to it
+  { id: "rainbow-set", name: "עיגולי קשת", price: 0, s: ["🔴", "🟠", "🟡", "🟢", "🔵", "🟣", "🟤", "⚫", "⚪"], theme: "rainbow" },
+  { id: "sunset-set", name: "חוף בשקיעה", price: 0, s: ["🌅", "☀️", "🌴", "🦩", "🐚", "🍹", "⛱️", "🌊", "🌙"], theme: "sunset" },
+  { id: "galaxy-set", name: "כוכבים", price: 0, s: ["🪐", "🌙", "⭐", "🌟", "💫", "☄️", "🌌", "✨", "🔭"], theme: "galaxy" },
+  { id: "hero-set", name: "גיבורי-על", price: 0, s: ["⚡", "💥", "🦸", "🦹", "🛡️", "🕸️", "💪", "⭐", "🏆"], theme: "hero" },
+  { id: "princess-set", name: "ארמון הנסיכות", price: 0, s: ["👑", "👸", "🏰", "💎", "🎀", "🦢", "🪞", "💍", "🌹"], theme: "princess" },
+  { id: "unicorn-set", name: "ארץ החד-קרן", price: 0, s: ["🦄", "🌈", "☁️", "⭐", "💜", "✨", "🌙", "🍭", "🦋"], theme: "unicorn" },
+  { id: "ocean-set", name: "חיות ים", price: 0, s: ["🐠", "🐚", "🐬", "🐙", "🦀", "🐳", "🦈", "🐢", "🐡"], theme: "ocean" },
+  { id: "space-set", name: "מסע בחלל", price: 0, s: ["🚀", "🪐", "🌙", "🛸", "☄️", "⭐", "👽", "🌍", "☀️"], theme: "space" },
+  { id: "garden-set", name: "גן פורח", price: 0, s: ["🌸", "🌷", "🌼", "🦋", "🐝", "🌿", "🌻", "🐞", "🍄"], theme: "garden" },
+  { id: "kittens-set", name: "עולם החתולים", price: 0, s: ["🐱", "🐾", "🧶", "🐟", "🥛", "🐭", "🎀", "🧸", "🛏️"], theme: "kittens" },
+  { id: "winter-set", name: "יום חורף", price: 0, s: ["❄️", "⛄", "🧣", "🧤", "☕", "🎿", "🌨️", "🦌", "🧊"], theme: "winter" },
+  { id: "peter-set", name: "הגינה של פיטר", price: 0, s: ["🐰", "🥕", "🥬", "🌿", "🧺", "🦔", "🐦", "🌼", "🍓"], theme: "peter" },
+  { id: "alice-set", name: "ארץ הפלאות", price: 0, s: ["🎩", "🐇", "🐛", "🍄", "🫖", "⏰", "🃏", "🌹", "🐱"], theme: "alice" },
+  { id: "fairytale-set", name: "אגדות", price: 0, s: ["👑", "🏰", "👠", "🎃", "🐭", "🪄", "💍", "🍎", "🐉"], theme: "fairytale" },
+];
+// Pictures come from the img/ folder, or from inside the file in the single-file version
+const imgSrc = name => (window.EMBEDDED_IMAGES && window.EMBEDDED_IMAGES[name]) || "img/" + name;
+const setForTheme = themeId => SYMBOLS.find(x => x.theme === themeId);
+// A theme's symbol set counts as owned once the theme is
+const owns = id => P.owned.includes(id) || SYMBOLS.some(x => x.id === id && x.theme && P.owned.includes(x.theme));
+const MAX_LIVES = 5, FREE_HINTS = 3, HINT_PACK = 30, HEART_PRICE = 30, MULT = 2;
+
+// ---------- Storage: this browser, plus the viewer's claude.ai account when available ----------
+const KEY = "smartSudoku.v1";
+const freshProgress = () => ({ coins: 100, bonusHints: 0, bonusLives: 0, theme: "pink", symbols: "numbers", sound: true, owned: ["pink", "numbers"], stars: {}, times: {}, unlocked: {} });
+let save = { profiles: {}, last: null, updatedAt: 0 };
+try { const raw = localStorage.getItem(KEY); if (raw) save = JSON.parse(raw); } catch (e) {}
+let player = null; // profile name, or "אורח"
+let P = freshProgress();
+let cloud = null, cloudTimer = 0;
+
+function persist() {
+  if (player) save.profiles[player] = P;
+  save.last = player;
+  save.updatedAt = Date.now();
+  try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {}
+  if (cloud) { clearTimeout(cloudTimer); cloudTimer = setTimeout(() => cloud.set(JSON.parse(JSON.stringify(save))).catch(() => {}), 1500); }
+}
+async function connectCloud() {
+  try {
+    if (!window.claude?.use) return;
+    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    const uid = await user?.id();
+    if (!db || !uid) return;
+    const ref = db.doc("data/users/" + uid + "/save");
+    const snap = await ref.get();
+    const remote = snap.exists ? snap.data() : null;
+    cloud = ref;
+    if (remote && remote.updatedAt > (save.updatedAt || 0)) {
+      save = JSON.parse(JSON.stringify(remote));
+      try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) {}
+      if (player && save.profiles[player]) { P = save.profiles[player]; applyTheme(); render(); }
+    }
+  } catch (e) { cloud = null; }
+}
+
+// ---------- Helpers ----------
+const $ = (s, r = document) => r.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+const theme = () => THEMES.find(t => t.id === P.theme) || THEMES[0];
+const sym = n => (SYMBOLS.find(x => x.id === P.symbols) || SYMBOLS[0]).s[n - 1];
+const lvlId = (d, n) => d * 100 + n, dOf = id => Math.floor(id / 100), nOf = id => id % 100;
+const emptyCells = id => { const d = DIFFS[dOf(id)]; return d.a + Math.floor((d.b - d.a) * (nOf(id) - 1) / (PER - 1)); };
+const nextLevel = id => nOf(id) < PER ? id + 1 : dOf(id) < DIFFS.length - 1 ? lvlId(dOf(id) + 1, 1) : null;
+const unlockedIn = d => Math.max(1, P.unlocked[d] || 1);
+const levelCoins = id => 10 + nOf(id) * 2 + dOf(id) * 20;
+const targetSec = id => 240 + nOf(id) * 15 + dOf(id) * 120;
+const speedCoins = (id, s) => Math.max(0, Math.floor((targetSec(id) - s) / 5));
+const starsLine = n => "★".repeat(n) + "☆".repeat(3 - n);
+
+// ---------- Sounds (made in the browser, no files) ----------
+let audio = null;
+function play(kind) {
+  if (!P.sound) return;
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const notes = { correct: [[1046.5, 0, .18], [1568, .06, .22]], wrong: [[311, 0, .18], [233, .1, .25]], hint: [[1318.5, 0, .15], [1760, .07, .15], [2093, .14, .25]], coin: [[1975.5, 0, .1], [2637, .07, .3]], win: [[523.25, 0, .3], [659.25, .13, .3], [783.99, .26, .3], [1046.5, .39, .6], [1318.5, .39, .6]] }[kind];
+    const t0 = audio.currentTime;
+    for (const [f, start, len] of notes) {
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.value = f; o.type = "sine";
+      g.gain.setValueAtTime(0, t0 + start); g.gain.linearRampToValueAtTime(.18, t0 + start + .005); g.gain.exponentialRampToValueAtTime(.001, t0 + start + len);
+      o.connect(g).connect(audio.destination); o.start(t0 + start); o.stop(t0 + start + len + .05);
+    }
+  } catch (e) {}
+}
+
+// ---------- Theme: colors, background picture, decorations ----------
+function applyTheme() {
+  const t = theme(), r = document.documentElement.style;
+  ["--dark", "--accent", "--soft", "--muted", "--deco", "--sel", "--same", "--rel", "--hover", "--press"].forEach((k, i) => r.setProperty(k, t.c[i]));
+  r.setProperty("--bg1", t.bg[0]); r.setProperty("--bg2", t.bg[Math.floor(t.bg.length / 2)]); r.setProperty("--bg3", t.bg[t.bg.length - 1]);
+  if (t.bg.length > 3) document.body.style.background = `linear-gradient(135deg, ${t.bg.join(", ")})`; else document.body.style.background = "";
+  document.body.style.backgroundAttachment = "fixed";
+  drawPattern(t.pattern);
+  const decor = $("#decor"); decor.innerHTML = "";
+  let seed = 42; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  if (t.pics) {
+    [[3, 12, -6], [83, 16, 5], [5, 58, 4], [82, 62, -5]].forEach(([x, y, a], i) => {
+      decor.insertAdjacentHTML("beforeend", `<div class="polaroid" style="left:${x}%;top:${y}%;transform:rotate(${a}deg)"><img src="${imgSrc(t.pics[i % t.pics.length])}" alt=""></div>`);
+    });
+  }
+  if (t.decor) {
+    for (let i = 0; i < 40; i++) decor.insertAdjacentHTML("beforeend", `<span class="decor" style="left:${rnd() * 100}%;top:${rnd() * 100}%;font-size:${26 + rnd() * 34}px;transform:rotate(${rnd() * 50 - 25}deg)">${t.decor[i % t.decor.length]}</span>`);
+  }
+}
+function drawPattern(kind) {
+  const cv = $("#pattern"), w = cv.width = innerWidth, h = cv.height = innerHeight, g = cv.getContext("2d");
+  g.clearRect(0, 0, w, h);
+  if (kind === "stars") {
+    let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const cols = ["rgba(108,74,182,.55)", "rgba(214,64,159,.5)", "rgba(255,255,255,.8)", "rgba(74,144,217,.45)"];
+    for (let i = 0; i < 140; i++) {
+      const x = rnd() * w, y = rnd() * h; g.fillStyle = cols[Math.floor(rnd() * 4)];
+      if (rnd() < .25) { const s = 5 + rnd() * 12, q = s * .22; g.beginPath(); g.moveTo(x, y - s); g.lineTo(x + q, y - q); g.lineTo(x + s, y); g.lineTo(x + q, y + q); g.lineTo(x, y + s); g.lineTo(x - q, y + q); g.lineTo(x - s, y); g.lineTo(x - q, y - q); g.fill(); }
+      else { g.beginPath(); g.arc(x, y, 1 + rnd() * 1.6, 0, 7); g.fill(); }
+    }
+  } else if (kind === "web") {
+    const web = (cx, cy, rad, a0, a1, color) => {
+      g.strokeStyle = color; g.lineWidth = 1.6; const spokes = 9, ang = [];
+      for (let i = 0; i <= spokes; i++) ang.push((a0 + (a1 - a0) * i / spokes) * Math.PI / 180);
+      for (const a of ang) { g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + rad * Math.cos(a), cy + rad * Math.sin(a)); g.stroke(); }
+      for (let ring = 1; ring <= 8; ring++) {
+        const rr = rad * ring / 8.5;
+        for (let i = 0; i < spokes; i++) {
+          const m = (ang[i] + ang[i + 1]) / 2, sag = rr * .93;
+          g.beginPath(); g.moveTo(cx + rr * Math.cos(ang[i]), cy + rr * Math.sin(ang[i]));
+          g.quadraticCurveTo(cx + sag * Math.cos(m), cy + sag * Math.sin(m), cx + rr * Math.cos(ang[i + 1]), cy + rr * Math.sin(ang[i + 1])); g.stroke();
+        }
+      }
+    };
+    const size = Math.min(w, h) * .55;
+    web(w, 0, size, 90, 180, "rgba(214,40,40,.28)");
+    web(0, h, size * .9, 270, 360, "rgba(29,53,87,.22)");
+  }
+}
+addEventListener("resize", () => drawPattern(theme().pattern));
+
+// ---------- Sudoku generator (unique solution) ----------
+function canPlace(g, r, c, n) {
+  for (let i = 0; i < 9; i++) if (g[r][i] === n || g[i][c] === n) return false;
+  const br = r - r % 3, bc = c - c % 3;
+  for (let i = br; i < br + 3; i++) for (let j = bc; j < bc + 3; j++) if (g[i][j] === n) return false;
+  return true;
+}
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+function fill(g, pos = 0) {
+  if (pos === 81) return true;
+  const r = Math.floor(pos / 9), c = pos % 9;
+  for (const n of shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9])) if (canPlace(g, r, c, n)) { g[r][c] = n; if (fill(g, pos + 1)) return true; g[r][c] = 0; }
+  return false;
+}
+function countSolutions(g, limit) {
+  let br = -1, bc = -1, best = 10;
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (!g[r][c]) {
+    let k = 0; for (let n = 1; n <= 9; n++) if (canPlace(g, r, c, n)) k++;
+    if (k < best) { best = k; br = r; bc = c; }
+  }
+  if (br < 0) return 1;
+  if (!best) return 0;
+  let found = 0;
+  for (let n = 1; n <= 9 && found < limit; n++) if (canPlace(g, br, bc, n)) { g[br][bc] = n; found += countSolutions(g, limit - found); g[br][bc] = 0; }
+  return found;
+}
+function makePuzzle(target) {
+  const sol = Array.from({ length: 9 }, () => Array(9).fill(0)); fill(sol);
+  const puz = sol.map(r => r.slice()); let removed = 0;
+  for (const i of shuffle([...Array(81).keys()])) {
+    if (removed >= target) break;
+    const r = Math.floor(i / 9), c = i % 9, keep = puz[r][c]; puz[r][c] = 0;
+    if (countSolutions(puz.map(x => x.slice()), 2) === 1) removed++; else puz[r][c] = keep;
+  }
+  return { puz, sol };
+}
+
+// ---------- Navigation ----------
+let view = "menu", navStack = [], G = null, timerId = 0;
+function go(name, push = true) { if (push && view !== name) navStack.push(view); view = name; stopTimer(); render(); scrollTo(0, 0); }
+function back() { view = navStack.pop() || "menu"; render(); }
+function render() {
+  const app = $("#app");
+  app.innerHTML = { menu: menuView, levels: levelsView, game: gameView, store: storeView, help: helpView }[view]();
+  if (view === "game") { drawGame(); if (G && !G.finished && !G.paused) startTimer(); }
+}
+const backBtn = `<button class="btn circle" data-act="back" aria-label="חזרה">→</button>`;
+
+// ---------- Menu ----------
+const logo = `<svg class="logo" viewBox="0 0 120 120" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="var(--soft)"/><stop offset="1" stop-color="var(--accent)"/></linearGradient></defs><rect x="2" y="2" width="116" height="116" rx="28" fill="url(#lg)"/><rect x="26" y="24" width="70" height="70" rx="16" fill="#fff"/><path d="M49 28v62M73 28v62M30 47h62M30 71h62" stroke="var(--soft)" stroke-width="2"/><circle cx="52" cy="57" r="4" fill="var(--dark)"/><circle cx="70" cy="57" r="4" fill="var(--dark)"/><ellipse cx="45" cy="64" rx="5" ry="3" fill="var(--deco)" opacity=".7"/><ellipse cx="77" cy="64" rx="5" ry="3" fill="var(--deco)" opacity=".7"/><path d="M56 66q5 5 10 0" stroke="var(--dark)" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M88 31c-3-4-9-1-6 3l6 5 6-5c3-4-3-7-6-3z" fill="var(--accent)"/></svg>`;
+function menuView() {
+  const names = Object.keys(save.profiles).filter(n => n !== "אורח");
+  if (!player) return `<div class="stack pop" style="max-width:420px;margin:30px auto 0">
+    ${logo}<h1 class="title">Smart Sudoku</h1><p class="sub">סודוקו חכם ומתוק 💕</p>
+    <div class="card stack">
+      <label for="name">איך קוראים לך?</label>
+      <input id="name" type="text" maxlength="20" placeholder="השם שלך" autocomplete="nickname">
+      <div class="err" id="nameErr"></div>
+      <button class="btn wide" data-act="login">כניסה למשחק</button>
+      <button class="btn wide" data-act="guest">המשך כאורח</button>
+      ${names.length ? `<p class="sub" style="margin:4px 0 0">שחקנים בדפדפן הזה:</p><div class="row">${names.map(n => `<button class="btn" data-act="pick" data-name="${esc(n)}">${esc(n)}</button>`).join("")}</div>` : ""}
+    </div>
+    <p class="sub" style="font-size:13px">ההתקדמות נשמרת בדפדפן הזה${cloud ? " ובחשבון Claude שלך" : ""}.</p>
+  </div>`;
+  return `<div class="stack pop" style="max-width:440px;margin:30px auto 0;text-align:center">
+    ${logo}<h1 class="title">Smart Sudoku</h1>
+    <p class="sub" style="color:var(--dark);font-size:22px;font-weight:500">${player === "אורח" ? "משחקים כאורח" : "שלום, " + esc(player) + "!"} 💖</p>
+    <div class="row hearts"><span>♥</span><button class="btn big" data-act="levels">Let's play ▶</button><span>♥</span></div>
+    <div class="row"><button class="btn" data-act="store">🛍️ חנות</button><button class="btn" data-act="help">? איך משחקים</button></div>
+    <button class="btn" data-act="logout" style="align-self:center;font-size:14px;padding:7px 16px">החלף שחקן</button>
+  </div>`;
+}
+function login(name) {
+  player = name;
+  P = save.profiles[name] || freshProgress();
+  for (const k of Object.keys(freshProgress())) if (P[k] === undefined) P[k] = freshProgress()[k];
+  persist(); applyTheme(); navStack = []; go("menu", false);
+}
+
+// ---------- Levels ----------
+let diff = 0;
+function levelsView() {
+  const open = unlockedIn(diff);
+  return `${topBar("Levels")}
+  <p class="sub" style="margin-bottom:12px">סיימו שלב כדי לפתוח את הבא — וכמה שפחות טעויות, יותר כוכבים</p>
+  <div class="tabs" style="margin-bottom:16px">${DIFFS.map((d, i) => `<button class="btn ${i === diff ? "on" : ""}" data-act="diff" data-d="${i}">${d.emoji} ${d.name}</button>`).join("")}</div>
+  <div class="levels">${Array.from({ length: PER }, (_, k) => {
+    const n = k + 1, id = lvlId(diff, n), s = P.stars[id] || 0, ok = n <= open;
+    return `<button class="btn lvl" data-act="play" data-id="${id}" ${ok ? "" : "disabled"} aria-label="Level ${n}"><small>Level</small><b>${n}</b><i>${ok ? starsLine(s) : "🔒"}</i></button>`;
+  }).join("")}</div>`;
+}
+function topBar(title, extra = "") {
+  return `<div class="topbar">${backBtn}<h1 class="title">${title}</h1><div class="row" style="gap:8px">${extra}<span class="coins">🪙 ${P.coins}</span></div></div>`;
+}
+
+// ---------- Game ----------
+function newGame(id) {
+  const { puz, sol } = makePuzzle(emptyCells(id));
+  G = { id, puz, sol }; startBoard();
+}
+function startBoard() {
+  Object.assign(G, { board: G.puz.map(r => r.slice()), notes: Array.from({ length: 9 }, () => Array(9).fill(0)), hinted: Array.from({ length: 9 }, () => Array(9).fill(false)), hist: [], lives: MAX_LIVES, mistakes: 0, hints: 0, secs: 0, finished: false, paused: false, notesMode: false, sel: null, status: "בחרו משבצת ריקה ואז מספר" });
+  $("#layer").innerHTML = "";
+}
+function gameView() {
+  const d = DIFFS[dOf(G.id)];
+  return `<div class="topbar">${backBtn}<h1 class="title">Level ${nOf(G.id)} · ${d.name} ${d.emoji}</h1>
+    <div class="row" style="gap:8px"><button class="btn circle" data-act="pause" aria-label="עצירה">⏸</button><button class="btn circle" data-act="sound" aria-label="צלילים" id="soundBtn"></button><button class="btn circle" data-act="help" aria-label="עזרה">?</button></div></div>
+  <div class="stats"><span id="tm"></span><span class="lives" id="lv"></span><span id="sp" title="בונוס מהירות"></span><span id="best" title="השיא שלך"></span><span id="cn"></span></div>
+  <div class="board" id="board" role="grid" aria-label="לוח סודוקו"></div>
+  <div class="status" id="status"></div>
+  <div class="pad" id="pad"></div>
+  <div class="tools">
+    <button class="btn" data-act="undo">↩ ביטול</button><button class="btn" data-act="erase">⌫ מחק</button>
+    <button class="btn" data-act="notes" id="notesBtn">✏️ פתקים</button><button class="btn" data-act="hint" id="hintBtn"></button>
+    <button class="btn" data-act="restart">⟲ משחק חוזר</button><button class="btn" data-act="newboard">🔀 שנה את דף הסודוקו</button>
+  </div>`;
+}
+function drawGame() {
+  const g = G, sv = g.sel ? g.board[g.sel[0]][g.sel[1]] : 0;
+  let html = "";
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+    const v = g.board[r][c], cls = ["cell"];
+    if (c === 0) cls.push("c0"); if (r === 0) cls.push("r0");
+    if (c && c % 3 === 0) cls.push("bl"); if (r && r % 3 === 0) cls.push("bt");
+    if (g.puz[r][c]) cls.push("given"); else if (v && v !== g.sol[r][c]) cls.push("wrong"); else if (g.hinted[r][c]) cls.push("hint");
+    if (g.sel) {
+      const [sr, sc] = g.sel;
+      if (sr === r && sc === c) cls.push("sel"); else if (sv && v === sv) cls.push("same");
+      else if (sr === r || sc === c || (Math.floor(sr / 3) === Math.floor(r / 3) && Math.floor(sc / 3) === Math.floor(c / 3))) cls.push("rel");
+    }
+    let inner = v ? sym(v) : "";
+    if (!v && g.notes[r][c]) inner = `<span class="notes">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<span>${g.notes[r][c] & (1 << n) ? sym(n) : ""}</span>`).join("")}</span>`;
+    html += `<button class="${cls.join(" ")}" data-act="cell" data-r="${r}" data-c="${c}" aria-label="שורה ${r + 1} עמודה ${c + 1}">${inner}</button>`;
+  }
+  $("#board").innerHTML = html;
+  const placed = Array(10).fill(0);
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) if (g.board[r][c] && g.board[r][c] === g.sol[r][c]) placed[g.board[r][c]]++;
+  $("#pad").innerHTML = [1, 2, 3, 4, 5, 6, 7, 8, 9].map(n => `<button class="btn ${placed[n] === 9 ? "done" : ""}" data-act="num" data-n="${n}" aria-label="${n}">${sym(n)}</button>`).join("");
+  $("#status").textContent = g.status;
+  $("#notesBtn").classList.toggle("on", g.notesMode);
+  $("#notesBtn").textContent = g.notesMode ? "✏️ פתקים: פועל" : "✏️ פתקים";
+  $("#hintBtn").textContent = `💡 רמז (${hintsLeft()})`;
+  $("#soundBtn").textContent = P.sound ? "🔊" : "🔇";
+  drawStats();
+}
+function drawStats() {
+  if (view !== "game" || !$("#tm")) return;
+  const best = P.times[G.id];
+  $("#tm").textContent = "⏱ " + fmt(G.secs);
+  $("#lv").textContent = "♥".repeat(Math.max(0, G.lives)) + "♡".repeat(Math.max(0, MAX_LIVES - G.lives)) + (P.bonusLives ? ` +${P.bonusLives}` : "");
+  $("#sp").textContent = "⚡ +" + speedCoins(G.id, G.secs) * MULT;
+  $("#best").textContent = "🏆 " + (best ? fmt(best) : "--:--");
+  $("#cn").textContent = "🪙 " + P.coins;
+}
+const hintsLeft = () => Math.max(0, FREE_HINTS - G.hints) + P.bonusHints;
+function startTimer() { stopTimer(); timerId = setInterval(() => { G.secs++; drawStats(); }, 1000); }
+function stopTimer() { clearInterval(timerId); timerId = 0; }
+const pushHist = () => G.hist.push(JSON.stringify([G.board, G.notes, G.hinted]));
+function clearPeers(r, c, n) {
+  const bit = ~(1 << n), br = r - r % 3, bc = c - c % 3;
+  for (let i = 0; i < 9; i++) { G.notes[r][i] &= bit; G.notes[i][c] &= bit; }
+  for (let i = br; i < br + 3; i++) for (let j = bc; j < bc + 3; j++) G.notes[i][j] &= bit;
+}
+const solved = () => G.board.every((row, r) => row.every((v, c) => v === G.sol[r][c]));
+function place(n) {
+  if (G.finished || !G.sel) return;
+  const [r, c] = G.sel; if (G.puz[r][c]) return;
+  if (G.notesMode) { if (G.board[r][c]) return; pushHist(); G.notes[r][c] ^= 1 << n; return drawGame(); }
+  if (G.board[r][c] === n) return;
+  pushHist(); G.board[r][c] = n; G.notes[r][c] = 0; G.hinted[r][c] = false;
+  if (n !== G.sol[r][c]) {
+    G.mistakes++; G.lives--; play("wrong"); G.status = "אופס, המספר הזה לא מתאים כאן";
+    if (G.lives <= 0 && P.bonusLives > 0) { P.bonusLives--; G.lives = 1; G.status = "השתמשנו בלב שמור מהחנות 💖"; persist(); }
+    drawGame(); if (G.lives <= 0) gameOver(); return;
+  }
+  clearPeers(r, c, n); play("correct"); G.status = "יופי! 💕"; drawGame();
+  if (solved()) win();
+}
+function hint() {
+  if (G.finished) return;
+  if (!hintsLeft()) { G.status = "נגמרו הרמזים — אפשר לקנות עוד בחנות 🛍️"; return drawGame(); }
+  let cell = G.sel && !G.puz[G.sel[0]][G.sel[1]] && G.board[G.sel[0]][G.sel[1]] !== G.sol[G.sel[0]][G.sel[1]] ? G.sel : null;
+  if (!cell) { const open = []; for (let i = 0; i < 81; i++) { const r = Math.floor(i / 9), c = i % 9; if (G.board[r][c] !== G.sol[r][c]) open.push([r, c]); } if (!open.length) return; cell = open[Math.floor(Math.random() * open.length)]; }
+  pushHist(); if (G.hints >= FREE_HINTS) { P.bonusHints--; persist(); } G.hints++;
+  const [r, c] = cell; G.board[r][c] = G.sol[r][c]; G.notes[r][c] = 0; G.hinted[r][c] = true; clearPeers(r, c, G.sol[r][c]);
+  G.sel = cell; G.status = "הנה רמז קטן 💡"; play("hint"); drawGame();
+  if (solved()) win();
+}
+function win() {
+  G.finished = true; stopTimer();
+  const stars = G.mistakes + G.hints === 0 ? 3 : G.mistakes + G.hints <= 2 ? 2 : 1;
+  const old = P.times[G.id] || 0, newBest = !old || G.secs < old;
+  const lc = levelCoins(G.id), sc = stars * 5, spd = speedCoins(G.id, G.secs), total = (lc + sc + spd) * MULT;
+  P.stars[G.id] = Math.max(P.stars[G.id] || 0, stars);
+  if (newBest) P.times[G.id] = G.secs;
+  const d = dOf(G.id); P.unlocked[d] = Math.max(unlockedIn(d), Math.min(PER, nOf(G.id) + 1));
+  P.coins += total; persist(); play("win"); celebrate(); drawGame();
+  const nx = nextLevel(G.id), endDiff = nOf(G.id) === PER, D = DIFFS[d];
+  const text = !nx ? "סיימת את כל השלבים בכל הדרגות! איזו אלופה 💖" : endDiff ? `סיימת את כל דרגת ${D.name}! ${D.emoji} 🎉` : `פתרת את שלב ${nOf(G.id)} 🎉`;
+  overlay(`<div style="color:var(--deco);font-size:22px">✿ ♥ ✦ ♥ ✿</div><h2 class="title" style="font-size:44px">כל הכבוד!</h2>
+    <div class="stars">${starsLine(stars)}</div><p class="sub" style="margin:0">${text}</p>
+    <p style="margin:0;font-weight:500">⏱ ${fmt(G.secs)} ${newBest ? "· 🏆 שיא חדש!" : `· שיא: ${fmt(old)}`}</p>
+    <div class="breakdown"><span>שלב</span><span>+${lc}</span><span>כוכבים</span><span>+${sc}</span><span>מהירות ⚡</span><span>+${spd}</span><span>בונוס כפול</span><span>×${MULT}</span><b>🪙 סה"כ</b><b>+${total}</b></div>
+    ${nx ? `<button class="btn big wide" data-act="next">${endDiff ? `לדרגה הבאה: ${DIFFS[dOf(nx)].name} ▶` : "לשלב הבא ▶"}</button>` : ""}
+    <button class="btn wide" data-act="tolevels">חזרה לשלבים</button>`);
+}
+function gameOver() {
+  G.finished = true; stopTimer();
+  overlay(`<div style="font-size:52px">💔</div><h2 class="title" style="font-size:34px">אוי, נגמרו הלבבות</h2><p class="sub" id="goMsg" style="margin:0">לא נורא! כל טעות היא חלק מהלמידה 💕</p>
+    <button class="btn big wide" data-act="buyheart">❤ לב נוסף · ${HEART_PRICE} 🪙</button>
+    <button class="btn wide" data-act="restart">לנסות שוב מההתחלה</button><button class="btn wide" data-act="tolevels">חזרה לשלבים</button>`);
+}
+function overlay(html, solid = false) { $("#layer").innerHTML = `<div class="overlay ${solid ? "solid" : ""}" role="dialog" aria-modal="true"><div class="card pop">${html}</div></div>`; }
+function celebrate() {
+  const shapes = ["♥", "✿", "✦", "❀", "💖", "🌸"], cols = ["var(--accent)", "var(--deco)", "var(--soft)"];
+  for (let i = 0; i < 45; i++) {
+    const el = document.createElement("span"); el.className = "fall"; el.textContent = shapes[i % shapes.length];
+    el.style.cssText = `left:${Math.random() * 100}vw;font-size:${16 + Math.random() * 20}px;color:${cols[i % 3]};--spin:${Math.random() * 720 - 360}deg;animation-duration:${2.5 + Math.random() * 2}s;animation-delay:${Math.random() * 1.2}s`;
+    document.body.appendChild(el); setTimeout(() => el.remove(), 6000);
+  }
+}
+
+// ---------- Store ----------
+let storeMsg = "";
+function storeView() {
+  const tile = (item, kind, preview, extra = "", lockedText = null) => {
+    const owned = owns(item.id), selected = (kind === "theme" ? P.theme : P.symbols) === item.id;
+    const locked = !owned && lockedText;
+    return `<div class="tile ${selected ? "selected" : ""}">${preview}<b>${item.name}</b>${extra}
+      <button class="btn" data-act="buy" data-kind="${kind}" data-id="${item.id}" ${selected || locked ? "disabled" : ""}>${selected ? "✓ בשימוש" : owned ? "לבחירה" : locked ? lockedText : item.price + " 🪙"}</button></div>`;
+  };
+  const themeName = id => (THEMES.find(t => t.id === id) || {}).name;
+  return `${topBar("חנות 🛍️")}
+  <p class="sub">מרוויחים מטבעות על כל שלב — וכמה שיותר כוכבים, יותר מטבעות!</p>
+  <p class="sub" style="color:var(--dark);font-weight:500;min-height:1.5em" role="status">${storeMsg}</p>
+  <div class="stack">
+    <div class="card shop-row"><span class="ico">💡</span><div><h3>חבילת 3 רמזים</h3><span class="credit" style="font-size:14px">אחרי 3 הרמזים החינמיים בכל שלב. יש לך: ${P.bonusHints}</span></div><button class="btn" data-act="buyhints">${HINT_PACK} 🪙</button></div>
+    <div class="card shop-row"><span class="ico">💖</span><div><h3>לב נוסף</h3><span class="credit" style="font-size:14px">נכנס לפעולה לבד כשנגמרים הלבבות. יש לך: ${P.bonusLives}</span></div><button class="btn" data-act="buylife">${HEART_PRICE} 🪙</button></div>
+    <div class="card stack"><h3>🎨 ערכות נושא</h3><div class="tiles">${THEMES.map(t => tile(t, "theme",
+      t.pics ? `<div class="swatch pic"><img src="${imgSrc(t.pics[0])}" alt=""></div>` : `<div class="swatch" style="background:linear-gradient(135deg,${t.bg.join(",")})">${t.decor ? t.decor.slice(0, 3).join(" ") : `<span><span style="color:${t.c[1]}">●</span> <span style="color:${t.c[0]}">●</span></span>`}</div>`,
+      (setForTheme(t.id) ? `<span class="credit">כולל סמלים בלוח: ${setForTheme(t.id).s.slice(0, 3).join(" ")}</span>` : "") + (t.credit ? `<span class="credit">${t.credit}</span>` : ""))).join("")}</div></div>
+    <div class="card stack"><h3>🍓 סמלים בלוח</h3><div class="tiles">${SYMBOLS.map(s => tile(s, "symbols", `<div class="swatch" style="background:var(--rel);font-weight:700;direction:ltr">${s.s.slice(0, 3).join(" ")}</div>`,
+      s.theme ? `<span class="credit">מתאים לערכה ${themeName(s.theme)}</span>` : "", s.price === 0 && s.theme ? `מגיע עם ${themeName(s.theme)}` : null)).join("")}</div></div>
+  </div>`;
+}
+function spend(price) { if (P.coins < price) { storeMsg = "אין מספיק מטבעות 😅 — אפשר להרוויח עוד בשלבים"; return false; } P.coins -= price; play("coin"); return true; }
+
+// ---------- Help ----------
+function helpView() {
+  return `${topBar("איך משחקים?")}<div class="card help">
+  <h3>מהו סודוקו?</h3><ul><li>חידת היגיון עם לוח של 9×9 משבצות, שמחולק ל-9 ריבועים של 3×3.</li><li>חלק מהמשבצות כבר מלאות, והמטרה היא למלא את כל השאר.</li><li>לא צריך לחשב כלום — רק לחשוב בהיגיון.</li></ul>
+  <h3>החוקים</h3><ul><li>בכל <b>שורה</b> יופיעו המספרים 1 עד 9, כל אחד פעם אחת.</li><li>בכל <b>עמודה</b> — אותו דבר.</li><li>בכל <b>ריבוע 3×3</b> — אותו דבר.</li></ul>
+  <h3>איך משחקים כאן</h3><ul><li>לוחצים על משבצת ריקה ואז על מספר. במקלדת אפשר להקליד 1–9, למחוק עם Backspace ולזוז עם החצים.</li><li>מספר שגוי מופיע <span style="color:var(--wrong);font-weight:500">באדום</span> ומוריד לב. יש 5 לבבות.</li><li><b>פתקים ✏️</b> כותבים אפשרויות קטנות, <b>רמז 💡</b> ממלא משבצת נכונה, <b>ביטול ↩</b> מחזיר צעד.</li><li><b>משחק חוזר</b> מנקה את אותו לוח, <b>שנה את דף הסודוקו</b> נותן לוח אחר באותו שלב.</li><li>יש 4 דרגות קושי, ובכל אחת 20 שלבים.</li></ul>
+  <h3>כוכבים ומטבעות</h3><ul><li>בלי טעויות ובלי רמזים = 3 כוכבים ⭐⭐⭐</li><li>כל שלב נותן מטבעות, יותר בדרגות גבוהות, ועוד בונוס מהירות ⚡ — הכל כפול ×2.</li><li>בחנות קונים רמזים, לבבות, ערכות נושא וסמלים.</li></ul>
+  <p class="tip"><b>💡 טיפ:</b> התחילו משורות, עמודות וריבועים שכמעט מלאים — שם הכי קל לגלות מה חסר.</p>
+  <p class="credit">איורי הדמויות בערכות פיטר הארנב, אליס ואגדות קלאסיות הם בנחלת הכלל (Wikimedia Commons).</p></div>`;
+}
+
+// ---------- Events ----------
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "back") { if (view === "game") stopTimer(); return back(); }
+  if (a === "login") { const n = $("#name").value.trim(); if (n.length < 2) { $("#nameErr").textContent = "השם צריך להיות לפחות 2 תווים"; return; } return login(n); }
+  if (a === "guest") return login("אורח");
+  if (a === "pick") return login(b.dataset.name);
+  if (a === "logout") { player = null; P = freshProgress(); applyTheme(); navStack = []; return go("menu", false); }
+  if (a === "levels") return go("levels");
+  if (a === "store") { storeMsg = ""; return go("store"); }
+  if (a === "help") { if (view === "game") stopTimer(); return go("help"); }
+  if (a === "diff") { diff = +b.dataset.d; return render(); }
+  if (a === "play") { newGame(+b.dataset.id); return go("game"); }
+  if (a === "cell") { if (!G.finished) { G.sel = [+b.dataset.r, +b.dataset.c]; drawGame(); $(`[data-r="${G.sel[0]}"][data-c="${G.sel[1]}"]`)?.focus(); } return; }
+  if (a === "num") return place(+b.dataset.n);
+  if (a === "undo") { if (!G.finished && G.hist.length) { [G.board, G.notes, G.hinted] = JSON.parse(G.hist.pop()); G.status = "ביטלנו את הצעד האחרון ↩"; drawGame(); } return; }
+  if (a === "erase") { if (G.finished || !G.sel) return; const [r, c] = G.sel; if (G.puz[r][c] || (!G.board[r][c] && !G.notes[r][c])) return; pushHist(); G.board[r][c] = 0; G.notes[r][c] = 0; G.hinted[r][c] = false; return drawGame(); }
+  if (a === "notes") { G.notesMode = !G.notesMode; G.status = G.notesMode ? "מצב פתקים: המספרים ייכתבו קטן, בתור אפשרויות ✏️" : "בחרו משבצת ריקה ואז מספר"; return drawGame(); }
+  if (a === "hint") return hint();
+  if (a === "restart") { startBoard(); drawGame(); return startTimer(); }
+  if (a === "newboard") { newGame(G.id); drawGame(); return startTimer(); }
+  if (a === "next") { const nx = nextLevel(G.id); newGame(nx); return render(); }
+  if (a === "tolevels") { $("#layer").innerHTML = ""; return back(); }
+  if (a === "pause") { if (G.finished) return; G.paused = true; stopTimer(); return overlay(`<div style="font-size:52px;color:var(--accent)">⏸</div><h2 class="title" style="font-size:34px">המשחק בהפסקה</h2><p class="sub" style="margin:0">הזמן נעצר על ⏱ ${fmt(G.secs)}</p><button class="btn big wide" data-act="resume">המשך לשחק ▶</button><button class="btn wide" data-act="tolevels">חזרה לשלבים</button>`, true); }
+  if (a === "resume") { G.paused = false; $("#layer").innerHTML = ""; return startTimer(); }
+  if (a === "sound") { P.sound = !P.sound; persist(); return drawGame(); }
+  if (a === "buyheart") { if (P.coins < HEART_PRICE) { $("#goMsg").textContent = `אין מספיק מטבעות 😅 (צריך ${HEART_PRICE} 🪙)`; return; } P.coins -= HEART_PRICE; play("coin"); persist(); G.lives = 1; G.finished = false; G.status = "קיבלת לב נוסף! ממשיכים 💖"; $("#layer").innerHTML = ""; drawGame(); return startTimer(); }
+  if (a === "buyhints") { if (spend(HINT_PACK)) { P.bonusHints += 3; storeMsg = "קנית 3 רמזים! 💡"; persist(); } return render(); }
+  if (a === "buylife") { if (spend(HEART_PRICE)) { P.bonusLives++; storeMsg = "קנית לב נוסף! 💖"; persist(); } return render(); }
+  if (a === "buy") {
+    const kind = b.dataset.kind, list = kind === "theme" ? THEMES : SYMBOLS, item = list.find(x => x.id === b.dataset.id);
+    if (!owns(item.id)) { if (!spend(item.price)) return render(); P.owned.push(item.id); storeMsg = `קנית את "${item.name}"! 🎉`; }
+    if (kind === "theme") {
+      P.theme = item.id; applyTheme();
+      const match = setForTheme(item.id); if (match && owns(match.id)) P.symbols = match.id;
+    } else P.symbols = item.id;
+    persist(); return render();
+  }
+});
+document.addEventListener("keydown", e => {
+  if (view === "menu" && e.key === "Enter" && e.target.id === "name") return $('[data-act="login"]').click();
+  if (view !== "game" || !G || G.finished || G.paused || $("#layer").innerHTML) return;
+  if (/^[1-9]$/.test(e.key)) { if (!G.sel) G.sel = [0, 0]; place(+e.key); }
+  else if (e.key === "Backspace" || e.key === "Delete") $('[data-act="erase"]').click();
+  else if (e.key.toLowerCase() === "n") $('[data-act="notes"]').click();
+  else if (e.key.startsWith("Arrow")) {
+    e.preventDefault(); const [r, c] = G.sel || [0, 0];
+    const m = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key];
+    G.sel = [(r + m[0] + 9) % 9, (c + m[1] + 9) % 9]; drawGame();
+  }
+});
+document.addEventListener("visibilitychange", () => { if (view !== "game" || !G) return; if (document.hidden) stopTimer(); else if (!G.finished && !G.paused) startTimer(); });
+
+// ---------- Start ----------
+if (save.last && save.profiles[save.last]) { player = save.last; P = save.profiles[player]; }
+applyTheme(); render(); connectCloud().then(() => { if (view === "menu") render(); });
+</script>

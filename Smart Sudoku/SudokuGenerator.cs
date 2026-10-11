@@ -11,14 +11,13 @@ namespace Smart_Sudoku
     {
         private static readonly Random Rnd = new Random();
 
-        public static (int[,] Puzzle, int[,] Solution) Create(int level)
+        /// <param name="target">How many cells to leave empty (fewer if the puzzle would stop being unique).</param>
+        public static (int[,] Puzzle, int[,] Solution) Create(int target)
         {
             var solution = new int[9, 9];
             Fill(solution, 0);
 
             var puzzle = (int[,])solution.Clone();
-            // Level 1 has 28 empty cells, level 20 about 56
-            int target = Math.Min(28 + (level - 1) * 3 / 2, 58);
             int removed = 0;
 
             foreach (int i in Enumerable.Range(0, 81).OrderBy(_ => Rnd.Next()))

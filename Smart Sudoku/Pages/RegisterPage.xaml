@@ -1,0 +1,65 @@
+<Page
+    x:Class="Smart_Sudoku.Pages.RegisterPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Smart_Sudoku.Pages"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <Grid>
+        <Button Style="{StaticResource CircleButton}"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="24"
+                ToolTipService.ToolTip="חזרה"
+                AutomationProperties.Name="חזרה"
+                Click="BackButton_Click">
+            <FontIcon Glyph="&#xE72B;" FontSize="20" />
+        </Button>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24,90,24,24" Spacing="20" Width="420">
+                <TextBlock Text="הרשמה" Style="{StaticResource TitleText}" />
+                <TextBlock Text="יוצרים משתמש, וההתקדמות נשמרת — אפשר להמשיך מאיפה שעצרתם 💕"
+                           Style="{StaticResource SubtitleText}" />
+
+                <Border Style="{StaticResource Card}" FlowDirection="RightToLeft">
+                    <StackPanel Spacing="18">
+                        <TextBox x:Name="UserNameBox"
+                                 Header="שם משתמש"
+                                 PlaceholderText="2 עד 20 תווים"
+                                 MaxLength="20"
+                                 FontSize="18"
+                                 CornerRadius="12" />
+                        <PasswordBox x:Name="PasswordBox"
+                                     Header="סיסמה"
+                                     PlaceholderText="לפחות 4 תווים"
+                                     FontSize="18"
+                                     CornerRadius="12" />
+                        <PasswordBox x:Name="ConfirmBox"
+                                     Header="אימות סיסמה"
+                                     FontSize="18"
+                                     CornerRadius="12"
+                                     KeyDown="Field_KeyDown" />
+                        <CheckBox x:Name="TransferGuestBox"
+                                  Content="להעביר למשתמש החדש את ההתקדמות של האורח במחשב הזה"
+                                  Foreground="{StaticResource BerryBrush}"
+                                  Visibility="Collapsed" />
+                        <TextBlock x:Name="ErrorText"
+                                   Foreground="#FFD93A4A"
+                                   FontSize="15"
+                                   TextWrapping="Wrap"
+                                   Visibility="Collapsed" />
+                        <Button Content="הרשמה" HorizontalAlignment="Stretch" Click="Register_Click" />
+                        <HyperlinkButton Content="כבר יש לך משתמש? להתחברות"
+                                         HorizontalAlignment="Center"
+                                         Foreground="{StaticResource RoseBrush}"
+                                         Click="SignInLink_Click" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Page>

@@ -17,6 +17,15 @@
             <SolidColorBrush x:Key="RoseBrush" Color="#FFE75A97" />
             <SolidColorBrush x:Key="SoftPinkBrush" Color="#FFF6C6DA" />
             <SolidColorBrush x:Key="MutedTextBrush" Color="#FFA0607E" />
+            <SolidColorBrush x:Key="DecoBrush" Color="#FFF48FB1" />
+            <SolidColorBrush x:Key="SelectedCellBrush" Color="#FFF9C5DA" />
+            <SolidColorBrush x:Key="SameNumberBrush" Color="#FFFBD8E6" />
+            <SolidColorBrush x:Key="RelatedCellBrush" Color="#FFFEF0F6" />
+            <SolidColorBrush x:Key="ButtonHoverBrush" Color="#FFFFF6FA" />
+            <SolidColorBrush x:Key="ButtonPressedBrush" Color="#FFFBD6E5" />
+            <SolidColorBrush x:Key="ShadowBrush" Color="#26E75A97" />
+            <SolidColorBrush x:Key="OverlayBrush" Color="#B3FCE1EC" />
+            <!-- The colors above are swapped at runtime by Themes.Apply -->
 
             <!-- White rounded button used across the app -->
             <Style x:Key="WhiteButton" TargetType="Button">
@@ -37,7 +46,7 @@
                             <Grid>
                                 <Border x:Name="Shadow"
                                         Margin="0,4,0,-4"
-                                        Background="#26E75A97"
+                                        Background="{StaticResource ShadowBrush}"
                                         CornerRadius="{TemplateBinding CornerRadius}" />
                                 <Border x:Name="Root"
                                         Background="{TemplateBinding Background}"
@@ -57,14 +66,14 @@
                                         <VisualState x:Name="Normal" />
                                         <VisualState x:Name="PointerOver">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="#FFFFF6FA" />
-                                                <Setter Target="Root.BorderBrush" Value="#FFE75A97" />
+                                                <Setter Target="Root.Background" Value="{StaticResource ButtonHoverBrush}" />
+                                                <Setter Target="Root.BorderBrush" Value="{StaticResource RoseBrush}" />
                                             </VisualState.Setters>
                                         </VisualState>
                                         <VisualState x:Name="Pressed">
                                             <VisualState.Setters>
-                                                <Setter Target="Root.Background" Value="#FFFBD6E5" />
-                                                <Setter Target="Root.BorderBrush" Value="#FFE75A97" />
+                                                <Setter Target="Root.Background" Value="{StaticResource ButtonPressedBrush}" />
+                                                <Setter Target="Root.BorderBrush" Value="{StaticResource RoseBrush}" />
                                                 <Setter Target="Shadow.Opacity" Value="0" />
                                             </VisualState.Setters>
                                         </VisualState>
