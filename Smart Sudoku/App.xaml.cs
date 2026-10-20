@@ -50,11 +50,44 @@ namespace Smart_Sudoku
         private static Frame? rootFrame;
         private static Image? patternImage;
         private static Canvas? decorCanvas;
+        private static Border? toast;
+        private static DispatcherTimer? toastTimer;
+
+        /// <summary>A short message that slides in at the top of any page (achievements, rewards).</summary>
+        public static void ShowToast(string message)
+        {
+            if (toast == null)
+                return;
+
+            ((TextBlock)toast.Child).Text = message;
+            toast.Visibility = Visibility.Visible;
+            var slide = new Windows.UI.Xaml.Media.Animation.Storyboard();
+            var move = new Windows.UI.Xaml.Media.Animation.DoubleAnimation
+            {
+                From = -80,
+                To = 0,
+                Duration = TimeSpan.FromMilliseconds(350),
+                EasingFunction = new Windows.UI.Xaml.Media.Animation.BackEase { EasingMode = Windows.UI.Xaml.Media.Animation.EasingMode.EaseOut },
+            };
+            Windows.UI.Xaml.Media.Animation.Storyboard.SetTarget(move, toast.RenderTransform);
+            Windows.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(move, "Y");
+            slide.Children.Add(move);
+            slide.Begin();
+
+            toastTimer?.Stop();
+            toastTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3.5) };
+            toastTimer.Tick += (s, e) =>
+            {
+                toastTimer.Stop();
+                toast.Visibility = Visibility.Collapsed;
+            };
+            toastTimer.Start();
+        }
 
         /// <summary>
         /// Shows a theme's picture (from Assets/Patterns) and scattered emoji behind every page.
         /// </summary>
-        public static void SetThemeBackground(string? patternFile, string[]? decorations, string[]? pictures = null)
+        public static void SetThemeBackground(string? patternFile, string[]? decorations, string[]? pictures = null, string motion = "float")
         {
             if (patternImage == null || decorCanvas == null)
                 return;
@@ -98,19 +131,82 @@ namespace Smart_Sudoku
 
             // Same seed every time, so the decorations don't jump around between pages
             var random = new Random(42);
+            bool animate = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
             for (int i = 0; i < 46; i++)
             {
+                double opacity = 0.22 + random.NextDouble() * 0.16;
+                var transform = new CompositeTransform { Rotation = random.Next(-25, 25) };
                 var piece = new TextBlock
                 {
                     Text = decorations[i % decorations.Length],
                     FontSize = random.Next(30, 64),
-                    Opacity = 0.22 + random.NextDouble() * 0.16,
-                    RenderTransform = new RotateTransform { Angle = random.Next(-25, 25) },
+                    Opacity = opacity,
+                    RenderTransform = transform,
                 };
                 Canvas.SetLeft(piece, random.NextDouble() * DecorWidth);
                 Canvas.SetTop(piece, random.NextDouble() * DecorHeight);
                 decorCanvas.Children.Add(piece);
+
+                // Respect the Windows "show animations" setting
+                if (animate)
+                    Move(piece, transform, opacity, motion, random);
             }
+        }
+
+        /// <summary>Gives a background decoration its theme's motion, forever.</summary>
+        private static void Move(TextBlock piece, CompositeTransform transform, double opacity, string motion, Random random)
+        {
+            var storyboard = new Windows.UI.Xaml.Media.Animation.Storyboard
+            {
+                RepeatBehavior = Windows.UI.Xaml.Media.Animation.RepeatBehavior.Forever,
+                BeginTime = TimeSpan.FromSeconds(random.NextDouble() * 4),
+            };
+
+            Windows.UI.Xaml.Media.Animation.DoubleAnimation animation;
+            switch (motion)
+            {
+                case "snow":
+                case "bubbles":
+                    // Drift all the way down (snow) or up (bubbles), then start again
+                    double top = Canvas.GetTop(piece);
+                    double distance = motion == "snow" ? DecorHeight + 80 - top : -(top + 80);
+                    animation = new Windows.UI.Xaml.Media.Animation.DoubleAnimation
+                    {
+                        From = 0,
+                        To = distance,
+                        Duration = TimeSpan.FromSeconds(Math.Abs(distance) / (25 + random.NextDouble() * 25)),
+                    };
+                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, transform);
+                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, "TranslateY");
+                    break;
+                case "twinkle":
+                    animation = new Windows.UI.Xaml.Media.Animation.DoubleAnimation
+                    {
+                        From = opacity,
+                        To = 0.05,
+                        Duration = TimeSpan.FromSeconds(1.5 + random.NextDouble() * 2),
+                        AutoReverse = true,
+                    };
+                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, piece);
+                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, "Opacity");
+                    break;
+                default:
+                    // A gentle float up and down
+                    animation = new Windows.UI.Xaml.Media.Animation.DoubleAnimation
+                    {
+                        From = 0,
+                        To = -14,
+                        Duration = TimeSpan.FromSeconds(2 + random.NextDouble() * 2),
+                        AutoReverse = true,
+                        EasingFunction = new Windows.UI.Xaml.Media.Animation.SineEase { EasingMode = Windows.UI.Xaml.Media.Animation.EasingMode.EaseInOut },
+                    };
+                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, transform);
+                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, "TranslateY");
+                    break;
+            }
+
+            storyboard.Children.Add(animation);
+            storyboard.Begin();
         }
 
         /// <inheritdoc/>
@@ -137,6 +233,35 @@ namespace Smart_Sudoku
                 root.Children.Add(patternImage);
                 root.Children.Add(decorLayer);
                 root.Children.Add(rootFrame);
+
+                // Smooth transitions between pages
+                rootFrame.ContentTransitions = new Windows.UI.Xaml.Media.Animation.TransitionCollection
+                {
+                    new Windows.UI.Xaml.Media.Animation.NavigationThemeTransition(),
+                };
+
+                toast = new Border
+                {
+                    Background = (Brush)Resources["ButtonHoverBrush"],
+                    BorderBrush = (Brush)Resources["RoseBrush"],
+                    BorderThickness = new Thickness(2),
+                    CornerRadius = new CornerRadius(18),
+                    Padding = new Thickness(22, 12, 22, 12),
+                    Margin = new Thickness(0, 18, 0, 0),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Visibility = Visibility.Collapsed,
+                    IsHitTestVisible = false,
+                    RenderTransform = new TranslateTransform(),
+                    Child = new TextBlock
+                    {
+                        FontSize = 20,
+                        FontWeight = Windows.UI.Text.FontWeights.SemiBold,
+                        Foreground = (Brush)Resources["BerryBrush"],
+                        FlowDirection = FlowDirection.RightToLeft,
+                    },
+                };
+                root.Children.Add(toast);
 
                 Database.Init();
 

@@ -25,11 +25,12 @@
             <SolidColorBrush x:Key="ButtonPressedBrush" Color="#FFFBD6E5" />
             <SolidColorBrush x:Key="ShadowBrush" Color="#26E75A97" />
             <SolidColorBrush x:Key="OverlayBrush" Color="#B3FCE1EC" />
+            <SolidColorBrush x:Key="CardBrush" Color="White" />
             <!-- The colors above are swapped at runtime by Themes.Apply -->
 
             <!-- White rounded button used across the app -->
             <Style x:Key="WhiteButton" TargetType="Button">
-                <Setter Property="Background" Value="White" />
+                <Setter Property="Background" Value="{StaticResource CardBrush}" />
                 <Setter Property="Foreground" Value="{StaticResource BerryBrush}" />
                 <Setter Property="BorderBrush" Value="{StaticResource SoftPinkBrush}" />
                 <Setter Property="BorderThickness" Value="1.5" />
@@ -130,7 +131,7 @@
 
             <!-- White rounded card -->
             <Style x:Key="Card" TargetType="Border">
-                <Setter Property="Background" Value="White" />
+                <Setter Property="Background" Value="{StaticResource CardBrush}" />
                 <Setter Property="BorderBrush" Value="{StaticResource SoftPinkBrush}" />
                 <Setter Property="BorderThickness" Value="1.5" />
                 <Setter Property="CornerRadius" Value="24" />

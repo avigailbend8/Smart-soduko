@@ -29,6 +29,12 @@ namespace Smart_Sudoku
         /// <summary>Difficulty -> highest unlocked level number.</summary>
         public Dictionary<int, int> Unlocked { get; set; } = new Dictionary<int, int>();
 
+        /// <summary>
+        /// Other saved settings by name (night mode, board frame, daily challenge, lucky wheel, a game in progress...).
+        /// Kept as text so new features don't need new database columns.
+        /// </summary>
+        public Dictionary<string, string> Extras { get; set; } = new Dictionary<string, string>();
+
         public bool HasAnyProgress => Stars.Count > 0 || Coins != StartingCoins || Owned.Count > 2;
     }
 }

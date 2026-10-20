@@ -60,10 +60,14 @@ namespace Smart_Sudoku
         /// <summary>1 coin for every 5 seconds faster than the target time.</summary>
         public static int SpeedCoins(int levelId, int seconds) => Math.Max(0, TargetSeconds(levelId) - seconds) / 5;
 
+        /// <summary>Coins for solving a board: level + stars + speed, doubled. Used by levels and duels.</summary>
+        public static int RewardCoins(int levelId, int earnedStars, int seconds) =>
+            (LevelCoins(levelId) + StarCoins(earnedStars) + SpeedCoins(levelId, seconds)) * CoinMultiplier;
+
         /// <summary>Saves a solved level and returns how many coins it earned.</summary>
         public static int RecordWin(int levelId, int earnedStars, int seconds)
         {
-            int earnedCoins = (LevelCoins(levelId) + StarCoins(earnedStars) + SpeedCoins(levelId, seconds)) * CoinMultiplier;
+            int earnedCoins = RewardCoins(levelId, earnedStars, seconds);
 
             progress.Stars[levelId] = Math.Max(GetStars(levelId), earnedStars);
             int best = GetBestTime(levelId);
@@ -100,6 +104,20 @@ namespace Smart_Sudoku
 
             Save();
             return true;
+        }
+
+        /// <summary>Coins won outside the levels (for example in a duel).</summary>
+        public static void AddCoins(int amount)
+        {
+            progress.Coins += amount;
+            Save();
+        }
+
+        /// <summary>Gives a store item for free (a lucky wheel prize). A theme also brings its board symbols.</summary>
+        public static void GiveItem(string itemId)
+        {
+            progress.Owned.Add(itemId);
+            Save();
         }
 
         public static bool BuyHints(int price, int count)
@@ -150,24 +168,107 @@ namespace Smart_Sudoku
 
         // ---------- Secret gift code ----------
 
-        private const string GiftCode = "0109";
-        private const string GiftMarker = "gift-twix";  // kept with the owned items, so each player redeems once
-        public const int GiftCoins = 500;
-
-        public enum GiftResult { WrongCode, AlreadyUsed, Granted }
-
-        public static GiftResult RedeemGiftCode(string code)
+        /// <summary>The secret codes for the "White Twix" button, and how many coins each one gives.</summary>
+        private static readonly Dictionary<string, int> GiftCodes = new Dictionary<string, int>
         {
-            if (code.Trim() != GiftCode)
-                return GiftResult.WrongCode;
-            if (progress.Owned.Contains(GiftMarker))
-                return GiftResult.AlreadyUsed;
+            ["0109"] = 1000,
+            ["6767"] = 500,
+            ["נומי וגולי"] = 100,
+        };
 
-            progress.Owned.Add(GiftMarker);
-            progress.Coins += GiftCoins;
+        /// <summary>Gives the code's coins every time a right code is entered. Returns the coins given (0 = wrong code).</summary>
+        public static int RedeemGiftCode(string code)
+        {
+            if (!GiftCodes.TryGetValue(code.Trim(), out int coins))
+                return 0;
+
+            progress.Coins += coins;
             Save();
-            return GiftResult.Granted;
+            return coins;
         }
+
+        // ---------- Extra settings ----------
+
+        public static string GetExtra(string key, string fallback = "") =>
+            progress.Extras.TryGetValue(key, out string? value) ? value : fallback;
+
+        public static void SetExtra(string key, string? value)
+        {
+            if (value == null)
+                progress.Extras.Remove(key);
+            else
+                progress.Extras[key] = value;
+            Save();
+        }
+
+        /// <summary>Show wrong numbers in red and take a heart for each (on by default).</summary>
+        public static bool ShowMistakes
+        {
+            get => GetExtra("showMistakes", "1") == "1";
+            set => SetExtra("showMistakes", value ? "1" : "0");
+        }
+
+        public static bool NightMode
+        {
+            get => GetExtra("night") == "1";
+            set => SetExtra("night", value ? "1" : "0");
+        }
+
+        public static string FrameId
+        {
+            get => GetExtra("frame", "classic");
+            set => SetExtra("frame", value);
+        }
+
+        /// <summary>A level left in the middle, or null.</summary>
+        public static SavedGame? SavedGame
+        {
+            get
+            {
+                string json = GetExtra("savedGame");
+                if (json.Length == 0)
+                    return null;
+                try
+                {
+                    return System.Text.Json.JsonSerializer.Deserialize(json, AppJson.Default.SavedGame);
+                }
+                catch (System.Text.Json.JsonException)
+                {
+                    return null;
+                }
+            }
+            set => SetExtra("savedGame", value == null ? null : System.Text.Json.JsonSerializer.Serialize(value, AppJson.Default.SavedGame));
+        }
+
+        // ---------- Achievements ----------
+
+        /// <summary>Unlocks an achievement once. Returns true the first time.</summary>
+        public static bool Unlock(string achievementId)
+        {
+            string marker = "ach-" + achievementId;
+            if (progress.Owned.Contains(marker))
+                return false;
+            progress.Owned.Add(marker);
+            Save();
+            return true;
+        }
+
+        public static bool HasAchievement(string achievementId) => progress.Owned.Contains("ach-" + achievementId);
+
+        /// <summary>A counter kept in the extras (for achievements like "win 5 duels").</summary>
+        public static int AddToCounter(string name, int amount = 1)
+        {
+            int value = int.TryParse(GetExtra("count." + name, "0"), out int v) ? v : 0;
+            value += amount;
+            SetExtra("count." + name, value.ToString());
+            return value;
+        }
+
+        public static int Counter(string name) => int.TryParse(GetExtra("count." + name, "0"), out int v) ? v : 0;
+
+        public static int SolvedLevelsCount => progress.Stars.Count;
+
+        public static int ThreeStarLevelsCount => progress.Stars.Values.Count(s => s == 3);
 
         // ---------- Settings ----------
 
@@ -221,6 +322,7 @@ namespace Smart_Sudoku
                 Stars = ParseMap(Get("stars", "")),
                 BestTimes = ParseMap(Get("times", "")),
                 Unlocked = ParseMap(Get("unlockedByDifficulty", "")),
+                Extras = ParseExtras(Get("extras", "")),
             };
 
             // Older versions saved a single unlocked level, which belongs to the easy difficulty
@@ -242,6 +344,21 @@ namespace Smart_Sudoku
             Values[Prefix + "stars"] = FormatMap(progress.Stars);
             Values[Prefix + "times"] = FormatMap(progress.BestTimes);
             Values[Prefix + "unlockedByDifficulty"] = FormatMap(progress.Unlocked);
+            Values[Prefix + "extras"] = System.Text.Json.JsonSerializer.Serialize(progress.Extras, AppJson.Default.DictionaryStringString);
+        }
+
+        private static Dictionary<string, string> ParseExtras(string json)
+        {
+            if (json.Length == 0)
+                return new Dictionary<string, string>();
+            try
+            {
+                return System.Text.Json.JsonSerializer.Deserialize(json, AppJson.Default.DictionaryStringString) ?? new Dictionary<string, string>();
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                return new Dictionary<string, string>();
+            }
         }
 
         private static T Get<T>(string key, T fallback) =>

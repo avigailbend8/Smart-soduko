@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using Microsoft.Data.Sqlite;
@@ -6,6 +7,9 @@ using Windows.Storage;
 
 namespace Smart_Sudoku
 {
+    /// <summary>One user's line in the leaderboard. UserId 0 is the guest on this computer.</summary>
+    public sealed record LeaderboardRow(int UserId, string Name, int Coins, int Solved, int Stars, int FastestSeconds, bool HasAvatar);
+
     /// <summary>
     /// SQLite database (smartsudoku.db in the app's local folder) with the registered
     /// users and their progress. Passwords are stored only as salted PBKDF2 hashes.
@@ -57,6 +61,17 @@ namespace Smart_Sudoku
                     UserId INTEGER NOT NULL REFERENCES Users(Id) ON DELETE CASCADE,
                     ItemId TEXT    NOT NULL,
                     PRIMARY KEY (UserId, ItemId)
+                );
+                CREATE TABLE IF NOT EXISTS UserSettings (
+                    UserId INTEGER NOT NULL REFERENCES Users(Id) ON DELETE CASCADE,
+                    Key    TEXT    NOT NULL,
+                    Value  TEXT    NOT NULL,
+                    PRIMARY KEY (UserId, Key)
+                );
+                CREATE TABLE IF NOT EXISTS Avatars (
+                    UserId    INTEGER PRIMARY KEY REFERENCES Users(Id) ON DELETE CASCADE,
+                    Image     BLOB    NOT NULL,
+                    UpdatedAt TEXT    NOT NULL
                 );");
         }
 
@@ -176,6 +191,15 @@ namespace Smart_Sudoku
                     progress.Owned.Add(reader.GetString(0));
             }
 
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "SELECT Key, Value FROM UserSettings WHERE UserId = $id";
+                command.Parameters.AddWithValue("$id", userId);
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                    progress.Extras[reader.GetString(0)] = reader.GetString(1);
+            }
+
             return progress;
         }
 
@@ -234,7 +258,94 @@ namespace Smart_Sudoku
                 command.ExecuteNonQuery();
             }
 
+            using (var clear = connection.CreateCommand())
+            {
+                clear.CommandText = "DELETE FROM UserSettings WHERE UserId = $id";
+                clear.Parameters.AddWithValue("$id", userId);
+                clear.ExecuteNonQuery();
+            }
+            foreach (var setting in progress.Extras)
+            {
+                using var command = connection.CreateCommand();
+                command.CommandText = "INSERT INTO UserSettings (UserId, Key, Value) VALUES ($id, $key, $value)";
+                command.Parameters.AddWithValue("$id", userId);
+                command.Parameters.AddWithValue("$key", setting.Key);
+                command.Parameters.AddWithValue("$value", setting.Value);
+                command.ExecuteNonQuery();
+            }
+
             transaction.Commit();
+        }
+
+        // ---------- Profile pictures ----------
+
+        /// <summary>Saves (or replaces) a user's profile picture. The image is already small (see Avatars).</summary>
+        public static void SetAvatar(int userId, byte[] image)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+                INSERT OR REPLACE INTO Avatars (UserId, Image, UpdatedAt)
+                VALUES ($id, $image, $updated)";
+            command.Parameters.AddWithValue("$id", userId);
+            command.Parameters.AddWithValue("$image", image);
+            command.Parameters.AddWithValue("$updated", DateTime.UtcNow.ToString("o"));
+            command.ExecuteNonQuery();
+        }
+
+        /// <summary>A user's profile picture, or null if they haven't chosen one.</summary>
+        public static byte[]? GetAvatar(int userId)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Image FROM Avatars WHERE UserId = $id";
+            command.Parameters.AddWithValue("$id", userId);
+            return command.ExecuteScalar() as byte[];
+        }
+
+        public static void RemoveAvatar(int userId)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "DELETE FROM Avatars WHERE UserId = $id";
+            command.Parameters.AddWithValue("$id", userId);
+            command.ExecuteNonQuery();
+        }
+
+        // ---------- Leaderboard ----------
+
+        /// <summary>
+        /// Every registered user with their totals: levels solved, stars, coins and their fastest level.
+        /// Sorted by stars, then levels, then coins.
+        /// </summary>
+        public static List<LeaderboardRow> GetLeaderboard()
+        {
+            var rows = new List<LeaderboardRow>();
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = @"
+                SELECT u.Id, u.UserName, u.Coins,
+                       COUNT(r.LevelId)                       AS Solved,
+                       COALESCE(SUM(r.Stars), 0)               AS Stars,
+                       COALESCE(MIN(NULLIF(r.BestTime, 0)), 0) AS Fastest,
+                       EXISTS (SELECT 1 FROM Avatars a WHERE a.UserId = u.Id) AS HasAvatar
+                FROM Users u
+                LEFT JOIN LevelResults r ON r.UserId = u.Id
+                GROUP BY u.Id
+                ORDER BY Stars DESC, Solved DESC, u.Coins DESC";
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                rows.Add(new LeaderboardRow(
+                    UserId: reader.GetInt32(0),
+                    Name: reader.GetString(1),
+                    Coins: reader.GetInt32(2),
+                    Solved: reader.GetInt32(3),
+                    Stars: reader.GetInt32(4),
+                    FastestSeconds: reader.GetInt32(5),
+                    HasAvatar: reader.GetInt32(6) == 1));
+            }
+            return rows;
         }
 
         private static byte[] HashPassword(string password, byte[] salt) =>

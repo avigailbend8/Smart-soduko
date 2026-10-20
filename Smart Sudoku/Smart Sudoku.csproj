@@ -23,6 +23,13 @@
     <!-- SQLite database, using the copy of SQLite built into Windows -->
     <PackageReference Include="Microsoft.Data.Sqlite.Core" Version="9.0.10" />
     <PackageReference Include="SQLitePCLRaw.bundle_winsqlite3" Version="2.1.10" />
+    <!-- Network duels (same library as the Server project) -->
+    <PackageReference Include="WatsonTcp" Version="6.5.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The duel protocol and the Player class come from the Server project, so both sides match -->
+    <Compile Include="..\Server\Player.cs" Link="Duel\Player.cs" />
+    <Compile Include="..\Server\Protocol.cs" Link="Duel\Protocol.cs" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Assets\BackGrounds\" />

@@ -93,6 +93,9 @@
                     <TextBlock Text="✿" FontSize="22" Style="{StaticResource Deco}" Foreground="{StaticResource DecoBrush}" />
                 </StackPanel>
 
+                <!-- The player's profile picture (filled in code) -->
+                <ContentControl x:Name="AvatarHolder" HorizontalAlignment="Center" />
+
                 <TextBlock x:Name="GreetingText"
                            Style="{StaticResource SubtitleText}"
                            Foreground="{StaticResource BerryBrush}"
@@ -129,6 +132,29 @@
                     <TextBlock Text="✦" FontSize="14" Style="{StaticResource Deco}" Foreground="{StaticResource SoftPinkBrush}" />
                     <TextBlock Text="❀" FontSize="20" Style="{StaticResource Deco}" Foreground="{StaticResource DecoBrush}" />
                     <TextBlock Text="✦" FontSize="14" Style="{StaticResource Deco}" Foreground="{StaticResource SoftPinkBrush}" />
+                </StackPanel>
+
+                <Button x:Name="ContinueButton"
+                        HorizontalAlignment="Center"
+                        FontSize="19"
+                        Padding="26,10"
+                        Visibility="Collapsed"
+                        Click="ContinueButton_Click" />
+
+                <!-- Everything else to play -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" FlowDirection="RightToLeft">
+                    <Button x:Name="DailyButton" FontSize="17" Padding="18,10" Click="DailyButton_Click" />
+                    <Button Content="⚔️ דו-קרב ברשת" FontSize="17" Padding="18,10" Click="DuelButton_Click" />
+                    <Button Content="🧩 סודוקו קטן" FontSize="17" Padding="18,10" Click="MiniButton_Click" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" FlowDirection="RightToLeft">
+                    <Button x:Name="WheelButton" FontSize="17" Padding="18,10" Click="WheelButton_Click" />
+                    <Button Content="🏅 הישגים" FontSize="17" Padding="18,10" Click="AchievementsButton_Click" />
+                    <Button x:Name="NightButton" FontSize="17" Padding="18,10" Click="NightButton_Click" />
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" FlowDirection="RightToLeft">
+                    <Button Content="🏆 טבלת שיאים" FontSize="17" Padding="18,10" Click="LeaderboardButton_Click" />
+                    <Button x:Name="AvatarButton" Content="📷 תמונת פרופיל" FontSize="17" Padding="18,10" Click="AvatarButton_Click" />
                 </StackPanel>
 
                 <Button Content="החלף משתמש"

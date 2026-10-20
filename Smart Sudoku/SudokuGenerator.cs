@@ -12,15 +12,20 @@ namespace Smart_Sudoku
         private static readonly Random Rnd = new Random();
 
         /// <param name="target">How many cells to leave empty (fewer if the puzzle would stop being unique).</param>
-        public static (int[,] Puzzle, int[,] Solution) Create(int target)
+        public static (int[,] Puzzle, int[,] Solution) Create(int target) => Create(target, Rnd);
+
+        /// <summary>The same seed always gives the same board (used for the daily challenge).</summary>
+        public static (int[,] Puzzle, int[,] Solution) Create(int target, int seed) => Create(target, new Random(seed));
+
+        private static (int[,] Puzzle, int[,] Solution) Create(int target, Random random)
         {
             var solution = new int[9, 9];
-            Fill(solution, 0);
+            Fill(solution, 0, random);
 
             var puzzle = (int[,])solution.Clone();
             int removed = 0;
 
-            foreach (int i in Enumerable.Range(0, 81).OrderBy(_ => Rnd.Next()))
+            foreach (int i in Enumerable.Range(0, 81).OrderBy(_ => random.Next()))
             {
                 if (removed >= target)
                     break;
@@ -59,18 +64,18 @@ namespace Smart_Sudoku
             return true;
         }
 
-        private static bool Fill(int[,] g, int pos)
+        private static bool Fill(int[,] g, int pos, Random random)
         {
             if (pos == 81)
                 return true;
 
             int r = pos / 9, c = pos % 9;
-            foreach (int n in Enumerable.Range(1, 9).OrderBy(_ => Rnd.Next()))
+            foreach (int n in Enumerable.Range(1, 9).OrderBy(_ => random.Next()))
             {
                 if (CanPlace(g, r, c, n))
                 {
                     g[r, c] = n;
-                    if (Fill(g, pos + 1))
+                    if (Fill(g, pos + 1, random))
                         return true;
                     g[r, c] = 0;
                 }

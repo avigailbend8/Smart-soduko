@@ -91,6 +91,14 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Board frames -->
+                <Border Style="{StaticResource Card}" FlowDirection="RightToLeft">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="🖼️ מסגרות ללוח" Style="{StaticResource SectionTitle}" />
+                        <Grid x:Name="FramesGrid" ColumnSpacing="14" RowSpacing="14" />
+                    </StackPanel>
+                </Border>
+
                 <!-- Secret gift code -->
                 <StackPanel HorizontalAlignment="Center" Spacing="10" FlowDirection="RightToLeft">
                     <Button Content="🍫 טוויקס לבן"

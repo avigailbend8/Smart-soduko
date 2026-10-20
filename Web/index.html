@@ -536,19 +536,18 @@ function storeView() {
       s.theme ? `<span class="credit">מתאים לערכה ${themeName(s.theme)}</span>` : "", s.price === 0 && s.theme ? `מגיע עם ${themeName(s.theme)}` : null)).join("")}</div></div>
     <div class="stack" style="align-items:center;gap:8px">
       <button class="btn" data-act="gift" style="font-size:14px;padding:6px 16px">🍫 טוויקס לבן</button>
-      ${giftOpen ? `<div class="row"><input id="giftCode" type="password" inputmode="numeric" placeholder="סיסמה" aria-label="סיסמה" style="width:160px"><button class="btn" data-act="redeem" style="padding:8px 18px">אישור</button></div>` : ""}
+      ${giftOpen ? `<div class="row"><input id="giftCode" type="password" placeholder="סיסמה" aria-label="סיסמה" style="width:160px"><button class="btn" data-act="redeem" style="padding:8px 18px">אישור</button></div>` : ""}
       <p role="status" style="margin:0;font-weight:500;min-height:1.4em">${giftMsg}</p>
     </div>
   </div>`;
 }
-// Secret gift code: each player can use it once
-const GIFT_CODE = "0109", GIFT_COINS = 500, GIFT_MARKER = "gift-twix";
+// Secret gift codes: coins every time a right code is entered
+const GIFT_CODES = { "0109": 1000, "6767": 500, "נומי וגולי": 100 };
 let giftOpen = false, giftMsg = "";
 function redeemGift() {
-  const code = ($("#giftCode")?.value || "").trim();
-  if (code !== GIFT_CODE) giftMsg = "סיסמה לא נכונה";
-  else if (P.owned.includes(GIFT_MARKER)) giftMsg = "כבר השתמשת בסיסמה הזאת 🙂";
-  else { P.owned.push(GIFT_MARKER); P.coins += GIFT_COINS; persist(); play("coin"); giftMsg = `🍫 קיבלת ${GIFT_COINS} מטבעות!`; giftOpen = false; }
+  const code = ($("#giftCode")?.value || "").trim(), coins = GIFT_CODES[code];
+  if (!coins) giftMsg = "סיסמה לא נכונה";
+  else { P.coins += coins; persist(); play("coin"); giftMsg = `🍫 קיבלת ${coins} מטבעות!`; }
   render();
   if (giftOpen) $("#giftCode")?.focus();
 }

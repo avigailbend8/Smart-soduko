@@ -111,6 +111,40 @@ namespace Smart_Sudoku.Pages
                     }.Where(line => line != null)) is string text && text.Length > 0 ? text : null);
             }
 
+            FramesGrid.Children.Clear();
+            index = 0;
+            foreach (var frame in BoardFrames.All)
+            {
+                // Preview: a small board corner with the frame's border and decoration
+                var sample = new Grid { Height = 70 };
+                sample.Children.Add(new Border
+                {
+                    Margin = new Thickness(10),
+                    CornerRadius = new CornerRadius(10),
+                    Background = Res("CardBrush"),
+                    BorderThickness = new Thickness(frame.Thickness),
+                    BorderBrush = frame.Colors == null ? Res("RoseBrush") : BoardFrames.Gradient(frame.Colors),
+                    Child = new TextBlock
+                    {
+                        Text = "1 2 3",
+                        FontWeight = FontWeights.Bold,
+                        Foreground = Res("BerryBrush"),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        FlowDirection = FlowDirection.LeftToRight,
+                    },
+                });
+                if (frame.Corner != null)
+                {
+                    sample.Children.Add(new TextBlock { Text = frame.Corner, FontSize = 18, HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Top });
+                    sample.Children.Add(new TextBlock { Text = frame.Corner, FontSize = 18, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom });
+                }
+
+                AddItem(FramesGrid, index++, sample, frame.Name, "frame-" + frame.Id, frame.Price,
+                    selected: GameData.FrameId == frame.Id,
+                    select: () => GameData.FrameId = frame.Id);
+            }
+
             SymbolsGrid.Children.Clear();
             index = 0;
             foreach (var set in SymbolSets.All)
@@ -145,7 +179,8 @@ namespace Smart_Sudoku.Pages
             while (grid.RowDefinitions.Count <= index / perRow)
                 grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            bool owned = GameData.Owns(id);
+            // Free items (like the classic frame) are owned from the start
+            bool owned = GameData.Owns(id) || (price == 0 && lockedText == null);
             var button = new Button
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -165,6 +200,7 @@ namespace Smart_Sudoku.Pages
                     }
                     Sounds.Play("coin");
                     ShowMessage($"קנית את \"{name}\"! 🎉");
+                    Achievements.Unlock("shopper");
                 }
                 select();
                 RefreshStore();
@@ -230,6 +266,7 @@ namespace Smart_Sudoku.Pages
             }
             Sounds.Play("coin");
             ShowMessage("קנית 3 רמזים! 💡");
+            Achievements.Unlock("shopper");
             RefreshStore();
         }
 
@@ -242,6 +279,7 @@ namespace Smart_Sudoku.Pages
             }
             Sounds.Play("coin");
             ShowMessage("קנית לב נוסף! 💖");
+            Achievements.Unlock("shopper");
             RefreshStore();
         }
 
@@ -260,19 +298,15 @@ namespace Smart_Sudoku.Pages
 
         private void RedeemGift_Click(object sender, RoutedEventArgs e)
         {
-            switch (GameData.RedeemGiftCode(GiftCodeBox.Password))
+            int coins = GameData.RedeemGiftCode(GiftCodeBox.Password);
+            if (coins > 0)
             {
-                case GameData.GiftResult.Granted:
-                    Sounds.Play("coin");
-                    GiftResultText.Text = $"🍫 קיבלת {GameData.GiftCoins} מטבעות!";
-                    GiftPanel.Visibility = Visibility.Collapsed;
-                    break;
-                case GameData.GiftResult.AlreadyUsed:
-                    GiftResultText.Text = "כבר השתמשת בסיסמה הזאת 🙂";
-                    break;
-                default:
-                    GiftResultText.Text = "סיסמה לא נכונה";
-                    break;
+                Sounds.Play("coin");
+                GiftResultText.Text = $"🍫 קיבלת {coins} מטבעות!";
+            }
+            else
+            {
+                GiftResultText.Text = "סיסמה לא נכונה";
             }
             GiftCodeBox.Password = "";
             RefreshStore();

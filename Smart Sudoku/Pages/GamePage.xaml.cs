@@ -22,7 +22,8 @@ namespace Smart_Sudoku.Pages
         private const int FreeHints = 3;
 
         private static readonly SolidColorBrush WrongBrush = new SolidColorBrush(Color.FromArgb(255, 217, 58, 74));
-        private static readonly SolidColorBrush PlainBg = new SolidColorBrush(Colors.White);
+        // The board's cell color follows the theme (white by day, dark at night)
+        private static Brush PlainBg => Res("CardBrush");
         private static readonly Random Rnd = new Random();
 
         private readonly Border[,] cells = new Border[9, 9];
@@ -63,6 +64,8 @@ namespace Smart_Sudoku.Pages
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
+            HookKeyboard();
+            ApplyFrame();
 
             // Coming back from the help page keeps the current game
             if (e.NavigationMode == NavigationMode.Back && hasGame)
@@ -73,16 +76,40 @@ namespace Smart_Sudoku.Pages
                 return;
             }
 
-            if (e.Parameter is int chosenLevel)
-                level = chosenLevel;
+            if (e.Parameter is Duel.DuelGame duelGame)
+            {
+                isDaily = false;
+                StartDuel(duelGame);
+                return;
+            }
 
-            NewGame();
+            if (IsDuel)
+                EndDuel();
+
+            switch (e.Parameter)
+            {
+                case SavedGame saved:
+                    ResumeGame(saved);
+                    break;
+                case DailyChallengeStart:
+                    StartDaily();
+                    break;
+                case int chosenLevel:
+                    level = chosenLevel;
+                    NewGame();
+                    break;
+                default:
+                    NewGame();
+                    break;
+            }
         }
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
         {
             base.OnNavigatedFrom(e);
             timer.Stop();
+            UnhookKeyboard();
+            SaveCurrentGame();
         }
 
         // ---------- Building the UI ----------
@@ -207,8 +234,10 @@ namespace Smart_Sudoku.Pages
 
         private void NewGame()
         {
+            isDaily = false;
             (puzzle, solution) = SudokuGenerator.Create(Levels.EmptyCells(level));
             StartBoard();
+            SaveCurrentGame();
         }
 
         // Starts (or restarts) the current puzzle from scratch
@@ -228,8 +257,9 @@ namespace Smart_Sudoku.Pages
             hasGame = true;
             selRow = selCol = -1;
 
-            var difficulty = Levels.DifficultyFor(level);
-            LevelText.Text = $"Level {Levels.NumberOf(level)} · {difficulty.Name} {difficulty.Emoji}";
+            SetTitle();
+            MascotFace.Text = "😊";
+            NewBoardButton.Visibility = isDaily || IsDuel ? Visibility.Collapsed : Visibility.Visible;
             StatusText.Text = "בחרו משבצת ריקה ואז מספר";
             WinOverlay.Visibility = Visibility.Collapsed;
             GameOverOverlay.Visibility = Visibility.Collapsed;
@@ -242,6 +272,25 @@ namespace Smart_Sudoku.Pages
 
         private void PushHistory() =>
             history.Push(((int[,])board.Clone(), (int[,])notes.Clone(), (bool[,])hinted.Clone()));
+
+        private bool BoardFull()
+        {
+            for (int i = 0; i < 81; i++)
+            {
+                if (board[i / 9, i % 9] == 0)
+                    return false;
+            }
+            return true;
+        }
+
+        private void MistakesButton_Click(object sender, RoutedEventArgs e)
+        {
+            GameData.ShowMistakes = !GameData.ShowMistakes;
+            StatusText.Text = GameData.ShowMistakes
+                ? "טעויות יופיעו באדום ויורידו לב"
+                : "מצב אתגר: בלי סימון טעויות ובלי לבבות שנשברים 🙈";
+            Refresh();
+        }
 
         private bool IsSolved()
         {
@@ -292,6 +341,19 @@ namespace Smart_Sudoku.Pages
                 <= 2 => 2,
                 _ => 1,
             };
+            ClearSavedGame();
+            Mascot("🥳", stay: true);
+
+            if (isDaily)
+            {
+                WinDaily(earnedStars);
+                WinOverlay.Visibility = Visibility.Visible;
+                Sounds.Play("win");
+                Celebrate();
+                Refresh();
+                return;
+            }
+
             int oldBest = GameData.GetBestTime(level);
             int earnedCoins = GameData.RecordWin(level, earnedStars, seconds);
             bool newBest = oldBest == 0 || seconds < oldBest;
@@ -324,12 +386,15 @@ namespace Smart_Sudoku.Pages
             Sounds.Play("win");
             Celebrate();
             Refresh();
+            CheckLevelAchievements(earnedStars);
         }
 
         private void GameOver()
         {
             finished = true;
             timer.Stop();
+            ClearSavedGame();
+            Mascot("😢", stay: true);
             BuyHeartButton.Content = $"❤ לב נוסף · {HeartPrice} 🪙";
             GameOverMessage.Text = "לא נורא! כל טעות היא חלק מהלמידה 💕";
             GameOverOverlay.Visibility = Visibility.Visible;
@@ -376,7 +441,7 @@ namespace Smart_Sudoku.Pages
                     }
                     else
                     {
-                        text.Foreground = value != 0 && value != solution[r, c] ? WrongBrush : Res("RoseBrush");
+                        text.Foreground = value != 0 && value != solution[r, c] && MistakesShown ? WrongBrush : Res("RoseBrush");
                         text.FontWeight = hinted[r, c] ? FontWeights.Bold : FontWeights.SemiBold;
                     }
 
@@ -415,7 +480,8 @@ namespace Smart_Sudoku.Pages
             {
                 for (int c = 0; c < 9; c++)
                 {
-                    if (board[r, c] != 0 && board[r, c] == solution[r, c])
+                    // With mistakes hidden, count every placed number, so the pad doesn't give away which are right
+                    if (board[r, c] != 0 && (board[r, c] == solution[r, c] || !MistakesShown))
                         placed[board[r, c]]++;
                 }
             }
@@ -447,6 +513,7 @@ namespace Smart_Sudoku.Pages
         private void UpdateTools()
         {
             HintText.Text = $"רמז ({HintsLeft})";
+            MistakesText.Text = GameData.ShowMistakes ? "👁 טעויות: מוצגות" : "🙈 טעויות: מוסתרות";
             NotesText.Text = notesMode ? "פתקים: פועל" : "פתקים";
             NotesButton.Background = notesMode ? Res("SelectedCellBrush") : PlainBg;
             NotesButton.BorderBrush = notesMode ? Res("RoseBrush") : Res("SoftPinkBrush");
@@ -505,12 +572,15 @@ namespace Smart_Sudoku.Pages
             Refresh();
         }
 
-        private void NumberButton_Click(object sender, RoutedEventArgs e)
+        private void NumberButton_Click(object sender, RoutedEventArgs e) => PlaceNumber((int)((Button)sender).Tag);
+
+        /// <summary>Mistakes are shown (red, and cost a heart) unless the player turned that off. Duels always show them.</summary>
+        private bool MistakesShown => IsDuel || GameData.ShowMistakes;
+
+        private void PlaceNumber(int n)
         {
             if (finished || selRow < 0 || puzzle[selRow, selCol] != 0)
                 return;
-
-            int n = (int)((Button)sender).Tag;
 
             if (notesMode)
             {
@@ -519,6 +589,8 @@ namespace Smart_Sudoku.Pages
                 PushHistory();
                 notes[selRow, selCol] ^= 1 << n;
                 Refresh();
+                PopCell(selRow, selCol, 1.2);
+                SaveCurrentGame();
                 return;
             }
 
@@ -529,28 +601,70 @@ namespace Smart_Sudoku.Pages
             hinted[selRow, selCol] = false;
             PlaceValue(selRow, selCol, n);
 
+            // Challenge mode: no red, no hearts lost; a full board that isn't right just says so
+            if (!MistakesShown)
+            {
+                if (n != solution[selRow, selCol])
+                    mistakes++;
+                Sounds.Play("correct");
+                Refresh();
+                PopCell(selRow, selCol);
+                Mascot("😊");
+                SaveCurrentGame();
+                if (IsSolved())
+                    Win();
+                else if (BoardFull())
+                    StatusText.Text = "הלוח מלא, אבל משהו לא נכון — חפשו את הטעות 🔍";
+                return;
+            }
+
             if (n != solution[selRow, selCol])
             {
                 mistakes++;
                 lives--;
                 Sounds.Play("wrong");
                 StatusText.Text = "אופס, המספר הזה לא מתאים כאן";
-                if (lives <= 0 && GameData.UseBonusLife())
+                ShakeCell(selRow, selCol);
+                BreakHeart();
+                Mascot("😮");
+                if (IsDuel)
+                {
+                    DuelMove(false, selRow, selCol);
+                }
+                else if (lives <= 0 && GameData.UseBonusLife())
                 {
                     lives = 1;
                     StatusText.Text = "השתמשנו בלב שמור מהחנות 💖";
                 }
                 Refresh();
+                SaveCurrentGame();
                 if (lives <= 0)
-                    GameOver();
+                {
+                    if (IsDuel)
+                        DuelFinish(solved: false);
+                    else
+                        GameOver();
+                }
                 return;
             }
 
             Sounds.Play("correct");
             StatusText.Text = "יופי! 💕";
+            if (IsDuel)
+                DuelMove(true, selRow, selCol);
             Refresh();
+            PopCell(selRow, selCol);
+            FlashCell(selRow, selCol);
+            Mascot("😄");
+            CelebrateCompletedUnits(selRow, selCol);
+            SaveCurrentGame();
             if (IsSolved())
-                Win();
+            {
+                if (IsDuel)
+                    DuelFinish(solved: true);
+                else
+                    Win();
+            }
         }
 
         private void HintButton_Click(object sender, RoutedEventArgs e)
@@ -599,6 +713,9 @@ namespace Smart_Sudoku.Pages
             Sounds.Play("hint");
             StatusText.Text = "הנה רמז קטן 💡";
             Refresh();
+            PopCell(row, col);
+            Mascot("😉");
+            SaveCurrentGame();
             if (IsSolved())
                 Win();
         }
@@ -611,6 +728,7 @@ namespace Smart_Sudoku.Pages
             (board, notes, hinted) = history.Pop();
             StatusText.Text = "ביטלנו את הצעד האחרון ↩";
             Refresh();
+            SaveCurrentGame();
         }
 
         private void EraseButton_Click(object sender, RoutedEventArgs e)
@@ -626,6 +744,7 @@ namespace Smart_Sudoku.Pages
             hinted[selRow, selCol] = false;
             StatusText.Text = "בחרו משבצת ריקה ואז מספר";
             Refresh();
+            SaveCurrentGame();
         }
 
         private void NotesButton_Click(object sender, RoutedEventArgs e)
@@ -651,6 +770,13 @@ namespace Smart_Sudoku.Pages
 
         private void NextLevelButton_Click(object sender, RoutedEventArgs e)
         {
+            if (isDaily)
+            {
+                Frame.Navigate(typeof(MenuPage));
+                Frame.BackStack.Clear();
+                return;
+            }
+
             if (Levels.Next(level) is not int next)
             {
                 if (Frame.CanGoBack)
@@ -695,6 +821,8 @@ namespace Smart_Sudoku.Pages
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
         {
+            if (IsDuel)
+                LeaveDuel();
             if (Frame.CanGoBack)
                 Frame.GoBack();
         }

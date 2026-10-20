@@ -82,6 +82,15 @@
                         <TextBlock Style="{StaticResource Bullet}"><Run Text="♥  " Foreground="{StaticResource RoseBrush}" /><Bold>בונוס מהירות ⚡</Bold> — מטבע על כל 5 שניות שמסיימים מהר יותר מהיעד. המספר ליד ⚡ מראה כמה עוד אפשר להרוויח.</TextBlock>
                         <TextBlock Style="{StaticResource Bullet}"><Run Text="♥  " Foreground="{StaticResource RoseBrush}" />שלב חדש נפתח 🔓 אחרי שמסיימים את השלב שלפניו.</TextBlock>
 
+                        <Rectangle Height="1.5" Fill="{StaticResource SoftPinkBrush}" Margin="0,12" />
+
+                        <TextBlock Text="עוד דברים כיפיים" Style="{StaticResource SectionTitle}" />
+                        <TextBlock Style="{StaticResource Bullet}"><Run Text="♥  " Foreground="{StaticResource RoseBrush}" /><Bold>מקלדת ⌨️</Bold> — מספרים 1–9, חיצים לזוז, Backspace למחוק, N לפתקים, Ctrl+Z לביטול.</TextBlock>
+                        <TextBlock Style="{StaticResource Bullet}"><Run Text="♥  " Foreground="{StaticResource RoseBrush}" /><Bold>👁 טעויות</Bold> — אפשר לכבות את הסימון באדום בשביל אתגר אמיתי.</TextBlock>
+                        <TextBlock Style="{StaticResource Bullet}"><Run Text="♥  " Foreground="{StaticResource RoseBrush}" />המשחק נשמר לבד — אפשר לצאת ולהמשיך אחר כך מהתפריט ▶</TextBlock>
+                        <TextBlock Style="{StaticResource Bullet}"><Run Text="♥  " Foreground="{StaticResource RoseBrush}" /><Bold>📅 אתגר יומי</Bold> — לוח אחד חדש כל יום, ובונוס על רצף ימים 🔥</TextBlock>
+                        <TextBlock Style="{StaticResource Bullet}"><Run Text="♥  " Foreground="{StaticResource RoseBrush}" /><Bold>🎡 גלגל מזל</Bold>, <Bold>🏅 הישגים</Bold>, <Bold>🧩 סודוקו קטן</Bold> ו-<Bold>🌙 מצב לילה</Bold> — בתפריט.</TextBlock>
+
                         <Border Background="{StaticResource RelatedCellBrush}" CornerRadius="14" Padding="18,14" Margin="0,16,0,0">
                             <TextBlock Style="{StaticResource Bullet}"><Bold>💡 טיפ:</Bold> התחילו משורות, עמודות וריבועים שכמעט מלאים — שם הכי קל לגלות מה חסר.</TextBlock>
                         </Border>

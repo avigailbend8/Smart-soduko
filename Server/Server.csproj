@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Server</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WatsonTcp" Version="6.5.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.10" />
+  </ItemGroup>
+
+  <!-- The duel results database; copied next to the server when it's newer -->
+  <ItemGroup>
+    <None Update="database.db" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- From the Smart Sudoku app: the board generator and the difficulties -->
+  <ItemGroup>
+    <Compile Include="..\Smart Sudoku\SudokuGenerator.cs" Link="Game\SudokuGenerator.cs" />
+    <Compile Include="..\Smart Sudoku\Levels.cs" Link="Game\Levels.cs" />
+  </ItemGroup>
+
+</Project>

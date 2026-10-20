@@ -1,0 +1,30 @@
+<Page
+    x:Class="Smart_Sudoku.Pages.AchievementsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Smart_Sudoku.Pages"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    Background="Transparent">
+
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,96,24,32" Spacing="18" MaxWidth="760" FlowDirection="RightToLeft">
+                <TextBlock Text="🏅 הישגים" Style="{StaticResource TitleText}" />
+                <TextBlock x:Name="ProgressText" Style="{StaticResource SubtitleText}" />
+                <Grid x:Name="BadgesGrid" ColumnSpacing="14" RowSpacing="14" />
+            </StackPanel>
+        </ScrollViewer>
+
+        <Button Style="{StaticResource CircleButton}"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Margin="24"
+                ToolTipService.ToolTip="חזרה"
+                AutomationProperties.Name="חזרה"
+                Click="BackButton_Click">
+            <FontIcon Glyph="&#xE72B;" FontSize="20" />
+        </Button>
+    </Grid>
+</Page>

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Windows.UI;
@@ -125,7 +126,7 @@ namespace Smart_Sudoku
 
         public static void Apply(string id)
         {
-            var theme = Get(id);
+            var theme = GameData.NightMode ? Night(Get(id)) : Get(id);
             var resources = Application.Current.Resources;
 
             var background = (LinearGradientBrush)resources["PageBackgroundBrush"];
@@ -147,8 +148,47 @@ namespace Smart_Sudoku
             Set("ButtonPressedBrush", theme.Pressed);
             Set("ShadowBrush", (theme.Accent & 0x00FFFFFF) | 0x26000000);
             Set("OverlayBrush", (theme.Background[theme.Background.Length - 1] & 0x00FFFFFF) | 0xB3000000);
+            Set("CardBrush", GameData.NightMode ? Blend(theme.Accent, NightBase, 0.86) : 0xFFFFFFFF);
 
-            App.SetThemeBackground(theme.Pattern, theme.Decorations, theme.Pictures);
+            App.SetThemeBackground(theme.Pattern, theme.Decorations, theme.Pictures, MotionFor(theme.Id));
+        }
+
+        /// <summary>How a theme's background decorations move.</summary>
+        private static string MotionFor(string themeId) => themeId switch
+        {
+            "winter" => "snow",
+            "ocean" => "bubbles",
+            "galaxy" or "space" => "twinkle",
+            _ => "float",
+        };
+
+        // ---------- Night mode: a dark version of any theme, made from its own colors ----------
+
+        private const uint NightBase = 0xFF17141F;
+
+        private static ThemePalette Night(ThemePalette day)
+        {
+            uint card = Blend(day.Accent, NightBase, 0.86);
+            return day with
+            {
+                Background = day.Background.Select(c => Blend(c, NightBase, 0.88)).ToArray(),
+                Dark = Blend(day.Soft, 0xFFFFFFFF, 0.45),
+                Accent = Blend(day.Accent, 0xFFFFFFFF, 0.15),
+                Soft = Blend(day.Accent, NightBase, 0.6),
+                Muted = Blend(day.Muted, 0xFFFFFFFF, 0.4),
+                Selected = Blend(day.Accent, card, 0.55),
+                SameNumber = Blend(day.Accent, card, 0.7),
+                Related = Blend(day.Accent, card, 0.85),
+                Hover = Blend(day.Accent, card, 0.8),
+                Pressed = Blend(day.Accent, card, 0.6),
+            };
+        }
+
+        /// <summary>Mixes two colors: amount 0 = the first, 1 = the second.</summary>
+        private static uint Blend(uint a, uint b, double amount)
+        {
+            uint Mix(int shift) => (uint)Math.Round(((a >> shift) & 0xFF) * (1 - amount) + ((b >> shift) & 0xFF) * amount);
+            return 0xFF000000 | (Mix(16) << 16) | (Mix(8) << 8) | Mix(0);
         }
 
         /// <summary>Evenly spaced gradient stops, also used for previews in the store.</summary>
