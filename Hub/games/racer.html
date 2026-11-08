@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>כביש מהיר · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<style>
+.pv img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.keys { text-align: center; margin-top: 10px; }
+.stage.shake { animation: shake .45s; }
+@keyframes shake { 20% { transform: translate(-6px, 2px); } 40% { transform: translate(5px, -3px); } 60% { transform: translate(-4px, 1px); } 80% { transform: translate(3px, 0); } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const { $, esc } = Hub;
+
+const CARS = [
+  { id: "car-coral", name: "קופה אלמוג", price: 0, body: "#E8735A" },
+  { id: "car-mint", name: "חשמלית מנטה", price: 90, body: "#6FC6AE", round: true },
+  { id: "car-sport", name: "ספורט צהובה", price: 140, body: "#F2C14E", stripe: "#2A2A2A", slim: true },
+  { id: "car-jeep", name: "ג'יפ שטח", price: 160, body: "#5E7D4F", boxy: true },
+  { id: "car-violet", name: "סגולה מהירה", price: 180, body: "#8B6FD1", stripe: "#FFFFFF", slim: true },
+  { id: "car-gold", name: "זהב", price: 300, body: "#D9B154", shine: true },
+];
+const ROADS = [
+  { id: "road-day", name: "יום בהיר", price: 0, grass: "#8DBF6A", grass2: "#80B35E", road: "#4A4E5A", line: "#F4F1E8", curb: ["#EDEDED", "#D9574A"], deco: "tree", dc: ["#4E8A4A", "#63A158"] },
+  { id: "road-sunset", name: "שקיעה", price: 120, grass: "#D9A070", grass2: "#CF9364", road: "#574656", line: "#FFE2B5", curb: ["#FFF1DD", "#C25E4E"], deco: "tree", dc: ["#9C5B3E", "#B8714C"], tint: "rgba(255,140,80,.16)" },
+  { id: "road-night", name: "לילה", price: 160, grass: "#1E3329", grass2: "#1A2D24", road: "#2A2D38", line: "#F2D27A", curb: ["#55596A", "#8C3A3A"], deco: "lamp", dc: ["#2E4A3C", "#365646"], night: true },
+  { id: "road-snow", name: "שלג", price: 140, grass: "#EEF3F6", grass2: "#E3EBF0", road: "#6B7480", line: "#FFFFFF", curb: ["#FFFFFF", "#4F86B8"], deco: "pine", dc: ["#3F6B5A", "#4F7D69"] },
+  { id: "road-desert", name: "מדבר", price: 140, grass: "#E3C58E", grass2: "#D9B97F", road: "#7A6A58", line: "#FFF3D6", curb: ["#F5E6C8", "#B4664B"], deco: "cactus", dc: ["#6E9A5A", "#5E8A4C"] },
+];
+const CFG = {
+  id: "racer", title: "כביש מהיר", startCoins: 40, startStock: { shield: 2 },
+  items: [
+    Hub.theme("indigo", 0), Hub.theme("night", 120), Hub.theme("ocean", 100), Hub.theme("slate", 100), Hub.theme("coral", 120),
+    ...CARS.map(c => ({ ...c, slot: "car" })),
+    ...ROADS.map(r => ({ ...r, slot: "road" })),
+    { id: "shield3", consumable: true, stockId: "shield", amount: 3, name: "3 מגנים", desc: "מגן סופג התנגשות אחת בריצה", price: 40 },
+    { id: "shield10", consumable: true, stockId: "shield", amount: 10, name: "10 מגנים", desc: "חבילה משתלמת", price: 110 },
+  ],
+  storeGroups: [{ slot: "car", title: "מכוניות" }, { slot: "road", title: "כבישים" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span style="font-size:40px">🛡</span>` : `<img alt="" src="${previewImage(it)}">`,
+};
+const TRAFFIC = ["#4F86B8", "#E0A43A", "#8E9AA8", "#C95468", "#4E9A6A", "#F1EEE8", "#3A3F4B", "#B07AC9"];
+
+// ---------- Drawing ----------
+function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function drawCar(ctx, cx, y, w, h, st, t = 0) {
+  const bw = st.slim ? w * .9 : w, x = cx - bw / 2, rad = st.boxy ? bw * .14 : st.round ? bw * .42 : bw * .3;
+  ctx.fillStyle = "rgba(0,0,0,.25)"; rr(ctx, x + 3, y + 5, bw, h, rad); ctx.fill();
+  ctx.fillStyle = "#1E1E22"; // wheels
+  for (const wy of [.16, .7]) { rr(ctx, x - bw * .07, y + h * wy, bw * .16, h * .16, 3); ctx.fill(); rr(ctx, x + bw * .91, y + h * wy, bw * .16, h * .16, 3); ctx.fill(); }
+  const g = ctx.createLinearGradient(x, 0, x + bw, 0);
+  g.addColorStop(0, shade(st.body, -18)); g.addColorStop(.45, shade(st.body, 12)); g.addColorStop(1, shade(st.body, -22));
+  ctx.fillStyle = g; rr(ctx, x, y, bw, h, rad); ctx.fill();
+  if (st.stripe) { ctx.fillStyle = st.stripe; ctx.fillRect(cx - bw * .09, y + 2, bw * .18, h - 4); }
+  ctx.fillStyle = "rgba(28,36,52,.88)"; rr(ctx, x + bw * .14, y + h * .24, bw * .72, h * .2, bw * .12); ctx.fill(); // windshield
+  rr(ctx, x + bw * .18, y + h * .7, bw * .64, h * .12, bw * .1); ctx.fill(); // rear window
+  ctx.fillStyle = "rgba(255,255,255,.18)"; rr(ctx, x + bw * .2, y + h * .46, bw * .6, h * .22, bw * .12); ctx.fill(); // roof
+  ctx.fillStyle = "#FFF3C4"; rr(ctx, x + bw * .08, y + 1, bw * .22, h * .06, 3); ctx.fill(); rr(ctx, x + bw * .7, y + 1, bw * .22, h * .06, 3); ctx.fill();
+  ctx.fillStyle = "#E2483D"; rr(ctx, x + bw * .08, y + h * .935, bw * .2, h * .05, 3); ctx.fill(); rr(ctx, x + bw * .72, y + h * .935, bw * .2, h * .05, 3); ctx.fill();
+  if (st.boxy) { ctx.fillStyle = "#1E1E22"; ctx.beginPath(); ctx.arc(cx, y + h * 1.0, bw * .17, 0, Math.PI * 2); ctx.fill(); }
+  if (st.shine) { ctx.fillStyle = `rgba(255,255,255,${.25 + .2 * Math.sin(t * 4)})`; ctx.beginPath(); ctx.ellipse(x + bw * .3, y + h * .15, bw * .12, h * .05, -.6, 0, Math.PI * 2); ctx.fill(); }
+}
+function shade(hex, amt) {
+  const n = parseInt(hex.slice(1), 16), f = v => Math.max(0, Math.min(255, v + amt));
+  return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`;
+}
+function drawDeco(ctx, kind, x, y, s, cols, night) {
+  if (kind === "tree") { ctx.fillStyle = "rgba(0,0,0,.15)"; ctx.beginPath(); ctx.arc(x + 4, y + 5, s, 0, 7); ctx.fill(); ctx.fillStyle = cols[0]; ctx.beginPath(); ctx.arc(x, y, s, 0, 7); ctx.fill(); ctx.fillStyle = cols[1]; ctx.beginPath(); ctx.arc(x - s * .3, y - s * .3, s * .55, 0, 7); ctx.fill(); }
+  else if (kind === "pine") { ctx.fillStyle = cols[0]; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(x, y - s + k * s * .45); ctx.lineTo(x - s * (.55 + k * .2), y + k * s * .45); ctx.lineTo(x + s * (.55 + k * .2), y + k * s * .45); ctx.fill(); } ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x - s * .25, y - s * .55); ctx.lineTo(x + s * .25, y - s * .55); ctx.fill(); }
+  else if (kind === "cactus") { ctx.fillStyle = cols[0]; rr(ctx, x - s * .18, y - s, s * .36, s * 1.8, s * .18); ctx.fill(); rr(ctx, x - s * .7, y - s * .4, s * .3, s * .8, s * .15); ctx.fill(); rr(ctx, x + s * .4, y - s * .7, s * .3, s * .8, s * .15); ctx.fill(); ctx.fillRect(x - s * .5, y + s * .1, s * .4, s * .22); ctx.fillRect(x + s * .1, y - s * .2, s * .4, s * .22); }
+  else if (kind === "lamp") { ctx.fillStyle = "#555B66"; ctx.fillRect(x - 2, y - s, 4, s * 2); if (night) { const g = ctx.createRadialGradient(x, y - s, 0, x, y - s, s * 2.2); g.addColorStop(0, "rgba(255,214,130,.55)"); g.addColorStop(1, "rgba(255,214,130,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - s, s * 2.2, 0, 7); ctx.fill(); } ctx.fillStyle = "#FFE6A8"; ctx.beginPath(); ctx.arc(x, y - s, 4, 0, 7); ctx.fill(); }
+}
+function drawCoin(ctx, x, y, r, t) {
+  const sx = Math.abs(Math.cos(t * 4 + x)) * .6 + .4;
+  ctx.save(); ctx.translate(x, y); ctx.scale(sx, 1);
+  ctx.fillStyle = "#B48A2C"; ctx.beginPath(); ctx.arc(0, 2, r, 0, 7); ctx.fill();
+  ctx.fillStyle = "#D9B154"; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+  ctx.fillStyle = "#FFF3CF"; ctx.beginPath(); ctx.arc(0, 0, r * .42, 0, 7); ctx.fill(); ctx.restore();
+}
+function drawCone(ctx, x, y, s) {
+  ctx.fillStyle = "rgba(0,0,0,.2)"; ctx.beginPath(); ctx.ellipse(x + 3, y + s * .5, s * .7, s * .3, 0, 0, 7); ctx.fill();
+  ctx.fillStyle = "#3A3A3A"; rr(ctx, x - s * .7, y + s * .2, s * 1.4, s * .5, 4); ctx.fill();
+  ctx.fillStyle = "#F07C2E"; ctx.beginPath(); ctx.moveTo(x, y - s * .9); ctx.lineTo(x - s * .55, y + s * .4); ctx.lineTo(x + s * .55, y + s * .4); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.fillRect(x - s * .32, y - s * .15, s * .64, s * .18);
+}
+function drawOil(ctx, x, y, s) {
+  ctx.fillStyle = "rgba(20,18,30,.82)"; ctx.beginPath(); ctx.ellipse(x, y, s, s * .62, .3, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(x + s * .55, y + s * .35, s * .35, s * .25, 0, 0, 7); ctx.fill();
+  const g = ctx.createLinearGradient(x - s, y - s, x + s, y + s); g.addColorStop(0, "rgba(140,120,255,.35)"); g.addColorStop(.5, "rgba(120,255,200,.25)"); g.addColorStop(1, "rgba(255,180,120,.3)");
+  ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x - s * .2, y - s * .1, s * .55, s * .25, .3, 0, 7); ctx.fill();
+}
+// The road: grass, curbs, lane lines and the roadside scenery. scroll = how far we've driven.
+function drawRoad(ctx, w, h, road, scroll, lanes) {
+  const rw = w * .8, rx = (w - rw) / 2, lw = rw / lanes;
+  ctx.fillStyle = road.grass; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = road.grass2; const band = 80, off = scroll % (band * 2);
+  for (let y = -band * 2 + off; y < h; y += band * 2) { ctx.fillRect(0, y, rx, band); ctx.fillRect(rx + rw, y, w - rx - rw, band); }
+  ctx.fillStyle = road.road; ctx.fillRect(rx, 0, rw, h);
+  const cb = 26, coff = scroll % (cb * 2);
+  for (let y = -cb * 2 + coff, k = 0; y < h; y += cb, k++) { ctx.fillStyle = road.curb[k % 2]; ctx.fillRect(rx - 7, y, 7, cb); ctx.fillRect(rx + rw, y, 7, cb); }
+  ctx.fillStyle = road.line; const dl = 30, doff = scroll % (dl * 2);
+  for (let i = 1; i < lanes; i++) { const x = rx + lw * i - 2; for (let y = -dl * 2 + doff; y < h; y += dl * 2) ctx.fillRect(x, y, 4, dl); }
+  const gap = 140, soff = scroll % gap, sideW = rx;
+  for (let k = -1, y = -gap + soff; y < h + gap; y += gap, k++) {
+    const idx = Math.floor((scroll - soff) / gap) - k;
+    const s = Math.min(sideW * .32, 16);
+    drawDeco(ctx, road.deco, sideW * (.35 + ((idx * 37) % 5) * .05), y, s, road.dc, road.night);
+    drawDeco(ctx, road.deco, w - sideW * (.35 + ((idx * 53) % 5) * .05), y + gap / 2, s, road.dc, road.night);
+  }
+}
+const previews = {};
+function previewImage(it) {
+  if (previews[it.id]) return previews[it.id];
+  const cv = document.createElement("canvas"), w = 150, h = 100; cv.width = w * 2; cv.height = h * 2;
+  const ctx = cv.getContext("2d"); ctx.scale(2, 2);
+  const road = it.slot === "road" ? it : Hub.equipped("road") || ROADS[0], car = it.slot === "car" ? it : CARS[0];
+  drawRoad(ctx, w, h, road, 20, 3);
+  if (road.tint) { ctx.fillStyle = road.tint; ctx.fillRect(0, 0, w, h); }
+  drawCar(ctx, w / 2, 26, 26, 46, car);
+  if (road.night) { ctx.fillStyle = "rgba(6,10,24,.35)"; ctx.fillRect(0, 0, w, h); }
+  return previews[it.id] = cv.toDataURL();
+}
+
+// ---------- The race ----------
+const LANES = 4;
+let W, view = "menu", nav = [], R = null, raf = 0, cv, ctx, dims;
+const P = () => { const p = W.progress; p.best = p.best || 0; p.runs = p.runs || 0; return p; };
+
+function measure() {
+  const stage = $("#stage"); if (!stage) return;
+  const w = stage.clientWidth, h = Math.round(Math.min(innerHeight * .64, w * 1.45, 680));
+  stage.style.height = h + "px";
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const rw = w * .8, rx = (w - rw) / 2, lw = rw / LANES, cw = lw * .58, ch = cw * 1.75;
+  dims = { w, h, rw, rx, lw, cw, ch, py: h - ch - 26 };
+  if (R) R.x = laneX(R.lane);
+}
+const laneX = l => dims.rx + dims.lw * (l + .5);
+
+function newRun(useShield) {
+  R = { lane: 1, x: 0, speed: 0, dist: 0, coins: 0, objs: [], next: 200, t: 0, over: false, running: false, paused: false, count: 2.2, shield: useShield, inv: 0, scroll: 0, spin: 0, boost: false, brake: false, time: 0 };
+  R.x = laneX(1);
+}
+function spawnRow() {
+  const n = R.t < 12 ? 1 : R.t < 35 ? 1 + (Math.random() < .5) : 1 + Math.floor(Math.random() * 3);
+  const lanes = Hub.shuffle([0, 1, 2, 3]), blocked = lanes.slice(0, n), free = lanes.slice(n);
+  for (const l of blocked) {
+    const r = Math.random(), type = r < .62 ? "car" : r < .85 ? "cone" : "oil";
+    const o = { type, lane: l, x: laneX(l), y: -dims.ch * 1.2 };
+    if (type === "car") { o.w = dims.cw; o.h = dims.ch; o.color = TRAFFIC[Math.floor(Math.random() * TRAFFIC.length)]; o.style = { body: o.color, boxy: Math.random() < .2 }; }
+    else if (type === "cone") { o.w = o.h = dims.cw * .62; }
+    else { o.w = dims.cw * 1.1; o.h = dims.cw * .7; }
+    R.objs.push(o);
+  }
+  if (free.length && Math.random() < .55) {
+    const l = free[Math.floor(Math.random() * free.length)];
+    for (let k = 0; k < 3; k++) R.objs.push({ type: "coin", lane: l, x: laneX(l), y: -dims.ch - k * dims.ch * .6, w: dims.cw * .5, h: dims.cw * .5 });
+  }
+}
+function moveLane(d) {
+  if (!R || !R.running || R.over || R.paused) return;
+  const l = Math.max(0, Math.min(LANES - 1, R.lane + d));
+  if (l !== R.lane) { R.lane = l; Hub.sound("tap"); }
+}
+const hit = (a, b) => Math.abs(a.x - b.x) < (a.w + b.w) / 2 && Math.abs(a.cy - b.cy) < (a.h + b.h) / 2;
+
+function update(dt) {
+  if (!R.running || R.paused || R.over) return;
+  if (R.count > 0) { R.count -= dt; if (R.count <= 0) Hub.sound("good"); return; }
+  R.t += dt;
+  const target = Math.min(250 + R.t * 8, 760) * (R.boost ? 1.4 : R.brake ? .55 : 1);
+  R.speed += (target - R.speed) * Math.min(1, dt * 2.6);
+  const d = R.speed * dt;
+  R.scroll += d; R.dist += d / 28;
+  R.x += (laneX(R.lane) - R.x) * Math.min(1, dt * 13);
+  R.spin = Math.max(0, R.spin - dt); R.inv = Math.max(0, R.inv - dt);
+  R.next -= d;
+  if (R.next <= 0) { spawnRow(); R.next = Math.max(dims.ch * 2.4, 330 - R.t * 2.2); }
+  const me = { x: R.x, cy: dims.py + dims.ch / 2, w: dims.cw * .82, h: dims.ch * .86 };
+  for (const o of R.objs) {
+    o.y += d;
+    if (o.gone) continue;
+    if (!hit(me, { x: o.x, cy: o.y + o.h / 2, w: o.w * .86, h: o.h * .86 })) continue;
+    if (o.type === "coin") { o.gone = true; R.coins++; Hub.sound("coin"); continue; }
+    if (o.type === "oil") { o.gone = true; R.spin = .7; const d2 = R.lane === 0 ? 1 : R.lane === LANES - 1 ? -1 : Math.random() < .5 ? -1 : 1; R.lane += d2; Hub.sound("wrong"); continue; }
+    if (R.inv > 0) continue;
+    if (R.shield) { R.shield = false; R.inv = 1.4; o.gone = true; o.burst = .5; Hub.sound("hint"); Hub.toast("המגן הציל אותך! 🛡"); continue; }
+    return crash();
+  }
+  R.objs = R.objs.filter(o => o.y < dims.h + 80 && !(o.gone && o.type !== "car" && o.type !== "cone"));
+  hud();
+}
+function draw(t) {
+  const { w, h } = dims, road = Hub.equipped("road");
+  ctx.clearRect(0, 0, w, h);
+  drawRoad(ctx, w, h, road, R.scroll, LANES);
+  for (const o of R.objs) {
+    if (o.gone && !o.burst) continue;
+    if (o.burst) { o.burst -= 1 / 60; ctx.globalAlpha = Math.max(0, o.burst * 2); }
+    if (o.type === "car") drawCar(ctx, o.x, o.y, o.w, o.h, o.style);
+    else if (o.type === "cone") drawCone(ctx, o.x, o.y + o.h / 2, o.w / 2);
+    else if (o.type === "oil") drawOil(ctx, o.x, o.y + o.h / 2, o.w / 2);
+    else drawCoin(ctx, o.x, o.y + o.h / 2, o.w / 2, t / 1000);
+    ctx.globalAlpha = 1;
+    if (o.burst <= 0) o.burst = 0;
+  }
+  if (road.tint) { ctx.fillStyle = road.tint; ctx.fillRect(0, 0, w, h); }
+  if (road.night) { // darkness with the headlights cutting through
+    ctx.fillStyle = "rgba(6,10,24,.5)"; ctx.fillRect(0, 0, w, h);
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    const g = ctx.createLinearGradient(0, dims.py, 0, dims.py - h * .55); g.addColorStop(0, "rgba(255,230,160,.32)"); g.addColorStop(1, "rgba(255,230,160,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(R.x - dims.cw * .35, dims.py); ctx.lineTo(R.x - dims.cw * 1.6, dims.py - h * .55); ctx.lineTo(R.x + dims.cw * 1.6, dims.py - h * .55); ctx.lineTo(R.x + dims.cw * .35, dims.py); ctx.fill();
+    ctx.restore();
+  }
+  ctx.save();
+  const tilt = (laneX(R.lane) - R.x) / dims.lw * -.18 + (R.spin ? Math.sin(R.spin * 18) * .5 : 0);
+  ctx.translate(R.x, dims.py + dims.ch / 2); ctx.rotate(tilt); ctx.translate(-R.x, -(dims.py + dims.ch / 2));
+  if (R.inv > 0 && Math.floor(t / 90) % 2) ctx.globalAlpha = .45;
+  drawCar(ctx, R.x, dims.py, dims.cw, dims.ch, Hub.equipped("car"), t / 1000);
+  ctx.restore();
+  if (R.shield) {
+    ctx.strokeStyle = "rgba(120,200,255,.8)"; ctx.lineWidth = 2.5; ctx.fillStyle = "rgba(120,200,255,.12)";
+    ctx.beginPath(); ctx.ellipse(R.x, dims.py + dims.ch / 2, dims.cw * .95, dims.ch * .7, 0, 0, 7); ctx.fill(); ctx.stroke();
+  }
+  if (R.boost && R.running && !R.over && R.count <= 0) { ctx.fillStyle = "rgba(255,190,90,.7)"; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(R.x + (k - 1) * 6, dims.py + dims.ch + 6 + Math.random() * 10, 3 + Math.random() * 3, 0, 7); ctx.fill(); } }
+  if (R.running && R.count > 0) {
+    const n = Math.ceil(R.count / .7);
+    ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `500 ${Math.round(w * .24)}px "Frank Ruhl Libre", serif`;
+    ctx.fillText(n > 3 ? "3" : n, w / 2, h * .42);
+    ctx.font = `500 18px Heebo, sans-serif`; ctx.fillText("מתכוננים…", w / 2, h * .42 + w * .17);
+  }
+}
+function frame(t) {
+  if (view !== "game" || !R) return;
+  const dt = Math.min(.05, (t - (R.time || t)) / 1000); R.time = t;
+  update(dt); draw(t);
+  raf = requestAnimationFrame(frame);
+}
+function hud() {
+  const d = $("#hDist"), c = $("#hCoins"); if (!d) return;
+  d.textContent = Math.floor(R.dist); c.textContent = R.coins;
+}
+function crash() {
+  R.over = true; R.boost = R.brake = false;
+  Hub.sound("crash");
+  const st = $("#stage"); st.classList.remove("shake"); void st.offsetWidth; st.classList.add("shake");
+  const p = P(), dist = Math.floor(R.dist), record = dist > p.best;
+  p.runs++; if (record) p.best = dist;
+  const coins = R.coins + Math.floor(dist / 40);
+  Hub.save(); Hub.earn(coins);
+  setTimeout(() => {
+    if (record) Hub.confetti();
+    Hub.result({ title: record ? "שיא חדש! 🏁" : "התנגשות!", sub: `נסעת <b>${dist}</b> מטר ואספת ${R.coins} מטבעות${record ? "" : ` · השיא שלך: ${p.best} מ׳`}`, coins, buttons: [["again", "עוד נסיעה", true], ["tomenu", "לתפריט"]] });
+  }, 800);
+}
+function readyCard() {
+  const s = Hub.stock("shield");
+  Hub.overlay(`<div class="ready"><h2 class="display sm">מוכנים לנסיעה?</h2>
+    <p class="lede">התחמקו ממכוניות ומקונוסים, ואספו מטבעות. כתם שמן מחליק אתכם לנתיב אחר.</p>
+    <div class="toggles"><button class="toggle ${s ? "on" : ""}" data-act="toggleShield" ${s ? "" : "disabled"} aria-pressed="${!!s}">🛡 מגן לנסיעה · יש ${s}</button></div>
+    <button class="btn primary big" data-act="go">יוצאים! 🏁</button>
+    <p class="small">←/→ החלפת נתיב · ↑ גז · ↓ בלם · רווח עצירה</p></div>`);
+}
+
+// ---------- Views ----------
+function go(v) { nav.push(view); view = v; render(); scrollTo(0, 0); }
+function back() { stopLoop(); view = nav.pop() || "menu"; render(); }
+function stopLoop() { cancelAnimationFrame(raf); raf = 0; }
+function render() {
+  Hub.closeOverlay();
+  $("#app").innerHTML = ({ menu: menuView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+  if (view === "game") startStage();
+}
+function menuView() {
+  const p = P();
+  return Hub.menu({ tagline: `דהרו בכביש, התחמקו מכל מה שבדרך ואספו מטבעות. ככל שנוסעים, הכביש נהיה מהיר יותר.${p.best ? `<br><b>השיא שלך: ${p.best} מטר</b>` : ""}`, buttons: [["play", "לנסוע", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+}
+function gameView() {
+  return `${Hub.topbar("כביש מהיר")}
+    <div class="stage" id="stage"><canvas id="cv" aria-label="הכביש"></canvas>
+      <div class="hud-top"><span class="chip">📏 <b id="hDist">0</b> מ׳</span><span class="chip">${Hub.coinSvg}<b id="hCoins">0</b></span><button class="icon-btn" data-act="pause" aria-label="הפסקה">⏸</button></div>
+    </div>
+    <div class="pad" id="pad">
+      <button data-pad="left" aria-label="שמאלה">◀<small>שמאלה</small></button>
+      <button data-pad="up" aria-label="גז">▲<small>גז</small></button>
+      <button data-pad="down" aria-label="בלם">▼<small>בלם</small></button>
+      <button data-pad="right" aria-label="ימינה">▶<small>ימינה</small></button>
+    </div>
+    <p class="small keys">במקלדת: חצים או WASD · בטלפון: הכפתורים או החלקה על המסך</p>`;
+}
+function helpView() {
+  return `${Hub.topbar("איך משחקים")}<div class="help card">
+    <h2>המטרה</h2><p>לנסוע כמה שיותר רחוק בלי להתנגש.</p>
+    <h2>שליטה</h2><ul><li><b>◀ ▶</b> מעבירים נתיב (גם החלקה או הקשה בצד של המסך).</li><li><b>▲ גז</b> (להחזיק) מאיץ, ו<b>▼ בלם</b> מאט, כדי לתזמן מעבר בין מכוניות.</li><li>רווח או ⏸ עוצרים את המשחק.</li></ul>
+    <h2>בדרך</h2><ul><li>🚗 מכוניות ו-🔶 קונוסים: התנגשות מסיימת את הנסיעה.</li><li>⚫ כתם שמן: מחליק אתכם לנתיב שכן.</li><li>🪙 מטבעות: כל אחד נכנס לארנק של המשחק.</li></ul>
+    <h2>מטבעות וחנות</h2><ul><li>בסוף נסיעה מקבלים את המטבעות שאספתם ועוד מטבע על כל 40 מטר.</li><li><b>🛡 מגן</b> סופג התנגשות אחת. בחנות יש גם מכוניות וכבישים חדשים.</li></ul></div>`;
+}
+let useShield = true;
+function startStage() {
+  cv = $("#cv"); ctx = cv.getContext("2d");
+  measure(); newRun(false); hud();
+  stopLoop(); R.time = 0; raf = requestAnimationFrame(frame);
+  useShield = Hub.stock("shield") > 0;
+  readyCard();
+}
+function pause(on) {
+  if (!R || !R.running || R.over) return;
+  R.paused = on; R.boost = R.brake = false;
+  if (on) Hub.overlay(`<h2 class="display sm">הפסקה</h2><div class="stack"><button class="btn wide primary" data-act="resume">להמשיך</button><button class="btn wide" data-act="quit">לסיים את הנסיעה</button></div>`);
+  else Hub.closeOverlay();
+}
+
+// ---------- Input ----------
+const PAD = { left: () => moveLane(-1), right: () => moveLane(1), up: v => { if (R) R.boost = v; }, down: v => { if (R) R.brake = v; } };
+document.addEventListener("keydown", e => {
+  if (view !== "game" || !R) return;
+  const k = e.key, map = { ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right", ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down" };
+  if (k === " " || k === "Escape" || k === "p") { e.preventDefault(); if (!Hub.overlayOpen() || R.paused) pause(!R.paused); return; }
+  const m = map[k]; if (!m) return;
+  e.preventDefault();
+  if (Hub.overlayOpen()) return;
+  if (m === "left" || m === "right") { if (!e.repeat) PAD[m](); } else PAD[m](true);
+});
+document.addEventListener("keyup", e => {
+  const m = { ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down" }[e.key];
+  if (m && R) PAD[m](false);
+});
+document.addEventListener("pointerdown", e => {
+  const b = e.target.closest("[data-pad]");
+  if (b) { e.preventDefault(); b.classList.add("held"); const m = b.dataset.pad; m === "up" || m === "down" ? PAD[m](true) : PAD[m](); b.setPointerCapture?.(e.pointerId); return; }
+  if (e.target.id === "cv") swipe = { x: e.clientX, y: e.clientY };
+});
+let swipe = null;
+const release = e => {
+  const b = e.target.closest?.("[data-pad]");
+  document.querySelectorAll(".pad .held").forEach(x => x.classList.remove("held"));
+  if (b && (b.dataset.pad === "up" || b.dataset.pad === "down")) PAD[b.dataset.pad](false);
+  if (swipe && e.type === "pointerup") {
+    const dx = e.clientX - swipe.x, rect = cv.getBoundingClientRect();
+    if (Math.abs(dx) > 28) moveLane(dx > 0 ? 1 : -1);
+    else moveLane(swipe.x - rect.left < rect.width / 2 ? -1 : 1);
+  }
+  swipe = null;
+};
+document.addEventListener("pointerup", release);
+document.addEventListener("pointercancel", release);
+document.addEventListener("visibilitychange", () => { if (document.hidden && R && R.running && !R.over && !R.paused) pause(true); });
+addEventListener("resize", () => { if (view === "game" && cv) measure(); });
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "back") return back();
+  if (a === "play") return go("game");
+  if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
+  if (a === "help") return go("help");
+  if (a === "buy") { Hub.buy(b.dataset.item); Object.keys(previews).forEach(k => delete previews[k]); return render(); }
+  if (a === "toggleShield") { useShield = !useShield; b.classList.toggle("on", useShield); b.setAttribute("aria-pressed", useShield); return; }
+  if (a === "go") {
+    Hub.closeOverlay();
+    const shield = useShield && Hub.useStock("shield");
+    newRun(shield); R.running = true; hud(); Hub.sound("tap");
+    return;
+  }
+  if (a === "pause") return pause(true);
+  if (a === "resume") return pause(false);
+  if (a === "quit") { R.paused = false; Hub.closeOverlay(); return crash(); }
+  if (a === "again") { Hub.closeOverlay(); newRun(false); hud(); useShield = Hub.stock("shield") > 0; readyCard(); return; }
+  if (a === "tomenu") { stopLoop(); view = "menu"; nav = []; return render(); }
+});
+
+Hub.start(CFG, (u, w) => { W = w; render(); });
+</script>
+</body>
+</html>

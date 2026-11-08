@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>שחמט · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<style>
+.pc { font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", "DejaVu Sans", serif; font-size: calc(min(100vw - 32px, 540px, 72vh) / 8 * .74); line-height: 1; pointer-events: none; transition: transform .15s; }
+.pc.w { color: var(--pw); -webkit-text-stroke: 1.2px var(--pw-e); filter: drop-shadow(0 2px 1.5px rgba(0,0,0,.28)); }
+.pc.b { color: var(--pb); -webkit-text-stroke: 1px var(--pb-e); filter: drop-shadow(0 2px 1.5px rgba(0,0,0,.3)); }
+.sq.sel .pc { transform: scale(1.08) translateY(-2px); }
+.sq.check { background: radial-gradient(circle, #E35D5D 0%, color-mix(in srgb, #E35D5D 50%, transparent) 45%, transparent 72%), var(--sq-l); }
+.sq.d.check { background: radial-gradient(circle, #E35D5D 0%, color-mix(in srgb, #E35D5D 50%, transparent) 45%, transparent 72%), var(--sq-d); }
+.taken { display: flex; justify-content: space-between; align-items: center; min-height: 30px; margin: 6px 2px; direction: ltr; }
+.taken .row-p { font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", serif; font-size: 20px; letter-spacing: -3px; }
+.taken .adv { font-size: 13px; color: var(--muted); }
+.tools { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+.promo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.promo .btn { font-size: 40px; padding: 10px 0; font-family: "Segoe UI Symbol", serif; }
+.pv-board { display: grid; grid-template-columns: repeat(4, 26px); border-radius: 6px; overflow: hidden; direction: ltr; }
+.pv-board i { width: 26px; height: 26px; display: grid; place-items: center; font-style: normal; font-size: 21px; font-family: "Segoe UI Symbol", serif; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const { $, esc } = Hub;
+
+// ---------- Store ----------
+const BOARDS = [
+  { id: "board-wood", name: "עץ חם", price: 0, l: "#EBD9BE", d: "#B88A62" },
+  { id: "board-marble", name: "שיש", price: 90, l: "#EEEDE8", d: "#9AA5AA" },
+  { id: "board-sage", name: "מרווה", price: 110, l: "#EEF1E4", d: "#85A388" },
+  { id: "board-rose", name: "ורד", price: 120, l: "#F7E9E6", d: "#C9929A" },
+  { id: "board-midnight", name: "חצות", price: 160, l: "#6E6B86", d: "#3A3848" },
+];
+const PIECES = [
+  { id: "pcs-classic", name: "קלאסי", price: 0, w: "#FFFDF8", we: "#4A403A", b: "#2D2926", be: "#2D2926" },
+  { id: "pcs-ink", name: "שמנת ודיו", price: 100, w: "#F6EEDF", we: "#7A5C40", b: "#2C3E63", be: "#18233D" },
+  { id: "pcs-gold", name: "זהב וכסף", price: 150, w: "#F2DC97", we: "#8A6A1F", b: "#8C939E", be: "#3E434B" },
+  { id: "pcs-coral", name: "אלמוג", price: 130, w: "#FFF4EE", we: "#B4664B", b: "#B4664B", be: "#6E3826" },
+];
+const CFG = {
+  id: "chess", title: "שחמט", startCoins: 50, startStock: { hint: 3, undo: 3 },
+  items: [
+    Hub.theme("terracotta", 0), Hub.theme("slate", 100), Hub.theme("sage", 100), Hub.theme("plum", 120), Hub.theme("night", 200),
+    ...BOARDS.map(b => ({ ...b, slot: "board" })),
+    ...PIECES.map(p => ({ ...p, slot: "pieces" })),
+    { id: "hints3", consumable: true, stockId: "hint", amount: 3, name: "3 רמזים", desc: "המחשב מסמן לך מהלך טוב", price: 30 },
+    { id: "undo3", consumable: true, stockId: "undo", amount: 3, name: "3 ביטולים", desc: "מחזיר את המהלך האחרון שלך", price: 30 },
+  ],
+  storeGroups: [{ slot: "theme", title: "ערכות צבע" }, { slot: "board", title: "לוחות" }, { slot: "pieces", title: "כלים" }, { consumable: true, title: "עזרים" }],
+  preview: it => {
+    const bd = it.slot === "board" ? it : Hub.equipped("board"), pc = it.slot === "pieces" ? it : Hub.equipped("pieces");
+    const glyphs = ["♚", "♛", "", "♟", "", "♟", "♞", "♚"];
+    return `<div class="pv-board">${glyphs.map((g, i) => `<i style="background:${(i + (i >> 2)) % 2 ? bd.d : bd.l};color:${i < 4 ? pc.b : pc.w};-webkit-text-stroke:1px ${i < 4 ? pc.be : pc.we}">${g ? g + "︎" : ""}</i>`).join("")}</div>`;
+  },
+};
+const DIFFS = {
+  easy: { name: "מתחיל", desc: "המחשב חושב מהלך אחד קדימה, ולפעמים טועה", coins: 20, depth: 1, time: 300, noise: 90 },
+  mid: { name: "מתקדם", desc: "חושב כמה מהלכים קדימה", coins: 45, depth: 2, time: 900, noise: 15 },
+  hard: { name: "אמן", desc: "מחשב לעומק ולא סולח על טעויות", coins: 90, depth: 4, time: 1600, noise: 0 },
+};
+
+// ---------- Rules ----------
+// The board is 64 squares, 0 = a8 (top left) … 63 = h1. White pieces are UPPERCASE, black lowercase.
+const isW = p => p === p.toUpperCase();
+const N_OFF = [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]];
+const K_OFF = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+const B_DIR = [[-1, -1], [-1, 1], [1, -1], [1, 1]], R_DIR = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+const inB = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
+
+function initial() {
+  const b = Array(64).fill("");
+  "rnbqkbnr".split("").forEach((p, i) => { b[i] = p; b[56 + i] = p.toUpperCase(); b[8 + i] = "p"; b[48 + i] = "P"; });
+  return { b, turn: "w", cr: { K: true, Q: true, k: true, q: true }, ep: -1, half: 0 };
+}
+
+function attacked(b, sq, byW) {
+  const r = sq >> 3, c = sq & 7;
+  const has = (rr, cc, kinds) => { if (!inB(rr, cc)) return false; const p = b[rr * 8 + cc]; return !!p && isW(p) === byW && kinds.includes(p.toLowerCase()); };
+  const pr = byW ? r + 1 : r - 1; // a white pawn attacks upwards, so it sits one row below
+  if (has(pr, c - 1, "p") || has(pr, c + 1, "p")) return true;
+  for (const [dr, dc] of N_OFF) if (has(r + dr, c + dc, "n")) return true;
+  for (const [dr, dc] of K_OFF) if (has(r + dr, c + dc, "k")) return true;
+  for (const [dirs, kinds] of [[B_DIR, "bq"], [R_DIR, "rq"]]) for (const [dr, dc] of dirs) {
+    let rr = r + dr, cc = c + dc;
+    while (inB(rr, cc)) { const p = b[rr * 8 + cc]; if (p) { if (isW(p) === byW && kinds.includes(p.toLowerCase())) return true; break; } rr += dr; cc += dc; }
+  }
+  return false;
+}
+const kingSq = (b, w) => b.indexOf(w ? "K" : "k");
+const inCheck = s => attacked(s.b, kingSq(s.b, s.turn === "w"), s.turn !== "w");
+
+function pseudo(s) {
+  const out = [], b = s.b, w = s.turn === "w";
+  for (let sq = 0; sq < 64; sq++) {
+    const p = b[sq]; if (!p || isW(p) !== w) continue;
+    const t = p.toLowerCase(), r = sq >> 3, c = sq & 7;
+    const add = (to, extra) => out.push({ from: sq, to, p, cap: b[to], ...extra });
+    if (t === "p") {
+      const dir = w ? -1 : 1, r1 = r + dir, last = w ? 0 : 7;
+      const pawnTo = to => { if ((to >> 3) === last) for (const pr of "qrbn") add(to, { promo: w ? pr.toUpperCase() : pr }); else add(to); };
+      if (inB(r1, c) && !b[r1 * 8 + c]) {
+        pawnTo(r1 * 8 + c);
+        if (r === (w ? 6 : 1) && !b[(r + 2 * dir) * 8 + c]) add((r + 2 * dir) * 8 + c, { dbl: true });
+      }
+      for (const dc of [-1, 1]) {
+        if (!inB(r1, c + dc)) continue;
+        const to = r1 * 8 + c + dc;
+        if (b[to] && isW(b[to]) !== w) pawnTo(to);
+        else if (to === s.ep) add(to, { ep: true, cap: w ? "p" : "P" });
+      }
+    } else if (t === "n" || t === "k") {
+      for (const [dr, dc] of t === "n" ? N_OFF : K_OFF) {
+        if (!inB(r + dr, c + dc)) continue;
+        const to = (r + dr) * 8 + c + dc;
+        if (!b[to] || isW(b[to]) !== w) add(to);
+      }
+      if (t === "k") { // castling: king and rook unmoved, the squares between empty and the king never passes through check
+        const home = w ? 60 : 4, enemy = !w, R = w ? "R" : "r";
+        if (sq === home && !attacked(b, home, enemy)) {
+          if (s.cr[w ? "K" : "k"] && b[home + 3] === R && !b[home + 1] && !b[home + 2] && !attacked(b, home + 1, enemy) && !attacked(b, home + 2, enemy)) add(home + 2, { castle: [home + 3, home + 1] });
+          if (s.cr[w ? "Q" : "q"] && b[home - 4] === R && !b[home - 1] && !b[home - 2] && !b[home - 3] && !attacked(b, home - 1, enemy) && !attacked(b, home - 2, enemy)) add(home - 2, { castle: [home - 4, home - 1] });
+        }
+      }
+    } else {
+      const dirs = t === "b" ? B_DIR : t === "r" ? R_DIR : [...B_DIR, ...R_DIR];
+      for (const [dr, dc] of dirs) {
+        let rr = r + dr, cc = c + dc;
+        while (inB(rr, cc)) { const to = rr * 8 + cc; if (b[to]) { if (isW(b[to]) !== w) add(to); break; } add(to); rr += dr; cc += dc; }
+      }
+    }
+  }
+  return out;
+}
+
+function make(s, m) {
+  const b = s.b.slice(), w = s.turn === "w";
+  b[m.to] = m.promo || m.p; b[m.from] = "";
+  if (m.ep) b[m.to + (w ? 8 : -8)] = "";
+  if (m.castle) { b[m.castle[1]] = b[m.castle[0]]; b[m.castle[0]] = ""; }
+  const cr = { ...s.cr };
+  if (m.p === "K") cr.K = cr.Q = false;
+  if (m.p === "k") cr.k = cr.q = false;
+  for (const sq of [m.from, m.to]) { if (sq === 63) cr.K = false; if (sq === 56) cr.Q = false; if (sq === 7) cr.k = false; if (sq === 0) cr.q = false; }
+  return { b, turn: w ? "b" : "w", cr, ep: m.dbl ? (m.from + m.to) / 2 : -1, half: m.cap || m.p.toLowerCase() === "p" ? 0 : s.half + 1 };
+}
+function legal(s) {
+  const w = s.turn === "w";
+  return pseudo(s).filter(m => { const n = make(s, m); return !attacked(n.b, kingSq(n.b, w), !w); });
+}
+const posKey = s => s.b.map(p => p || ".").join("") + s.turn + s.ep + Object.values(s.cr).map(Number).join("");
+function insufficient(b) {
+  const rest = b.filter(p => p && p.toLowerCase() !== "k");
+  return rest.length === 0 || (rest.length === 1 && "nb".includes(rest[0].toLowerCase()));
+}
+
+// ---------- The computer ----------
+const VAL = { p: 100, n: 320, b: 330, r: 500, q: 900, k: 0 };
+const PST = {
+  p: [0,0,0,0,0,0,0,0, 50,50,50,50,50,50,50,50, 10,10,20,30,30,20,10,10, 5,5,10,25,25,10,5,5, 0,0,0,20,20,0,0,0, 5,-5,-10,0,0,-10,-5,5, 5,10,10,-20,-20,10,10,5, 0,0,0,0,0,0,0,0],
+  n: [-50,-40,-30,-30,-30,-30,-40,-50, -40,-20,0,0,0,0,-20,-40, -30,0,10,15,15,10,0,-30, -30,5,15,20,20,15,5,-30, -30,0,15,20,20,15,0,-30, -30,5,10,15,15,10,5,-30, -40,-20,0,5,5,0,-20,-40, -50,-40,-30,-30,-30,-30,-40,-50],
+  b: [-20,-10,-10,-10,-10,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,10,10,5,0,-10, -10,5,5,10,10,5,5,-10, -10,0,10,10,10,10,0,-10, -10,10,10,10,10,10,10,-10, -10,5,0,0,0,0,5,-10, -20,-10,-10,-10,-10,-10,-10,-20],
+  r: [0,0,0,0,0,0,0,0, 5,10,10,10,10,10,10,5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, -5,0,0,0,0,0,0,-5, 0,0,0,5,5,0,0,0],
+  q: [-20,-10,-10,-5,-5,-10,-10,-20, -10,0,0,0,0,0,0,-10, -10,0,5,5,5,5,0,-10, -5,0,5,5,5,5,0,-5, 0,0,5,5,5,5,0,-5, -10,5,5,5,5,5,0,-10, -10,0,5,0,0,0,0,-10, -20,-10,-10,-5,-5,-10,-10,-20],
+  k: [-30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -30,-40,-40,-50,-50,-40,-40,-30, -20,-30,-30,-40,-40,-30,-30,-20, -10,-20,-20,-20,-20,-20,-20,-10, 20,20,0,0,0,0,20,20, 20,30,10,0,0,10,30,20],
+};
+function evaluate(s) {
+  let sc = 0;
+  for (let sq = 0; sq < 64; sq++) {
+    const p = s.b[sq]; if (!p) continue;
+    const t = p.toLowerCase(), white = isW(p);
+    const v = VAL[t] + PST[t][white ? sq : (7 - (sq >> 3)) * 8 + (sq & 7)];
+    sc += white ? v : -v;
+  }
+  return s.turn === "w" ? sc : -sc;
+}
+const orderScore = m => (m.cap ? VAL[m.cap.toLowerCase()] * 10 - VAL[m.p.toLowerCase()] : 0) + (m.promo ? 8000 : 0);
+const order = ms => ms.sort((a, b) => orderScore(b) - orderScore(a));
+const ABORT = {}; let deadline = 0, nodes = 0;
+const MATE = 100000;
+
+function quiesce(s, alpha, beta, qd) {
+  const stand = evaluate(s);
+  if (stand >= beta) return beta;
+  if (alpha < stand) alpha = stand;
+  if (qd >= 4) return alpha;
+  for (const m of order(legal(s).filter(m => m.cap || m.promo))) {
+    const sc = -quiesce(make(s, m), -beta, -alpha, qd + 1);
+    if (sc >= beta) return beta;
+    if (sc > alpha) alpha = sc;
+  }
+  return alpha;
+}
+function negamax(s, depth, alpha, beta, ply) {
+  if ((++nodes & 255) === 0 && Date.now() > deadline) throw ABORT;
+  if (s.half >= 100) return 0;
+  const moves = legal(s);
+  if (!moves.length) return inCheck(s) ? -MATE + ply : 0;
+  if (depth <= 0) return quiesce(s, alpha, beta, 0);
+  for (const m of order(moves)) {
+    const sc = -negamax(make(s, m), depth - 1, -beta, -alpha, ply + 1);
+    if (sc >= beta) return beta;
+    if (sc > alpha) alpha = sc;
+  }
+  return alpha;
+}
+// Iterative deepening: search one ply deeper each time and keep the best move of the last search that finished in time
+function bestMove(s, depth, time, noise = 0) {
+  let moves = order(legal(s)), best = moves[0];
+  if (moves.length === 1) return best;
+  deadline = Date.now() + time; nodes = 0;
+  try {
+    for (let d = 1; d <= depth; d++) {
+      let alpha = -Infinity, bestD = null;
+      const scored = [];
+      for (const m of moves) {
+        const sc = -negamax(make(s, m), d - 1, -Infinity, -alpha + (noise ? noise : 0), 1) + (noise ? (Math.random() - .5) * noise * 2 : 0);
+        scored.push([sc, m]);
+        if (sc > alpha) { alpha = sc; bestD = m; }
+      }
+      best = bestD || best;
+      moves = scored.sort((a, b) => b[0] - a[0]).map(x => x[1]); // best first in the next, deeper search
+      if (alpha > MATE - 100) break;
+    }
+  } catch (e) { if (e !== ABORT) throw e; }
+  return best;
+}
+
+// ---------- State ----------
+let W, view = "menu", nav = [], G = null;
+const P = () => { const p = W.progress; p.wins = p.wins || { easy: 0, mid: 0, hard: 0 }; p.draws = p.draws || 0; p.losses = p.losses || 0; return p; };
+
+function newGame(diff) {
+  const s = initial();
+  G = { diff, s, hist: [], keys: { [posKey(s)]: 1 }, sel: -1, last: null, over: null, thinking: false, hint: null, helps: 0, moves: legal(s), msg: "" };
+}
+
+// ---------- Views ----------
+function go(v) { nav.push(view); view = v; render(); scrollTo(0, 0); }
+function back() { view = nav.pop() || "menu"; render(); }
+function render() {
+  if (view !== "game") Hub.closeOverlay();
+  const bd = Hub.equipped("board"), pc = Hub.equipped("pieces"), st = document.documentElement.style;
+  st.setProperty("--sq-l", bd.l); st.setProperty("--sq-d", bd.d);
+  st.setProperty("--pw", pc.w); st.setProperty("--pw-e", pc.we); st.setProperty("--pb", pc.b); st.setProperty("--pb-e", pc.be);
+  $("#app").innerHTML = ({ menu: menuView, diffs: diffsView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+}
+function menuView() {
+  return Hub.menu({ tagline: "המשחק העתיק מכולם, מול מחשב שחושב כמה מהלכים קדימה. אתם הלבנים, ואתם מתחילים.", buttons: [["diffs", "משחק חדש", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+}
+function diffsView() {
+  const p = P();
+  return `${Hub.topbar("בחירת רמה")}
+    <div class="diffs">${Object.entries(DIFFS).map(([k, d]) => `<button class="btn card diff" data-act="start" data-diff="${k}">
+      <span><b>${d.name}</b><span class="small">${d.desc} · ניצחונות: ${p.wins[k]}</span></span><span class="chip">${Hub.coinSvg}${d.coins}</span></button>`).join("")}</div>
+    <p class="fine">תיקו שווה שליש מהפרס.</p>`;
+}
+const GL = { k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
+const glyph = p => `<span class="pc ${isW(p) ? "w" : "b"}">${GL[p.toLowerCase()]}︎</span>`;
+function takenRow(white) {
+  const start = { p: 8, n: 2, b: 2, r: 2, q: 1 }, left = { p: 0, n: 0, b: 0, r: 0, q: 0 };
+  for (const p of G.s.b) if (p && isW(p) === white && p.toLowerCase() !== "k") left[p.toLowerCase()]++;
+  return "qrbnp".split("").map(t => GL[t].repeat(Math.max(0, start[t] - left[t]))).join("");
+}
+function material(white) { return G.s.b.reduce((n, p) => n + (p && isW(p) === white ? VAL[p.toLowerCase()] : 0), 0); }
+function gameView() {
+  const targets = G.sel >= 0 ? G.moves.filter(m => m.from === G.sel) : [];
+  const check = inCheck(G.s) ? kingSq(G.s.b, G.s.turn === "w") : -1;
+  const adv = Math.round((material(true) - material(false)) / 100);
+  const status = G.over ? G.over.text : G.thinking ? `<span class="thinking">המחשב חושב</span>` : G.msg || (check >= 0 ? "שח! צריך להגן על המלך" : "תורך");
+  let sqs = "";
+  for (let i = 0; i < 64; i++) {
+    const r = i >> 3, c = i & 7, t = targets.find(m => m.to === i);
+    const cls = ["sq", (r + c) % 2 ? "d" : "", G.sel === i ? "sel" : "", G.last && (G.last.from === i || G.last.to === i) ? "last" : "", t ? "tgt" : "", t && (t.cap) ? "cap" : "", i === check ? "check" : "", G.hint && (G.hint.from === i || G.hint.to === i) ? "hint" : ""].filter(Boolean).join(" ");
+    sqs += `<button class="${cls}" data-act="sq" data-i="${i}" aria-label="${"abcdefgh"[c]}${8 - r}${G.s.b[i] ? " " + G.s.b[i] : ""}">${G.s.b[i] ? glyph(G.s.b[i]) : ""}${r === 7 ? `<span class="coord f">${"abcdefgh"[c]}</span>` : ""}${c === 0 ? `<span class="coord r">${8 - r}</span>` : ""}</button>`;
+  }
+  return `${Hub.topbar(`שחמט · ${DIFFS[G.diff].name}`)}
+    <div class="turnbar"><span class="chip status" role="status">${status}</span></div>
+    <div class="board-wrap">
+      <div class="taken"><span class="row-p" style="color:var(--pw);-webkit-text-stroke:1px var(--pw-e)">${takenRow(true)}</span><span class="adv">${adv < 0 ? "+" + -adv : ""}</span></div>
+      <div class="board8">${sqs}</div>
+      <div class="taken"><span class="row-p" style="color:var(--pb)">${takenRow(false)}</span><span class="adv">${adv > 0 ? "+" + adv : ""}</span></div>
+    </div>
+    <div class="tools">
+      <button class="btn" data-act="undo" ${G.over || G.thinking ? "disabled" : ""}>↩ ביטול · ${Hub.stock("undo")}</button>
+      <button class="btn" data-act="hint" ${G.over || G.thinking ? "disabled" : ""}>💡 רמז · ${Hub.stock("hint")}</button>
+      ${G.over ? `<button class="btn primary" data-act="again">משחק חדש</button>` : `<button class="btn" data-act="resign">🏳 כניעה</button>`}
+    </div>`;
+}
+function helpView() {
+  return `${Hub.topbar("איך משחקים")}<div class="help card">
+    <h2>המטרה</h2><p>לתת <b>מט</b> למלך של המחשב: לאיים עליו כך שאין לו שום דרך לברוח.</p>
+    <h2>איך מזיזים</h2><ul><li>לוחצים על כלי שלכם (הלבנים) ואז על אחת הנקודות שמופיעות. עיגול סביב כלי = אפשר לאכול אותו.</li>
+    <li>כל הכללים המלאים פעילים: הצרחה, הכאה דרך הילוכו, והכתרה של רגלי שמגיע לקצה (בוחרים לאיזה כלי).</li></ul>
+    <h2>תיקו</h2><ul><li>פט (אין מהלך חוקי אבל המלך לא מאוים), אותו מצב שלוש פעמים, 50 מהלכים בלי הכאה או תזוזת רגלי, או שלא נשאר מספיק חומר כדי לתת מט.</li></ul>
+    <h2>מטבעות</h2><ul><li>ניצחון מזכה במטבעות לפי הרמה, ותיקו בשליש. מספר הכוכבים יורד כשמשתמשים ברמזים או בביטולים.</li>
+    <li><b>💡 רמז</b> מסמן מהלך טוב. <b>↩ ביטול</b> מחזיר את המהלך האחרון. אפשר לקנות עוד בחנות.</li></ul></div>`;
+}
+
+// ---------- Playing ----------
+function play(m) {
+  G.hist.push({ s: G.s, last: G.last, keys: { ...G.keys } });
+  G.s = make(G.s, m); G.last = { from: m.from, to: m.to }; G.sel = -1; G.hint = null; G.msg = "";
+  const k = posKey(G.s); G.keys[k] = (G.keys[k] || 0) + 1;
+  G.moves = legal(G.s);
+  Hub.sound(m.cap ? "good" : "move");
+  if (checkEnd(k)) return;
+  if (G.s.turn === "b") computerTurn();
+  else render();
+}
+function checkEnd(key) {
+  let over = null;
+  if (!G.moves.length) over = inCheck(G.s) ? (G.s.turn === "b" ? "win" : "lose") : "draw";
+  else if (G.keys[key] >= 3 || G.s.half >= 100 || insufficient(G.s.b)) over = "draw";
+  if (!over) return false;
+  finish(over, !G.moves.length && over === "draw" ? "פט" : null);
+  return true;
+}
+function computerTurn() {
+  G.thinking = true; render();
+  setTimeout(() => {
+    const d = DIFFS[G.diff];
+    let m = bestMove(G.s, d.depth, d.time, d.noise);
+    if (G.diff === "easy" && Math.random() < .2) m = G.moves[Math.floor(Math.random() * G.moves.length)];
+    G.thinking = false; play(m);
+  }, 350);
+}
+function finish(kind, why) {
+  const d = DIFFS[G.diff], p = P();
+  let coins = 0, stars = null, title, sub;
+  if (kind === "win") { coins = d.coins; stars = Math.max(1, 3 - G.helps); p.wins[G.diff]++; title = "מט! ניצחת ♛"; sub = `ניצחון מול רמת ${d.name}`; Hub.sound("win"); Hub.confetti(); }
+  else if (kind === "draw") { coins = Math.ceil(d.coins / 3); p.draws++; title = "תיקו"; sub = why ? "פט: אין מהלך חוקי, והמלך לא מאוים" : "אף צד לא יכול לנצח"; Hub.sound("good"); }
+  else { p.losses++; title = kind === "resign" ? "נכנעת" : "מט… המחשב ניצח"; sub = "בפעם הבאה! אפשר לנסות רמה קלה יותר."; Hub.sound("lose"); }
+  G.over = { kind, text: title };
+  Hub.save(); if (coins) Hub.earn(coins);
+  render();
+  setTimeout(() => Hub.result({ title, sub, stars, coins, buttons: [["again", "משחק חדש", true], ["view", "להסתכל על הלוח"], ["tomenu", "לתפריט"]] }), kind === "resign" ? 50 : 600);
+}
+function clickSquare(i) {
+  if (G.over || G.thinking || G.s.turn !== "w") return;
+  const p = G.s.b[i];
+  if (G.sel >= 0) {
+    const opts = G.moves.filter(m => m.from === G.sel && m.to === i);
+    if (opts.length > 1) return askPromotion(opts);
+    if (opts.length === 1) return play(opts[0]);
+  }
+  if (p && isW(p) && G.moves.some(m => m.from === i)) { G.sel = G.sel === i ? -1 : i; Hub.sound("tap"); }
+  else if (p && isW(p)) { G.sel = -1; G.msg = inCheck(G.s) ? "המלך בשח — צריך להגן עליו" : "לכלי הזה אין מהלך חוקי"; }
+  else G.sel = -1;
+  render();
+}
+function askPromotion(opts) {
+  Hub.overlay(`<h2 class="display sm">הכתרה</h2><p class="lede">לאיזה כלי יהפוך הרגלי?</p>
+    <div class="promo">${opts.map(m => `<button class="btn" data-act="promo" data-p="${m.promo}" aria-label="${m.promo}">${GL[m.promo.toLowerCase()]}︎</button>`).join("")}</div>`);
+  G.promoOpts = opts;
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "back") { Hub.closeOverlay(); return back(); }
+  if (a === "diffs") return go("diffs");
+  if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
+  if (a === "help") return go("help");
+  if (a === "buy") { Hub.buy(b.dataset.item); return render(); }
+  if (a === "start") { newGame(b.dataset.diff); return go("game"); }
+  if (a === "sq") return clickSquare(+b.dataset.i);
+  if (a === "promo") { Hub.closeOverlay(); return play(G.promoOpts.find(m => m.promo === b.dataset.p)); }
+  if (a === "undo") {
+    if (G.over || G.thinking || !G.hist.length) return;
+    if (!Hub.useStock("undo")) { G.msg = "נגמרו הביטולים — אפשר לקנות עוד בחנות"; Hub.sound("wrong"); return render(); }
+    let h; do { h = G.hist.pop(); } while (G.hist.length && h.s.turn !== "w");
+    G.s = h.s; G.last = h.last; G.keys = h.keys; G.moves = legal(G.s); G.sel = -1; G.hint = null; G.helps++; G.msg = "המהלך בוטל";
+    Hub.sound("flip"); return render();
+  }
+  if (a === "hint") {
+    if (G.over || G.thinking) return;
+    if (!Hub.useStock("hint")) { G.msg = "נגמרו הרמזים — אפשר לקנות עוד בחנות"; Hub.sound("wrong"); return render(); }
+    G.helps++; G.thinking = true; render();
+    setTimeout(() => { const m = bestMove(G.s, 3, 900); G.thinking = false; G.hint = m; G.sel = m.from; G.msg = "💡 כדאי לשקול את המהלך המסומן"; Hub.sound("hint"); render(); }, 60);
+    return;
+  }
+  if (a === "resign") { Hub.overlay(`<h2 class="display sm">להיכנע?</h2><p class="lede">המשחק ייגמר בהפסד.</p><div class="stack"><button class="btn wide" data-act="close">להמשיך לשחק</button><button class="btn wide primary" data-act="doresign">כן, להיכנע</button></div>`); return; }
+  if (a === "doresign") { Hub.closeOverlay(); return finish("resign"); }
+  if (a === "close" || a === "view") return Hub.closeOverlay();
+  if (a === "again") { Hub.closeOverlay(); newGame(G.diff); return render(); }
+  if (a === "tomenu") { view = "menu"; nav = []; return render(); }
+});
+
+Hub.start(CFG, (u, w) => { W = w; render(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ארבעה צבעים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<style>
+:root { --cw: clamp(54px, 15vw, 78px); }
+.crd { width: var(--cw); aspect-ratio: 2 / 3; border-radius: calc(var(--cw) * .15); position: relative; flex: none; color: #fff; font-family: var(--display); display: grid; place-items: center;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--cc) 78%, #fff), var(--cc) 60%); box-shadow: 0 1px 0 rgba(255,255,255,.4) inset, 0 8px 16px -8px rgba(0,0,0,.5); }
+.crd::before { content: ""; position: absolute; inset: 6%; border-radius: calc(var(--cw) * .1); border: 1.5px solid rgba(255,255,255,.5); }
+.crd .mid { font-size: calc(var(--cw) * .46); line-height: 1; text-shadow: 0 2px 0 rgba(0,0,0,.18); }
+.crd .mid.word { font-size: calc(var(--cw) * .5); }
+.crd .tl, .crd .br { position: absolute; font-size: calc(var(--cw) * .19); line-height: 1; font-family: var(--body); font-weight: 700; }
+.crd .tl { top: 10%; right: 12%; } .crd .br { bottom: 10%; left: 12%; transform: rotate(180deg); }
+.crd.wild { background: conic-gradient(from 45deg, #C95468 0 25%, #E0A43A 0 50%, #4E9A6A 0 75%, #3C78B0 0); }
+.crd.wild .mid { width: 52%; aspect-ratio: 1; border-radius: 50%; background: rgba(255,255,255,.92); color: var(--ink); display: grid; place-items: center; font-size: calc(var(--cw) * .3); }
+.crd.back { background: var(--back); border: 2px solid var(--back-edge, rgba(255,255,255,.25)); }
+.crd.back::before { border-color: rgba(255,255,255,.28); }
+.crd.back::after { content: "✦"; font-size: calc(var(--cw) * .32); color: rgba(255,255,255,.75); }
+.table { background: radial-gradient(120% 100% at 50% 0%, color-mix(in srgb, var(--felt) 78%, #fff), var(--felt) 60%, color-mix(in srgb, var(--felt) 80%, #000)); border-radius: 30px; padding: 16px 14px 18px; box-shadow: inset 0 2px 0 rgba(255,255,255,.12), inset 0 -10px 30px rgba(0,0,0,.25), var(--shadow); color: #fff; }
+.seats { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.seat { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16); border-radius: 18px; padding: 8px 12px; min-width: 104px; text-align: center; transition: background .3s, box-shadow .3s; }
+.seat.turn { background: rgba(255,255,255,.22); box-shadow: 0 0 0 2px var(--gold); }
+.seat .who { font-weight: 500; font-size: 14.5px; }
+.seat .fan { display: flex; justify-content: center; margin-top: 6px; min-height: 34px; --cw: 24px; }
+.seat .fan .crd { margin-inline: -6px; box-shadow: 0 2px 4px rgba(0,0,0,.3); }
+.seat .fan .crd::after, .seat .fan .crd .tl, .seat .fan .crd .br { display: none; }
+.seat .fan .crd .mid { font-size: 11px; }
+.seat .fan.open { --cw: 26px; flex-wrap: wrap; gap: 2px; }
+.seat .fan.open .crd { margin: 0; }
+.mid-table { display: flex; justify-content: center; align-items: center; gap: clamp(14px, 5vw, 30px); margin: 18px 0 8px; }
+.pile-btn { border: 0; background: none; padding: 0; cursor: pointer; position: relative; border-radius: 14px; }
+.pile-btn:disabled { cursor: default; }
+.pile-btn .crd.back { box-shadow: 3px 3px 0 rgba(0,0,0,.25), 6px 6px 0 rgba(0,0,0,.15), 0 10px 20px -8px rgba(0,0,0,.5); }
+.pile-btn.can .crd { animation: breathe 1.6s ease-in-out infinite; }
+@keyframes breathe { 50% { transform: translateY(-3px); box-shadow: 0 0 0 3px var(--gold), 0 12px 20px -8px rgba(0,0,0,.5); } }
+.discard .crd { transform: rotate(var(--rot, 0deg)); }
+.discard .crd.land { animation: land .35s cubic-bezier(.2,.9,.3,1.3); }
+@keyframes land { from { transform: translateY(-40px) scale(1.15) rotate(var(--rot, 0deg)); opacity: .4; } }
+.info { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.cur-color { width: 36px; height: 36px; border-radius: 50%; border: 3px solid rgba(255,255,255,.85); box-shadow: 0 4px 10px rgba(0,0,0,.3); }
+.dir { font-size: 22px; opacity: .9; }
+.pending { background: #fff; color: #C95468; font-weight: 700; border-radius: 999px; padding: 2px 10px; font-size: 14px; }
+.tstatus { text-align: center; min-height: 1.6em; font-weight: 500; margin: 4px 0 10px; }
+.mine { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; }
+.hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 6px; padding: 10px 4px 2px; }
+.hand button { border: 0; padding: 0; background: none; cursor: pointer; border-radius: calc(var(--cw) * .15); transition: transform .18s, filter .2s; }
+.hand button.ok { transform: translateY(-8px); }
+.hand button.ok .crd { box-shadow: 0 0 0 3px var(--gold), 0 12px 20px -8px rgba(0,0,0,.55); }
+.hand.myturn button:not(.ok) { filter: saturate(.55) brightness(.92); }
+.hand button.shake { animation: shake .35s; }
+@keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.tools { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+.pick { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pick button { height: 70px; border-radius: 18px; border: 0; color: #fff; font: 500 18px var(--body); cursor: pointer; box-shadow: 0 8px 16px -8px rgba(0,0,0,.5); }
+.pv-felt { width: 100%; height: 100%; display: grid; place-items: center; }
+.pv .crd { --cw: 40px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const { $, esc } = Hub;
+
+const COLORS = { r: { name: "אדום", hex: "#C95468" }, y: { name: "צהוב", hex: "#E0A43A" }, g: { name: "ירוק", hex: "#4E9A6A" }, b: { name: "כחול", hex: "#3C78B0" } };
+const KIND = { plus2: { sym: "+2", name: "+2" }, stop: { sym: "⊘", name: "עצור" }, rev: { sym: "⇄", name: "שנה כיוון" }, plus: { sym: "+", name: "פלוס" }, wild: { sym: "✦", name: "משנה צבע" } };
+const BACKS = [
+  { id: "back-classic", name: "פסים", price: 0, css: "repeating-linear-gradient(45deg, rgba(255,255,255,.14) 0 6px, transparent 6px 12px), #8E3B4E" },
+  { id: "back-dots", name: "נקודות", price: 80, css: "radial-gradient(rgba(255,255,255,.4) 1.4px, transparent 2px) 0 0 / 9px 9px, #2F4858" },
+  { id: "back-check", name: "משבצות", price: 90, css: "conic-gradient(rgba(255,255,255,.16) 25%, transparent 0 50%, rgba(255,255,255,.16) 0 75%, transparent 0) 0 0 / 14px 14px, #B4664B" },
+  { id: "back-waves", name: "גלים", price: 110, css: "repeating-radial-gradient(circle at 50% 120%, rgba(255,255,255,.2) 0 4px, transparent 4px 10px), #5B3F72" },
+  { id: "back-gold", name: "זהב", price: 160, css: "radial-gradient(circle at 50% 50%, rgba(217,177,84,.35), transparent 60%), linear-gradient(135deg, #2A2220, #4A3A2A)", edge: "#D9B154" },
+];
+const FELTS = [
+  { id: "felt-wine", name: "יין", price: 0, c: "#6A2F3D" },
+  { id: "felt-green", name: "לבד ירוק", price: 80, c: "#2F5D4A" },
+  { id: "felt-navy", name: "כחול לילה", price: 100, c: "#24384F" },
+  { id: "felt-sand", name: "חול", price: 100, c: "#A88A5F" },
+  { id: "felt-charcoal", name: "פחם", price: 120, c: "#2B2B30" },
+];
+const CFG = {
+  id: "colors", title: "ארבעה צבעים", startCoins: 40, startStock: { peek: 2 },
+  items: [
+    Hub.theme("rose", 0), Hub.theme("plum", 100), Hub.theme("amber", 100), Hub.theme("ocean", 120), Hub.theme("night", 200),
+    ...BACKS.map(b => ({ ...b, slot: "back" })),
+    ...FELTS.map(f => ({ ...f, slot: "felt" })),
+    { id: "peek3", consumable: true, stockId: "peek", amount: 3, name: "3 הצצות", desc: "רואים את הקלפים של היריבים לכמה שניות", price: 30 },
+  ],
+  storeGroups: [{ slot: "theme", title: "ערכות צבע" }, { slot: "back", title: "גב הקלפים" }, { slot: "felt", title: "שולחן" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.slot === "back" ? `<div class="crd back" style="--back:${it.css};${it.edge ? `--back-edge:${it.edge}` : ""}"></div>`
+    : `<div class="pv-felt" style="background:radial-gradient(circle, color-mix(in srgb, ${it.c} 75%, #fff), ${it.c})">${cardHTML({ color: "y", kind: "num", n: 7 })}</div>`,
+};
+const BOTS = [{ name: "ינשוף", avatar: "🦉" }, { name: "שועלה", avatar: "🦊" }, { name: "צב", avatar: "🐢" }];
+const prize = bots => 10 + bots * 10;
+
+// ---------- Cards ----------
+function newDeck() {
+  const d = []; let id = 0;
+  for (const color of Object.keys(COLORS)) {
+    for (let n = 1; n <= 9; n++) for (let k = 0; k < 2; k++) d.push({ id: id++, color, kind: "num", n });
+    for (const kind of ["plus2", "stop", "rev", "plus"]) for (let k = 0; k < 2; k++) d.push({ id: id++, color, kind });
+  }
+  for (let k = 0; k < 4; k++) d.push({ id: id++, color: null, kind: "wild" });
+  return Hub.shuffle(d);
+}
+const sym = c => c.kind === "num" ? c.n : KIND[c.kind].sym;
+function cardHTML(c, extra = "") {
+  if (c.kind === "wild") return `<div class="crd wild ${extra}"><span class="mid">✦</span></div>`;
+  return `<div class="crd ${extra}" style="--cc:${COLORS[c.color].hex}"><span class="tl">${sym(c)}</span><span class="mid ${c.kind === "num" ? "" : "word"}">${sym(c)}</span><span class="br">${sym(c)}</span></div>`;
+}
+const backHTML = () => `<div class="crd back"></div>`;
+const ORDER = { r: 0, y: 1, g: 2, b: 3 };
+const sortHand = h => h.sort((a, b) => (a.kind === "wild") - (b.kind === "wild") || ORDER[a.color] - ORDER[b.color] || (a.kind === "num" ? a.n : 20) - (b.kind === "num" ? b.n : 20) || a.kind.localeCompare(b.kind));
+
+// ---------- State ----------
+let W, view = "menu", nav = [], G = null, botTimer = null;
+const P = () => { const p = W.progress; p.wins = p.wins || 0; p.games = p.games || 0; return p; };
+const topCard = () => G.pile[G.pile.length - 1];
+const me = () => G.cur === 0;
+
+function newGame(bots) {
+  clearTimeout(botTimer);
+  const deck = newDeck();
+  const players = [{ name: "את/ה", avatar: Hub.user.avatar, hand: [], me: true }, ...BOTS.slice(0, bots).map(b => ({ ...b, hand: [] }))];
+  for (let k = 0; k < 7; k++) for (const p of players) p.hand.push(deck.pop());
+  players.forEach(p => sortHand(p.hand));
+  let first; do { first = deck.pop(); if (first.kind !== "num") deck.unshift(first); } while (first.kind !== "num"); // the game opens on a number card
+  G = { bots, players, deck, pile: [first], color: first.color, cur: 0, dir: 1, pending: 0, again: false, over: false, msg: "", land: true, peek: false, rots: { [first.id]: 0 } };
+}
+const nextIndex = (steps = 1) => { const n = G.players.length; return ((G.cur + G.dir * steps) % n + n) % n; };
+function canPlay(c) {
+  if (G.pending) return c.kind === "plus2";
+  if (c.kind === "wild" || c.color === G.color) return true;
+  const t = topCard();
+  return c.kind === "num" ? t.kind === "num" && t.n === c.n : c.kind === t.kind;
+}
+function give(pi, n) {
+  for (let k = 0; k < n; k++) {
+    if (!G.deck.length) { const keep = G.pile.pop(); G.deck = Hub.shuffle(G.pile); G.pile = [keep]; } // reshuffle the played cards
+    if (!G.deck.length) break;
+    G.players[pi].hand.push(G.deck.pop());
+  }
+  sortHand(G.players[pi].hand);
+}
+function advance(steps = 1) {
+  G.cur = nextIndex(steps); G.again = false;
+  render();
+  if (!G.over && !me()) botTimer = setTimeout(botTurn, 950);
+}
+function playCard(pi, idx, chosen) {
+  const pl = G.players[pi], c = pl.hand.splice(idx, 1)[0];
+  G.pile.push(c); G.rots[c.id] = Math.round((Math.random() - .5) * 24); G.land = true;
+  G.color = c.kind === "wild" ? chosen : c.color;
+  Hub.sound("card");
+  const who = pl.me ? "שיחקת" : `${pl.name} שיחק/ה`;
+  if (!pl.hand.length) return endGame(pi);
+  if (pl.hand.length === 1) Hub.toast(pl.me ? "נשאר לך קלף אחד! 🎴" : `ל${pl.name} נשאר קלף אחד!`);
+  G.msg = c.kind === "wild" ? `${who} משנה צבע → ${COLORS[chosen].name}` : c.kind === "num" ? "" : `${who} ${KIND[c.kind].name}`;
+  if (c.kind === "plus2") { G.pending += 2; return advance(1); }
+  if (c.kind === "stop") return advance(2);
+  if (c.kind === "rev") { if (G.players.length === 2) return advance(2); G.dir *= -1; return advance(1); }
+  if (c.kind === "plus") { // the same player plays again
+    G.again = true; G.msg = pl.me ? "פלוס! שחקו עוד קלף, או קחו קלף מהחפיסה" : `${pl.name} שיחק/ה פלוס וממשיך/ה`;
+    render(); if (!pl.me) botTimer = setTimeout(botTurn, 900);
+    return;
+  }
+  advance(1);
+}
+function draw(pi) {
+  const pl = G.players[pi];
+  if (G.pending) { const n = G.pending; give(pi, n); G.pending = 0; G.msg = pl.me ? `לקחת ${n} קלפים` : `${pl.name} לקח/ה ${n} קלפים`; }
+  else { give(pi, 1); G.msg = pl.me ? "לקחת קלף" : `${pl.name} לקח/ה קלף`; }
+  Hub.sound("flip");
+  advance(1);
+}
+// The computer players: keep the colour-changers for later, punish a neighbour who is close to winning
+function botTurn() {
+  if (!G || G.over || me()) return;
+  const pi = G.cur, pl = G.players[pi];
+  const opts = pl.hand.map((c, i) => [c, i]).filter(([c]) => canPlay(c));
+  if (!opts.length) return draw(pi);
+  const nextCards = G.players[nextIndex(1)].hand.length;
+  const count = col => pl.hand.filter(c => c.color === col).length;
+  const scoreOf = c => {
+    if (c.kind === "wild") return opts.length === 1 || pl.hand.length <= 2 ? 5 : -20;
+    let s = 10 + count(c.color) * 2;
+    if (c.kind === "plus2" || c.kind === "stop") s += nextCards <= 3 ? 16 : 2;
+    if (c.kind === "plus") s += pl.hand.some(o => o !== c && (o.color === c.color || o.kind === "wild")) ? 12 : -30;
+    if (c.kind === "rev") s += 3;
+    return s + Math.random() * 3;
+  };
+  const [card, idx] = opts.sort((a, b) => scoreOf(b[0]) - scoreOf(a[0]))[0];
+  let chosen = null;
+  if (card.kind === "wild") { const rest = pl.hand.filter(c => c !== card && c.color); chosen = Object.keys(COLORS).sort((a, b) => rest.filter(c => c.color === b).length - rest.filter(c => c.color === a).length)[0]; }
+  playCard(pi, idx, chosen);
+}
+function endGame(pi) {
+  G.over = true; clearTimeout(botTimer);
+  const p = P(); p.games++;
+  const win = G.players[pi].me;
+  let coins = 0;
+  if (win) { p.wins++; coins = prize(G.bots); }
+  Hub.save(); if (coins) Hub.earn(coins);
+  render();
+  const winner = G.players[pi].name, left = G.players[0].hand.length, bots = G.bots;
+  setTimeout(() => {
+    if (win) { Hub.sound("win"); Hub.confetti(); } else Hub.sound("lose");
+    Hub.result({ title: win ? "ניצחת! 🎉" : `${winner} ניצח/ה`, sub: win ? `סיימת את כל הקלפים לפני ${bots === 1 ? "היריב" : `${bots} היריבים`}` : `נשארו לך ${left} קלפים. בפעם הבאה!`, coins, buttons: [["again", "סיבוב נוסף", true], ["tomenu", "לתפריט"]] });
+  }, 500);
+}
+
+// ---------- Views ----------
+function go(v) { nav.push(view); view = v; render(); scrollTo(0, 0); }
+function back() { if (view === "game") clearTimeout(botTimer); view = nav.pop() || "menu"; render(); }
+function render() {
+  if (view !== "game") Hub.closeOverlay();
+  const bk = Hub.equipped("back"), st = document.documentElement.style;
+  st.setProperty("--back", bk.css); st.setProperty("--back-edge", bk.edge || "rgba(255,255,255,.25)"); st.setProperty("--felt", Hub.equipped("felt").c);
+  $("#app").innerHTML = ({ menu: menuView, setup: setupView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+  G && (G.land = false);
+}
+function menuView() {
+  return Hub.menu({ tagline: "משחק קלפים מהיר וצבעוני: התאימו צבע או מספר, ונסו להיפטר מכל הקלפים לפני כולם.", buttons: [["setup", "משחק חדש", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+}
+function setupView() {
+  const p = P();
+  return `${Hub.topbar("כמה יריבים?")}
+    <div class="diffs">${[1, 2, 3].map(n => `<button class="btn card diff" data-act="start" data-bots="${n}">
+      <span><b>${n === 1 ? "יריב אחד" : `${n} יריבים`}</b><span class="small">${BOTS.slice(0, n).map(b => b.avatar + " " + b.name).join(" · ")}</span></span><span class="chip">${Hub.coinSvg}${prize(n)}</span></button>`).join("")}</div>
+    <p class="fine">ניצחונות עד היום: ${p.wins} מתוך ${p.games} משחקים</p>`;
+}
+function gameView() {
+  const myTurn = me() && !G.over;
+  const t = topCard();
+  const seats = G.players.slice(1).map((pl, k) => {
+    const i = k + 1, open = G.peek || G.over;
+    const fan = open ? pl.hand.map(c => cardHTML(c)).join("") : Array.from({ length: Math.min(pl.hand.length, 8) }, backHTML).join("");
+    return `<div class="seat ${G.cur === i && !G.over ? "turn" : ""}"><div class="who">${pl.avatar} ${pl.name}</div><div class="small" style="color:rgba(255,255,255,.75)">${pl.hand.length} קלפים</div><div class="fan ${open ? "open" : ""}">${fan}</div></div>`;
+  }).join("");
+  const status = G.over ? "המשחק נגמר" : myTurn ? (G.msg && G.again ? G.msg : G.pending ? `+${G.pending}! שחקו +2 או קחו ${G.pending} קלפים` : (G.msg ? G.msg + " · " : "") + "תורך") : `<span class="thinking">${G.msg ? G.msg + " · " : ""}תור ${G.players[G.cur].name}</span>`;
+  return `${Hub.topbar("ארבעה צבעים")}
+    <div class="table">
+      <div class="seats">${seats}</div>
+      <div class="mid-table">
+        <button class="pile-btn ${myTurn ? "can" : ""}" data-act="draw" ${myTurn ? "" : "disabled"} aria-label="לקחת קלף מהחפיסה">${backHTML()}</button>
+        <div class="discard" style="--rot:${G.rots[t.id] || 0}deg">${cardHTML(t, G.land ? "land" : "")}</div>
+        <div class="info"><span class="cur-color" style="background:${COLORS[G.color].hex}" title="הצבע עכשיו: ${COLORS[G.color].name}" aria-label="הצבע עכשיו: ${COLORS[G.color].name}"></span>
+          ${G.players.length > 2 ? `<span class="dir" title="כיוון המשחק">${G.dir === 1 ? "↻" : "↺"}</span>` : ""}
+          ${G.pending ? `<span class="pending">+${G.pending}</span>` : ""}</div>
+      </div>
+      <p class="tstatus" role="status">${status}</p>
+      <div class="mine"><span class="chip" style="background:rgba(255,255,255,.14);color:#fff;border-color:rgba(255,255,255,.2)">${Hub.user.avatar} הקלפים שלך · ${G.players[0].hand.length}</span></div>
+      <div class="hand ${myTurn ? "myturn" : ""}">${G.players[0].hand.map((c, i) => `<button data-act="card" data-i="${i}" class="${myTurn && canPlay(c) ? "ok" : ""}" aria-label="${c.kind === "wild" ? "משנה צבע" : `${COLORS[c.color].name} ${c.kind === "num" ? c.n : KIND[c.kind].name}`}">${cardHTML(c)}</button>`).join("")}</div>
+    </div>
+    <div class="tools">
+      <button class="btn" data-act="peek" ${G.over || G.peek ? "disabled" : ""}>👀 הצצה · ${Hub.stock("peek")}</button>
+      ${G.over ? `<button class="btn primary" data-act="again">סיבוב נוסף</button>` : ""}
+    </div>`;
+}
+function helpView() {
+  return `${Hub.topbar("איך משחקים")}<div class="help card">
+    <h2>המטרה</h2><p>להיפטר מכל הקלפים שביד לפני כל היריבים.</p>
+    <h2>בתור שלך</h2><ul><li>מניחים קלף <b>באותו צבע</b> כמו הצבע הנוכחי, או <b>אותו מספר / אותו סמל</b> כמו הקלף העליון. הקלפים שאפשר לשחק מורמים ומסומנים בזהב.</li>
+    <li>אין קלף מתאים (או שלא רוצים)? לוחצים על החפיסה, לוקחים קלף אחד, והתור עובר.</li></ul>
+    <h2>קלפים מיוחדים</h2><ul>
+    <li><b>+2</b>: השחקן הבא לוקח 2 קלפים, אלא אם הוא מניח +2 משלו, ואז הבא אחריו לוקח 4, וכן הלאה.</li>
+    <li><b>⊘ עצור</b>: השחקן הבא מפסיד את התור.</li>
+    <li><b>⇄ שנה כיוון</b>: המשחק מתהפך. כששניים משחקים, הוא פועל כמו עצור.</li>
+    <li><b>+ פלוס</b>: משחקים עוד קלף מיד. אם אין, לוקחים קלף.</li>
+    <li><b>✦ משנה צבע</b>: אפשר להניח על כל קלף, ובוחרים את הצבע הבא.</li></ul>
+    <h2>מטבעות</h2><ul><li>ניצחון מזכה במטבעות, וככל שיש יותר יריבים, הפרס גדול יותר.</li><li><b>👀 הצצה</b> חושפת את הקלפים של היריבים לכמה שניות.</li></ul></div>`;
+}
+
+function clickCard(i, btn) {
+  if (!me() || G.over) return;
+  const c = G.players[0].hand[i];
+  if (!canPlay(c)) {
+    btn.classList.remove("shake"); void btn.offsetWidth; btn.classList.add("shake"); Hub.sound("wrong");
+    $(".tstatus").textContent = G.pending ? `אפשר רק +2 — או לקחת ${G.pending} קלפים מהחפיסה` : "הקלף הזה לא מתאים: צריך אותו צבע, אותו מספר או אותו סמל";
+    return;
+  }
+  if (c.kind === "wild") {
+    G.wildIdx = i;
+    return Hub.overlay(`<h2 class="display sm">איזה צבע?</h2><div class="pick">${Object.entries(COLORS).map(([k, v]) => `<button data-act="color" data-c="${k}" style="background:${v.hex}">${v.name}</button>`).join("")}</div>`);
+  }
+  playCard(0, i);
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "back") { Hub.closeOverlay(); return back(); }
+  if (a === "setup") return go("setup");
+  if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
+  if (a === "help") return go("help");
+  if (a === "buy") { Hub.buy(b.dataset.item); return render(); }
+  if (a === "start") { newGame(+b.dataset.bots); return go("game"); }
+  if (a === "card") return clickCard(+b.dataset.i, b);
+  if (a === "color") { Hub.closeOverlay(); return playCard(0, G.wildIdx, b.dataset.c); }
+  if (a === "draw") { if (me() && !G.over) draw(0); return; }
+  if (a === "peek") {
+    if (G.over || G.peek) return;
+    if (!Hub.useStock("peek")) { Hub.toast("נגמרו ההצצות — אפשר לקנות עוד בחנות"); Hub.sound("wrong"); return; }
+    G.peek = true; Hub.sound("hint"); render();
+    setTimeout(() => { if (G) { G.peek = false; if (view === "game") render(); } }, 3500);
+    return;
+  }
+  if (a === "again") { Hub.closeOverlay(); newGame(G.bots); return render(); }
+  if (a === "tomenu") { view = "menu"; nav = []; return render(); }
+});
+
+Hub.start(CFG, (u, w) => { W = w; render(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mind Studio · סטודיו המשחקים</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="shared/hub.css">
+<script src="shared/hub.js"></script>
+<style>
+/* The hub: a header with the account, a short greeting and a card for every game */
+.hub-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 34px; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+.brand svg { width: 38px; height: 38px; }
+.brand b { font: 500 21px var(--display); display: block; line-height: 1; }
+.brand small { color: var(--muted); font-size: 12px; letter-spacing: .14em; }
+.account { position: relative; }
+.account > button { display: flex; align-items: center; gap: 8px; padding: 5px 6px 5px 14px; }
+.account .face { width: 34px; height: 34px; border-radius: 50%; background: var(--soft); display: grid; place-items: center; font-size: 19px; }
+.account-menu { position: absolute; top: calc(100% + 8px); left: 0; z-index: 5; width: 250px; padding: 14px; }
+.account-menu .avatars { grid-template-columns: repeat(4, 1fr); margin: 8px 0 12px; }
+.hero { text-align: center; margin-bottom: 34px; }
+.hero .display { font-size: clamp(36px, 7.5vw, 60px); }
+.hero .lede { max-width: 470px; margin-inline: auto; }
+.games { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
+.game {
+  --c: var(--accent);
+  display: flex; flex-direction: column; text-decoration: none; color: var(--ink);
+  background: var(--card); border: 1px solid var(--line); border-radius: 26px; overflow: hidden; box-shadow: var(--shadow);
+  transition: transform .25s cubic-bezier(.2,.8,.2,1), box-shadow .25s;
+}
+.game:hover { transform: translateY(-4px); box-shadow: 0 26px 46px -26px color-mix(in srgb, var(--c) 70%, transparent); }
+.game:focus-visible { outline: 2.5px solid var(--c); outline-offset: 3px; }
+.game .cover { aspect-ratio: 200 / 140; display: grid; place-items: center; background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--c) 10%, #fff), color-mix(in srgb, var(--c) 22%, var(--paper))); }
+.game .cover .art { width: 82%; height: auto; transition: transform .4s cubic-bezier(.2,.8,.2,1); }
+.game:hover .cover .art { transform: scale(1.04); }
+.game .body { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.game .eyebrow { color: var(--c); }
+.game h2 { font-size: 26px; }
+.game p { margin: 0; color: var(--muted); font-size: 15px; }
+.game .foot { display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 12px; }
+.game .go { font-weight: 500; color: var(--c); }
+.cat-nav { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: -14px 0 26px; }
+.cat { margin-bottom: 38px; scroll-margin-top: 16px; }
+.cat-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
+.cat-head h2 { font-size: 28px; }
+html { scroll-behavior: smooth; }
+.note { text-align: center; color: var(--muted); font-size: 14px; margin-top: 30px; }
+@media (max-width: 520px) { .brand small { display: none; } .account > button span.nm { display: none; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const { $, esc } = Hub;
+const logo = `<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="var(--accent)"/><circle cx="15" cy="15" r="4.2" fill="#fff"/><rect x="21" y="11" width="8.4" height="8.4" rx="2.4" fill="#fff" opacity=".75"/><rect x="11" y="21" width="8.4" height="8.4" rx="2.4" fill="#fff" opacity=".75"/><path d="M25 21l4.2 4.2-4.2 4.2-4.2-4.2z" fill="#fff"/></svg>`;
+let menuOpen = false;
+
+function greeting() { const h = new Date().getHours(); return h < 5 ? "לילה טוב" : h < 12 ? "בוקר טוב" : h < 17 ? "צהריים טובים" : h < 21 ? "ערב טוב" : "לילה טוב"; }
+
+function render() {
+  const u = Hub.currentUser();
+  if (!u) return Hub.loginCard($("#app"), { title: "סטודיו המשחקים", subtitle: "משחקי חשיבה, לוח, קלפים ופעולה. מתחברים פעם אחת, וכל המשחקים כבר מחוברים." }, render);
+  $("#app").innerHTML = `
+  <header class="hub-head">
+    <a class="brand" href="index.html">${logo}<span><b>Mind Studio</b><small>סטודיו המשחקים</small></span></a>
+    <div class="account">
+      <button class="btn" data-act="account" aria-expanded="${menuOpen}"><span class="face">${u.avatar}</span><span class="nm">${esc(u.name)}</span></button>
+      ${menuOpen ? `<div class="card account-menu rise">
+        <p class="small">הדמות שלך</p>
+        <div class="avatars">${Hub.AVATARS.map(a => `<button class="avatar-pick ${a === u.avatar ? "on" : ""}" data-avatar="${a}" aria-label="${a}">${a}</button>`).join("")}</div>
+        <button class="btn wide" data-act="logout">התנתקות</button>
+      </div>` : ""}
+    </div>
+  </header>
+  <section class="hero rise">
+    <p class="eyebrow">${Hub.GAMES.length} משחקים · חשיבה, לוח וקלפים, פעולה</p>
+    <h1 class="display">${greeting()}, ${esc(u.name)}</h1>
+    <p class="lede">במה נתאמן היום? בכל משחק יש מטבעות וחנות משלו, ואת הכל שומרים בחשבון שלך.</p>
+  </section>
+  <nav class="cat-nav" aria-label="קטגוריות">${Hub.CATS.map(c => `<a class="pill-link" href="#cat-${c.id}">${c.title}</a>`).join("")}</nav>
+  ${Hub.CATS.map(cat => `<section class="cat" id="cat-${cat.id}"><div class="cat-head"><h2>${cat.title}</h2><p class="small">${cat.sub}</p></div>
+  <div class="games">${Hub.GAMES.filter(g => g.cat === cat.id).map((g, i) => {
+    const coins = Hub.coinsOf(u, g.id);
+    return `<a class="game rise" style="--c:${g.color};animation-delay:${i * 60}ms" href="${g.url}">
+      <div class="cover">${Hub.art(g.id, g.color)}</div>
+      <div class="body">
+        <p class="eyebrow">${g.tag}</p>
+        <h2>${g.title}</h2>
+        <p>${g.desc}</p>
+        <div class="foot">${coins === null ? `<span class="chip">✦ חדש</span>` : `<span class="chip" title="המטבעות שלך במשחק הזה">${Hub.coinSvg}<b>${coins}</b></span>`}<span class="go">לשחק ←</span></div>
+      </div>
+    </a>`;
+  }).join("")}</div></section>`).join("")}
+  <p class="note">אפשר לפתוח כל משחק גם לבד — הוא יבקש להתחבר עם אותו חשבון.</p>`;
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act],[data-avatar]");
+  if (!b) { if (menuOpen && !e.target.closest(".account-menu")) { menuOpen = false; render(); } return; }
+  if (b.dataset.avatar && Hub.currentUser()) { Hub.setAvatar(b.dataset.avatar); return render(); }
+  if (b.dataset.act === "account") { menuOpen = !menuOpen; return render(); }
+  if (b.dataset.act === "logout") { Hub.logout(); menuOpen = false; return render(); }
+});
+document.addEventListener("keydown", e => { if (e.key === "Escape" && menuOpen) { menuOpen = false; render(); } });
+render();
+</script>
+</body>
+</html>

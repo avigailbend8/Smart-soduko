@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ריצת הנתיבים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<style>
+.pv img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pv .emo { font-size: 44px; filter: drop-shadow(0 4px 4px rgba(0,0,0,.2)); }
+.keys { text-align: center; margin-top: 10px; }
+.stage.shake { animation: shake .45s; }
+@keyframes shake { 20% { transform: translate(-6px, 2px); } 40% { transform: translate(5px, -3px); } 60% { transform: translate(-4px, 1px); } 80% { transform: translate(3px, 0); } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const { $, esc } = Hub;
+
+const RUNNERS = [
+  { id: "run-fox", name: "שועלה", price: 0, emo: "🦊" },
+  { id: "run-panda", name: "פנדה", price: 90, emo: "🐼" },
+  { id: "run-frog", name: "צפרדע", price: 90, emo: "🐸" },
+  { id: "run-cat", name: "חתול", price: 110, emo: "🐱" },
+  { id: "run-robot", name: "רובוט", price: 150, emo: "🤖" },
+  { id: "run-unicorn", name: "חד־קרן", price: 220, emo: "🦄" },
+];
+const WORLDS = [
+  { id: "world-dusk", name: "עיר בשקיעה", price: 0, sky: ["#2E2A4F", "#F08A5D"], ground: "#3B3552", track: "#6B5B73", tie: "#55485F", rail: "#D8C7E2", deco: "building", dc: ["#4A4166", "#5A4E78", "#FFD58A"], sun: "#FFC48A" },
+  { id: "world-forest", name: "יער", price: 120, sky: ["#8CCBE3", "#E6F3DC"], ground: "#6FA35A", track: "#B08A62", tie: "#8C6A48", rail: "#EFE6D6", deco: "tree", dc: ["#3F7A43", "#58994F", "#7A5236"], sun: "#FFF6C8" },
+  { id: "world-desert", name: "מדבר", price: 120, sky: ["#F3B867", "#FCE9C2"], ground: "#E2BE7E", track: "#C9A06A", tie: "#A97F4D", rail: "#FFF3DA", deco: "cactus", dc: ["#6E9A5A", "#5E8A4C"], sun: "#FFF1C2" },
+  { id: "world-snow", name: "שלג", price: 140, sky: ["#A9C8E2", "#F2F7FA"], ground: "#F4F8FB", track: "#C3D2DE", tie: "#9DB2C3", rail: "#FFFFFF", deco: "pine", dc: ["#3F6B5A", "#4F7D69"], sun: "#FFFFFF" },
+  { id: "world-space", name: "חלל", price: 200, sky: ["#070A1F", "#2B2050"], ground: "#17152F", track: "#38326A", tie: "#29244F", rail: "#9C8CFF", deco: "crystal", dc: ["#7B6CF0", "#4FD1C5"], sun: "#C9C2FF", stars: true },
+];
+const CFG = {
+  id: "runner", title: "ריצת הנתיבים", startCoins: 40, startStock: { shield: 2, magnet: 1 },
+  items: [
+    Hub.theme("coral", 0), Hub.theme("amber", 100), Hub.theme("sage", 100), Hub.theme("ocean", 110), Hub.theme("night", 180),
+    ...RUNNERS.map(r => ({ ...r, slot: "runner" })),
+    ...WORLDS.map(w => ({ ...w, slot: "world" })),
+    { id: "shield3", consumable: true, stockId: "shield", amount: 3, name: "3 מגנים", desc: "מגן סופג התנגשות אחת בריצה", price: 40 },
+    { id: "magnet3", consumable: true, stockId: "magnet", amount: 3, name: "3 מגנטים", desc: "מושך מטבעות גם מהנתיבים השכנים לאורך כל הריצה", price: 45 },
+  ],
+  storeGroups: [{ slot: "runner", title: "דמויות" }, { slot: "world", title: "עולמות" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span class="emo">${it.stockId === "shield" ? "🛡" : "🧲"}</span>` : it.slot === "runner" ? `<span class="emo">${it.emo}</span>` : `<img alt="" src="${previewImage(it)}">`,
+};
+
+// ---------- The 3D-ish view ----------
+// World: lanes are -1, 0, 1; z = meters ahead of the runner; heights in meters. One lane is 1.25 m wide.
+const D = 4, FAR = 46, LANE_M = 1.25;
+let V; // view geometry, set by measure()
+function setView(w, h) {
+  const hy = h * .34, by = h * .9, ls = w * .27;
+  V = { w, h, hy, by, ls, U: ls / LANE_M };
+}
+const sOf = z => D / (D + z);
+function proj(lx, z, hgt = 0) { const s = sOf(z); return { x: V.w / 2 + lx * V.ls * s, y: V.hy + (V.by - V.hy) * s - hgt * V.U * s, s }; }
+const zBottom = () => D / ((V.h - V.hy) / (V.by - V.hy)) - D;
+
+function rr(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+function quad(ctx, a, b, c, d, fill) { ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.lineTo(d.x, d.y); ctx.closePath(); ctx.fill(); }
+
+function drawWorld(ctx, wd, dist, t) {
+  const { w, h, hy } = V;
+  const sky = ctx.createLinearGradient(0, 0, 0, hy); sky.addColorStop(0, wd.sky[0]); sky.addColorStop(1, wd.sky[1]);
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, w, hy + 1);
+  if (wd.stars) { ctx.fillStyle = "rgba(255,255,255,.8)"; for (let k = 0; k < 40; k++) { const x = (k * 97) % w, y = (k * 53) % hy; ctx.globalAlpha = .4 + .6 * Math.abs(Math.sin(t / 900 + k)); ctx.fillRect(x, y, 1.6, 1.6); } ctx.globalAlpha = 1; }
+  const sg = ctx.createRadialGradient(w * .72, hy * .55, 0, w * .72, hy * .55, w * .2); sg.addColorStop(0, wd.sun); sg.addColorStop(.35, wd.sun); sg.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = sg; ctx.beginPath(); ctx.arc(w * .72, hy * .55, w * .2, 0, 7); ctx.fill();
+  ctx.fillStyle = wd.ground; ctx.fillRect(0, hy, w, h - hy);
+  // distant hills
+  ctx.fillStyle = wd.dc[0]; ctx.globalAlpha = .45; ctx.beginPath(); ctx.moveTo(0, hy);
+  for (let x = 0; x <= w; x += 20) ctx.lineTo(x, hy - 10 - 8 * Math.sin(x / 37) - 6 * Math.sin(x / 13 + 1));
+  ctx.lineTo(w, hy); ctx.fill(); ctx.globalAlpha = 1;
+  const zb = zBottom();
+  quad(ctx, proj(-1.62, FAR), proj(1.62, FAR), proj(1.62, zb), proj(-1.62, zb), wd.track);
+  // sleepers moving towards you
+  const step = 1.6, off = dist % step;
+  for (let z = FAR - ((FAR + off) % step); z > zb; z -= step) {
+    const z2 = z - .45; if (z2 < zb) continue;
+    quad(ctx, proj(-1.55, z), proj(1.55, z), proj(1.55, z2), proj(-1.55, z2), wd.tie);
+  }
+  ctx.strokeStyle = wd.rail; ctx.lineWidth = 2;
+  for (const lx of [-1.5, -.5, .5, 1.5]) { const a = proj(lx, FAR), b = proj(lx, zb); ctx.globalAlpha = lx % 1 ? .55 : .9; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  // scenery on both sides
+  const gap = 6, soff = dist % gap;
+  for (let z = FAR - ((FAR + soff) % gap); z > zb + .5; z -= gap) {
+    const idx = Math.round((z + dist) / gap);
+    for (const side of [-1, 1]) drawDeco(ctx, wd, side * (2.5 + (idx * 7 % 3) * .45), z, idx + side);
+  }
+}
+function drawDeco(ctx, wd, lx, z, seed) {
+  const p = proj(lx, z), s = p.s * V.U;
+  if (wd.deco === "building") {
+    const hh = (2.2 + (Math.abs(seed) % 4) * .7) * s, ww = 1.3 * s;
+    ctx.fillStyle = wd.dc[Math.abs(seed) % 2]; ctx.fillRect(p.x - ww / 2, p.y - hh, ww, hh);
+    ctx.fillStyle = wd.dc[2]; for (let r = 1; r < 5; r++) for (let c = 0; c < 2; c++) if ((seed + r + c) % 3) ctx.fillRect(p.x - ww * .32 + c * ww * .4, p.y - hh + r * hh * .18, ww * .18, hh * .08);
+  } else if (wd.deco === "tree") {
+    ctx.fillStyle = wd.dc[2]; ctx.fillRect(p.x - .08 * s, p.y - .9 * s, .16 * s, .9 * s);
+    ctx.fillStyle = wd.dc[0]; ctx.beginPath(); ctx.arc(p.x, p.y - 1.25 * s, .62 * s, 0, 7); ctx.fill();
+    ctx.fillStyle = wd.dc[1]; ctx.beginPath(); ctx.arc(p.x - .18 * s, p.y - 1.42 * s, .34 * s, 0, 7); ctx.fill();
+  } else if (wd.deco === "pine") {
+    ctx.fillStyle = wd.dc[0];
+    for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(p.x, p.y - (2 - k * .55) * s); ctx.lineTo(p.x - (.45 + k * .18) * s, p.y - (1.1 - k * .5) * s); ctx.lineTo(p.x + (.45 + k * .18) * s, p.y - (1.1 - k * .5) * s); ctx.fill(); }
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.moveTo(p.x, p.y - 2 * s); ctx.lineTo(p.x - .2 * s, p.y - 1.62 * s); ctx.lineTo(p.x + .2 * s, p.y - 1.62 * s); ctx.fill();
+  } else if (wd.deco === "cactus") {
+    ctx.fillStyle = wd.dc[Math.abs(seed) % 2];
+    rr(ctx, p.x - .14 * s, p.y - 1.4 * s, .28 * s, 1.4 * s, .14 * s); ctx.fill();
+    rr(ctx, p.x - .5 * s, p.y - 1.05 * s, .22 * s, .55 * s, .11 * s); ctx.fill(); rr(ctx, p.x + .28 * s, p.y - 1.2 * s, .22 * s, .5 * s, .11 * s); ctx.fill();
+    ctx.fillRect(p.x - .4 * s, p.y - .62 * s, .3 * s, .14 * s); ctx.fillRect(p.x + .1 * s, p.y - .8 * s, .25 * s, .14 * s);
+  } else if (wd.deco === "crystal") {
+    ctx.fillStyle = wd.dc[Math.abs(seed) % 2]; ctx.globalAlpha = .85;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y - 1.6 * s); ctx.lineTo(p.x - .35 * s, p.y - .5 * s); ctx.lineTo(p.x, p.y); ctx.lineTo(p.x + .35 * s, p.y - .5 * s); ctx.fill(); ctx.globalAlpha = 1;
+  }
+}
+// Obstacles
+function drawObj(ctx, o, t) {
+  const hw = .42;
+  if (o.type === "coin") {
+    const p = proj(o.lx, o.z, o.h), r = .2 * V.U * p.s, sx = Math.abs(Math.cos(t / 250 + o.z)) * .65 + .35;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.scale(sx, 1);
+    ctx.fillStyle = "#B48A2C"; ctx.beginPath(); ctx.arc(0, r * .15, r, 0, 7); ctx.fill();
+    ctx.fillStyle = "#E6BF5C"; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill();
+    ctx.fillStyle = "#FFF3CF"; ctx.beginPath(); ctx.arc(0, 0, r * .42, 0, 7); ctx.fill(); ctx.restore();
+    return;
+  }
+  const shadow = (z1, z2) => quad(ctx, proj(o.lx - hw, z1), proj(o.lx + hw, z1), proj(o.lx + hw, z2), proj(o.lx - hw, z2), "rgba(0,0,0,.18)");
+  if (o.type === "low") { // jump over it
+    const a = proj(o.lx - hw, o.z, .55), b = proj(o.lx + hw, o.z, .25), g = proj(o.lx, o.z);
+    shadow(o.z, o.z + .3);
+    ctx.fillStyle = "#555"; const pw = .07 * V.U * g.s;
+    ctx.fillRect(a.x, a.y, pw, g.y - a.y); ctx.fillRect(b.x - pw, a.y, pw, g.y - a.y);
+    const bh = b.y - a.y, grad = ctx.createLinearGradient(a.x, 0, b.x, 0);
+    ctx.save(); ctx.beginPath(); ctx.rect(a.x, a.y, b.x - a.x, bh); ctx.clip();
+    ctx.fillStyle = "#fff"; ctx.fillRect(a.x, a.y, b.x - a.x, bh);
+    ctx.fillStyle = "#D9574A"; const st = (b.x - a.x) / 6;
+    for (let k = -1; k < 7; k++) { ctx.beginPath(); ctx.moveTo(a.x + k * st, a.y + bh); ctx.lineTo(a.x + k * st + st * .5, a.y + bh); ctx.lineTo(a.x + (k + 1) * st + st * .5, a.y); ctx.lineTo(a.x + (k + 1) * st, a.y); ctx.fill(); }
+    ctx.restore();
+  } else if (o.type === "high") { // slide under it
+    const a = proj(o.lx - hw, o.z, 1.75), b = proj(o.lx + hw, o.z, 1.05), g = proj(o.lx, o.z);
+    shadow(o.z, o.z + .3);
+    ctx.fillStyle = "#4A4A55"; const pw = .07 * V.U * g.s;
+    ctx.fillRect(a.x, a.y, pw, g.y - a.y); ctx.fillRect(b.x - pw, a.y, pw, g.y - a.y);
+    ctx.fillStyle = "#3C78B0"; rr(ctx, a.x, a.y, b.x - a.x, b.y - a.y, 4 * g.s); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = `700 ${Math.max(8, .32 * V.U * g.s)}px Heebo, sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("▼ ▼ ▼", (a.x + b.x) / 2, (a.y + b.y) / 2);
+  } else { // block or train: a box with a top face. A train that has partly passed is cut at the bottom of the screen.
+    const hgt = o.type === "train" ? 2.1 : 1.5, col = o.color, z0 = Math.max(o.z, zBottom() - .2), dep = o.z + o.len - z0;
+    if (dep <= 0) return;
+    const fl = proj(o.lx - hw, z0), fr = proj(o.lx + hw, z0), tl = proj(o.lx - hw, z0, hgt), tr = proj(o.lx + hw, z0, hgt);
+    const btl = proj(o.lx - hw, z0 + dep, hgt), btr = proj(o.lx + hw, z0 + dep, hgt), bbl = proj(o.lx - hw, z0 + dep), bbr = proj(o.lx + hw, z0 + dep);
+    if (o.lx < 0) quad(ctx, tr, btr, bbr, fr, shadeC(col, -30)); else if (o.lx > 0) quad(ctx, tl, btl, bbl, fl, shadeC(col, -30));
+    quad(ctx, tl, tr, btr, btl, shadeC(col, 25));
+    ctx.fillStyle = col; ctx.fillRect(tl.x, tl.y, tr.x - tl.x, fl.y - tl.y);
+    const fw = tr.x - tl.x, fh = fl.y - tl.y;
+    if (o.type === "train") {
+      ctx.fillStyle = "rgba(25,30,45,.85)"; rr(ctx, tl.x + fw * .12, tl.y + fh * .14, fw * .76, fh * .3, fw * .06); ctx.fill();
+      ctx.fillStyle = "#FFE6A8"; ctx.beginPath(); ctx.arc(tl.x + fw * .22, tl.y + fh * .72, fw * .07, 0, 7); ctx.arc(tl.x + fw * .78, tl.y + fh * .72, fw * .07, 0, 7); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,.35)"; ctx.fillRect(tl.x, tl.y + fh * .52, fw, fh * .06);
+    } else {
+      ctx.strokeStyle = "rgba(0,0,0,.25)"; ctx.lineWidth = Math.max(1, 2 * fl.s);
+      ctx.strokeRect(tl.x + fw * .08, tl.y + fh * .08, fw * .84, fh * .84);
+      ctx.beginPath(); ctx.moveTo(tl.x + fw * .08, tl.y + fh * .08); ctx.lineTo(tl.x + fw * .92, tl.y + fh * .92); ctx.moveTo(tl.x + fw * .92, tl.y + fh * .08); ctx.lineTo(tl.x + fw * .08, tl.y + fh * .92); ctx.stroke();
+    }
+  }
+}
+function shadeC(hex, amt) { const n = parseInt(hex.slice(1), 16), f = v => Math.max(0, Math.min(255, v + amt)); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; }
+function drawRunner(ctx, t) {
+  const p = proj(R.x, 0), size = V.U * 1.15, jy = R.jy * V.U;
+  const sh = 1 - Math.min(.6, R.jy / 2.5);
+  ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.beginPath(); ctx.ellipse(p.x, p.y, size * .38 * sh, size * .1 * sh, 0, 0, 7); ctx.fill();
+  if (R.shield) { ctx.strokeStyle = "rgba(120,200,255,.85)"; ctx.fillStyle = "rgba(120,200,255,.14)"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(p.x, p.y - jy - size * .45, size * .6, size * .62, 0, 0, 7); ctx.fill(); ctx.stroke(); }
+  ctx.save();
+  ctx.translate(p.x, p.y - jy);
+  const run = R.slide > 0 ? 0 : Math.sin(t / 70) * .06;
+  ctx.rotate((R.lane - R.x) * -.35 + run);
+  ctx.scale(1, R.slide > 0 ? .55 : 1 + Math.abs(Math.sin(t / 70)) * .04);
+  if (R.inv > 0 && Math.floor(t / 90) % 2) ctx.globalAlpha = .45;
+  ctx.font = `${size}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+  ctx.fillText(Hub.equipped("runner").emo, 0, size * .08);
+  ctx.restore();
+  if (R.magnet) { ctx.fillStyle = "rgba(255,90,90,.9)"; ctx.font = `${size * .35}px "Segoe UI Emoji", sans-serif`; ctx.textAlign = "center"; ctx.fillText("🧲", p.x + size * .5, p.y - jy - size * .9); }
+}
+const previews = {};
+function previewImage(wd) {
+  if (previews[wd.id]) return previews[wd.id];
+  const cv = document.createElement("canvas"), w = 150, h = 100; cv.width = w * 2; cv.height = h * 2;
+  const c = cv.getContext("2d"); c.scale(2, 2);
+  const keep = V; setView(w, h); drawWorld(c, wd, 3, 0); V = keep;
+  return previews[wd.id] = cv.toDataURL();
+}
+
+// ---------- The run ----------
+let W, view = "menu", nav = [], R = null, raf = 0, cv, ctx;
+const P = () => { const p = W.progress; p.best = p.best || 0; p.runs = p.runs || 0; return p; };
+const BOX = ["#C2804B", "#B4664B", "#8E6F4E"], TRAINS = ["#3C78B0", "#C95468", "#4E9A6A", "#E0A43A", "#7A5C99"];
+function measure() {
+  const stage = $("#stage"); if (!stage) return;
+  const w = stage.clientWidth, h = Math.round(Math.min(innerHeight * .64, w * 1.4, 660));
+  stage.style.height = h + "px";
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  cv.width = w * dpr; cv.height = h * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  setView(w, h);
+}
+function newRun(shield = false, magnet = false) {
+  R = { lane: 0, x: 0, jy: 0, jt: -1, slide: 0, dist: 0, coins: 0, objs: [], gap: 14, t: 0, v: 0, over: false, running: false, paused: false, count: 2.2, shield, magnet, inv: 0, trainEnd: { "-1": 0, 0: 0, 1: 0 }, safe: 0, time: 0 };
+}
+// One row of obstacles far ahead. A train keeps its lane busy for a while.
+// There is always a "safe lane" with no crate or train. It moves at most one lane per row, and both the old
+// and the new safe lane stay clear, so the runner can always step across without being boxed in.
+function spawnRow() {
+  const at = R.dist + FAR, lanes = [-1, 0, 1];
+  const busyL = l => R.trainEnd[l] > at;
+  const cand = [R.safe - 1, R.safe, R.safe + 1].filter(l => l >= -1 && l <= 1 && !busyL(l));
+  const next = cand[Math.floor(Math.random() * cand.length)];
+  const keep = [R.safe, next]; R.safe = next;
+  const placeable = Hub.shuffle(lanes.filter(l => !keep.includes(l) && !busyL(l)));
+  const nBlocks = R.t < 8 ? Math.min(1, placeable.length) : Math.min(placeable.length, Math.floor(Math.random() * 3));
+  const free = [...placeable, ...lanes.filter(l => !placeable.includes(l) && !busyL(l))];
+  const kinds = {};
+  free.forEach((l, i) => {
+    if (i < nBlocks) {
+      const train = R.t > 6 && Math.random() < .35;
+      kinds[l] = "block";
+      R.objs.push({ type: train ? "train" : "block", lx: l, lane: l, z: FAR, len: train ? 9 : .9, color: train ? TRAINS[Math.floor(Math.random() * TRAINS.length)] : BOX[Math.floor(Math.random() * BOX.length)] });
+      if (train) R.trainEnd[l] = at + 9 + 3;
+    } else {
+      const r = Math.random(), type = r < .32 ? "low" : r < .55 ? "high" : null;
+      kinds[l] = type;
+      if (type) R.objs.push({ type, lx: l, lane: l, z: FAR, len: .3 });
+    }
+  });
+  const open = free.filter(l => kinds[l] !== "block");
+  if (open.length && Math.random() < .7) {
+    const l = open[Math.floor(Math.random() * open.length)], k = kinds[l];
+    for (let i = 0; i < 4; i++) {
+      const z = FAR + (k ? i - 1.5 : i * 1.3) * 1.1;
+      const h = k === "low" ? .7 + Math.sin((i + .5) / 4 * Math.PI) * 1.1 : .55;
+      R.objs.push({ type: "coin", lx: l, lane: l, z, h: k === "high" ? .4 : h });
+    }
+  }
+}
+function act(m) {
+  if (!R || !R.running || R.over || R.paused || R.count > 0) return;
+  if (m === "left" || m === "right") { const l = Math.max(-1, Math.min(1, R.lane + (m === "left" ? -1 : 1))); if (l !== R.lane) { R.lane = l; Hub.sound("tap"); } }
+  if (m === "up" && R.jt < 0) { R.jt = 0; R.slide = 0; Hub.sound("jump"); }
+  if (m === "down") { R.jt = -1; R.jy = 0; R.slide = .7; Hub.sound("flip"); }
+}
+function update(dt) {
+  if (!R.running || R.paused || R.over) return;
+  if (R.count > 0) { R.count -= dt; if (R.count <= 0) Hub.sound("good"); return; }
+  R.t += dt;
+  R.v = Math.min(9 + R.t * .17, 23);
+  const d = R.v * dt;
+  R.dist += d;
+  R.x += (R.lane - R.x) * Math.min(1, dt * 14);
+  if (R.jt >= 0) { R.jt += dt / .62; if (R.jt >= 1) { R.jt = -1; R.jy = 0; } else R.jy = 4 * 1.5 * R.jt * (1 - R.jt); }
+  R.slide = Math.max(0, R.slide - dt); R.inv = Math.max(0, R.inv - dt);
+  R.gap -= d;
+  if (R.gap <= 0) { spawnRow(); R.gap = Math.max(7.5, 14 - R.t * .07); }
+  const lane = Math.round(R.x);
+  for (const o of R.objs) {
+    o.z -= d;
+    if (o.done) continue;
+    if (o.type === "coin") {
+      if (R.magnet && o.z < 7 && Math.abs(o.lane - R.lane) === 1) { o.lx += (R.x - o.lx) * Math.min(1, dt * 8); o.h += (.6 - o.h) * Math.min(1, dt * 6); }
+      const near = R.magnet ? Math.abs(o.lx - R.x) < .5 : o.lane === lane;
+      if (Math.abs(o.z) < .55 && near && Math.abs(o.h - (R.jy + .55)) < .85) { o.done = true; R.coins++; Hub.sound("coin"); }
+      continue;
+    }
+    if (o.lane !== lane || o.z > .35 || o.z + o.len < -.35) continue;
+    const blocked = o.type === "low" ? R.jy < .45 : o.type === "high" ? R.slide <= 0 : true;
+    if (!blocked) continue;
+    o.done = true;
+    if (R.inv > 0) continue;
+    if (R.shield) { R.shield = false; R.inv = 1.4; o.gone = true; Hub.sound("hint"); Hub.toast("המגן הציל אותך! 🛡"); continue; }
+    return crash();
+  }
+  R.objs = R.objs.filter(o => o.z + (o.len || 0) > zBottom() - 1 && !(o.type === "coin" && o.done) && !o.gone);
+  hud();
+}
+function draw(t) {
+  const wd = Hub.equipped("world");
+  ctx.clearRect(0, 0, V.w, V.h);
+  drawWorld(ctx, wd, R.dist, t);
+  // Only what is in front of the camera (z > -D would flip the projection)
+  const zb = zBottom();
+  const objs = R.objs.filter(o => o.z < FAR + 6 && (o.len ? o.z + o.len > zb : o.z > zb - .6) && (o.len > 1 || o.z > -D * .8)).sort((a, b) => b.z - a.z);
+  for (const o of objs) if (o.z > .2) drawObj(ctx, o, t);
+  drawRunner(ctx, t);
+  for (const o of objs) if (o.z <= .2) drawObj(ctx, o, t);
+  if (R.running && R.count > 0) {
+    const n = Math.min(3, Math.ceil(R.count / .7));
+    ctx.fillStyle = "rgba(0,0,0,.25)"; ctx.fillRect(0, 0, V.w, V.h);
+    ctx.fillStyle = "#fff"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.font = `500 ${Math.round(V.w * .24)}px "Frank Ruhl Libre", serif`; ctx.fillText(n, V.w / 2, V.h * .42);
+    ctx.font = `500 18px Heebo, sans-serif`; ctx.fillText("מתכוננים…", V.w / 2, V.h * .42 + V.w * .17);
+  }
+}
+function frame(t) {
+  if (view !== "game" || !R) return;
+  const dt = Math.min(.05, (t - (R.time || t)) / 1000); R.time = t;
+  update(dt); draw(t);
+  raf = requestAnimationFrame(frame);
+}
+function hud() { const d = $("#hDist"), c = $("#hCoins"); if (d) { d.textContent = Math.floor(R.dist); c.textContent = R.coins; } }
+function crash() {
+  R.over = true; Hub.sound("crash");
+  const st = $("#stage"); st.classList.remove("shake"); void st.offsetWidth; st.classList.add("shake");
+  const p = P(), dist = Math.floor(R.dist), record = dist > p.best;
+  p.runs++; if (record) p.best = dist;
+  const coins = R.coins + Math.floor(dist / 30);
+  Hub.save(); Hub.earn(coins);
+  setTimeout(() => {
+    if (record) Hub.confetti();
+    Hub.result({ title: record ? "שיא חדש! 🏃" : "אאוץ'!", sub: `רצת <b>${dist}</b> מטר ואספת ${R.coins} מטבעות${record ? "" : ` · השיא שלך: ${p.best} מ׳`}`, coins, buttons: [["again", "עוד ריצה", true], ["tomenu", "לתפריט"]] });
+  }, 800);
+}
+let useShield = false, useMagnet = false;
+function readyCard() {
+  const s = Hub.stock("shield"), m = Hub.stock("magnet");
+  useShield = s > 0; useMagnet = false;
+  Hub.overlay(`<div class="ready"><h2 class="display sm">מוכנים לרוץ?</h2>
+    <p class="lede">קפצו מעל מחסומים אדומים, החליקו מתחת לשלטים כחולים, ועקפו קרונות וארגזים.</p>
+    <div class="toggles">
+      <button class="toggle ${useShield ? "on" : ""}" data-act="tog" data-k="shield" ${s ? "" : "disabled"}>🛡 מגן · יש ${s}</button>
+      <button class="toggle" data-act="tog" data-k="magnet" ${m ? "" : "disabled"}>🧲 מגנט · יש ${m}</button>
+    </div>
+    <button class="btn primary big" data-act="go">רצים! 🏃</button>
+    <p class="small">←/→ נתיב · ↑ קפיצה · ↓ החלקה · רווח עצירה</p></div>`);
+}
+
+// ---------- Views ----------
+function go(v) { nav.push(view); view = v; render(); scrollTo(0, 0); }
+function back() { stopLoop(); view = nav.pop() || "menu"; render(); }
+function stopLoop() { cancelAnimationFrame(raf); raf = 0; }
+function render() {
+  Hub.closeOverlay();
+  $("#app").innerHTML = ({ menu: menuView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+  if (view === "game") startStage();
+}
+function menuView() {
+  const p = P();
+  return Hub.menu({ tagline: `שלושה נתיבים ודמות שלא מפסיקה לרוץ. קפצו, החליקו והחליפו נתיב, ואספו כמה שיותר מטבעות.${p.best ? `<br><b>השיא שלך: ${p.best} מטר</b>` : ""}`, buttons: [["play", "לרוץ", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+}
+function gameView() {
+  return `${Hub.topbar("ריצת הנתיבים")}
+    <div class="stage" id="stage"><canvas id="cv" aria-label="המסלול"></canvas>
+      <div class="hud-top"><span class="chip">📏 <b id="hDist">0</b> מ׳</span><span class="chip">${Hub.coinSvg}<b id="hCoins">0</b></span><button class="icon-btn" data-act="pause" aria-label="הפסקה">⏸</button></div>
+    </div>
+    <div class="pad">
+      <button data-pad="left" aria-label="שמאלה">◀<small>שמאלה</small></button>
+      <button data-pad="up" aria-label="קפיצה">▲<small>קפיצה</small></button>
+      <button data-pad="down" aria-label="החלקה">▼<small>החלקה</small></button>
+      <button data-pad="right" aria-label="ימינה">▶<small>ימינה</small></button>
+    </div>
+    <p class="small keys">במקלדת: חצים או WASD · בטלפון: הכפתורים או החלקה על המסך לכל כיוון</p>`;
+}
+function helpView() {
+  return `${Hub.topbar("איך משחקים")}<div class="help card">
+    <h2>המטרה</h2><p>לרוץ כמה שיותר רחוק. הריצה לא נעצרת, ונהיית מהירה יותר עם הזמן.</p>
+    <h2>שליטה</h2><ul><li><b>◀ ▶</b> מעבר נתיב · <b>▲</b> קפיצה · <b>▼</b> החלקה. בטלפון אפשר גם להחליק על המסך לכל כיוון.</li><li>רווח או ⏸ עוצרים את המשחק.</li></ul>
+    <h2>מכשולים</h2><ul><li><b>מחסום אדום-לבן נמוך</b>: קופצים מעליו.</li><li><b>שלט כחול גבוה ▼</b>: מחליקים מתחתיו.</li><li><b>ארגזים וקרונות</b>: אי אפשר לעבור, רק לעקוף בנתיב אחר.</li></ul>
+    <h2>מטבעות וחנות</h2><ul><li>מקבלים את המטבעות שאספתם ועוד מטבע על כל 30 מטר.</li><li><b>🛡 מגן</b> סופג התנגשות אחת. <b>🧲 מגנט</b> מושך מטבעות גם מהנתיבים השכנים.</li><li>בחנות יש דמויות ועולמות חדשים.</li></ul></div>`;
+}
+function startStage() {
+  cv = $("#cv"); ctx = cv.getContext("2d");
+  newRun(); measure(); hud();
+  stopLoop(); raf = requestAnimationFrame(frame);
+  readyCard();
+}
+function pause(on) {
+  if (!R || !R.running || R.over) return;
+  R.paused = on;
+  if (on) Hub.overlay(`<h2 class="display sm">הפסקה</h2><div class="stack"><button class="btn wide primary" data-act="resume">להמשיך</button><button class="btn wide" data-act="quit">לסיים את הריצה</button></div>`);
+  else Hub.closeOverlay();
+}
+
+// ---------- Input ----------
+const KEYMAP = { ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right", ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down" };
+document.addEventListener("keydown", e => {
+  if (view !== "game" || !R) return;
+  if (e.key === " " || e.key === "Escape" || e.key === "p") { e.preventDefault(); if (!Hub.overlayOpen() || R.paused) pause(!R.paused); return; }
+  const m = KEYMAP[e.key]; if (!m) return;
+  e.preventDefault();
+  if (!e.repeat && !Hub.overlayOpen()) act(m);
+});
+let swipe = null;
+document.addEventListener("pointerdown", e => {
+  const b = e.target.closest("[data-pad]");
+  if (b) { e.preventDefault(); b.classList.add("held"); act(b.dataset.pad); return; }
+  if (e.target.id === "cv") swipe = { x: e.clientX, y: e.clientY };
+});
+const release = e => {
+  document.querySelectorAll(".pad .held").forEach(x => x.classList.remove("held"));
+  if (swipe && e.type === "pointerup") {
+    const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) > 24) act(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy < 0 ? "up" : "down"));
+  }
+  swipe = null;
+};
+document.addEventListener("pointerup", release);
+document.addEventListener("pointercancel", release);
+document.addEventListener("visibilitychange", () => { if (document.hidden && R && R.running && !R.over && !R.paused) pause(true); });
+addEventListener("resize", () => { if (view === "game" && cv) measure(); });
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "back") return back();
+  if (a === "play") return go("game");
+  if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
+  if (a === "help") return go("help");
+  if (a === "buy") { Hub.buy(b.dataset.item); return render(); }
+  if (a === "tog") {
+    if (b.dataset.k === "shield") { useShield = !useShield; b.classList.toggle("on", useShield); }
+    else { useMagnet = !useMagnet; b.classList.toggle("on", useMagnet); }
+    return;
+  }
+  if (a === "go") {
+    Hub.closeOverlay();
+    newRun(useShield && Hub.useStock("shield"), useMagnet && Hub.useStock("magnet"));
+    R.running = true; hud(); Hub.sound("tap");
+    return;
+  }
+  if (a === "pause") return pause(true);
+  if (a === "resume") return pause(false);
+  if (a === "quit") { R.paused = false; Hub.closeOverlay(); return crash(); }
+  if (a === "again") { Hub.closeOverlay(); newRun(); hud(); readyCard(); return; }
+  if (a === "tomenu") { stopLoop(); view = "menu"; nav = []; return render(); }
+});
+
+Hub.start(CFG, (u, w) => { W = w; render(); });
+</script>
+</body>
+</html>

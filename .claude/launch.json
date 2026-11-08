@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mind-studio",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:\\MS Projects\\Smart Sudoku\\Hub\\serve.ps1", "-Port", "8780"],
+      "port": 8780
+    },
+    {
+      "name": "couple-site",
+      "runtimeExecutable": "powershell",
+      "runtimeArgs": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "C:\\Users\\aviga\\AppData\\Local\\Temp\\claude\\C--MS-Projects-Smart-Sudoku\\e6fb3018-e9f3-471b-a4ae-f5f40a7e4074\\scratchpad\\serve.ps1", "-Root", "C:\\MS Projects\\Smart Sudoku\\couple-site", "-Port", "8765"],
+      "port": 8765
+    }
+  ]
+}

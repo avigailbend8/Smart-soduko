@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ציור נסתר · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<style>
+/* Board: clues above and to the left (the board itself reads left to right), a thicker line every 5 cells */
+.ng-wrap { display: flex; justify-content: center; overflow-x: auto; padding-bottom: 6px; }
+.ng { direction: ltr; display: grid; gap: 0; user-select: none; touch-action: none; }
+.clue-c { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 1px; padding-bottom: 6px; font-size: calc(var(--cs) * .4); line-height: 1.1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.clue-r { display: flex; justify-content: flex-end; align-items: center; gap: calc(var(--cs) * .22); padding-right: 8px; font-size: calc(var(--cs) * .4); color: var(--ink); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.clue-c.ok, .clue-r.ok { color: color-mix(in srgb, var(--muted) 55%, transparent); }
+.clue-c.hot, .clue-r.hot { color: var(--accent); font-weight: 700; }
+.nc { width: var(--cs); height: var(--cs); background: var(--card); border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); position: relative; cursor: pointer; display: grid; place-items: center; }
+.nc.x0 { border-left: 1.5px solid color-mix(in srgb, var(--ink) 45%, transparent); }
+.nc.y0 { border-top: 1.5px solid color-mix(in srgb, var(--ink) 45%, transparent); }
+.nc.b5 { border-right: 1.5px solid color-mix(in srgb, var(--ink) 45%, transparent); }
+.nc.r5 { border-bottom: 1.5px solid color-mix(in srgb, var(--ink) 45%, transparent); }
+.nc.hot { background: color-mix(in srgb, var(--soft) 45%, var(--card)); }
+.nc.f::before { content: ""; position: absolute; background: var(--accent); animation: pop .18s ease-out; }
+.nc.m::after { content: "✕"; color: color-mix(in srgb, var(--muted) 70%, transparent); font-size: calc(var(--cs) * .5); }
+.nc.flash { animation: flash 1s ease-out; }
+@keyframes pop { from { transform: scale(.4); } }
+@keyframes flash { 0%, 60% { box-shadow: 0 0 0 3px var(--gold) inset; } }
+/* Fill shapes bought in the store */
+.fill-square .nc.f::before { inset: 1px; border-radius: 2px; }
+.fill-round .nc.f::before { inset: 12%; border-radius: 50%; }
+.fill-soft .nc.f::before { inset: 2px; border-radius: 30%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--accent) 55%, #fff), var(--accent) 70%); }
+.fill-diamond .nc.f::before { inset: 18%; transform: rotate(45deg); border-radius: 3px; animation: none; }
+.fill-stitch .nc.f::before { inset: 14%; background: linear-gradient(45deg, transparent 38%, var(--accent) 38% 62%, transparent 62%), linear-gradient(-45deg, transparent 38%, var(--accent) 38% 62%, transparent 62%); }
+.mini { direction: ltr; display: grid; grid-template-columns: repeat(3, 20px); --cs: 20px; }
+.mini .nc { border: 1px solid var(--line); margin: -.5px; }
+.tools { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 16px 0 6px; }
+.tool.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.status { text-align: center; color: var(--muted); min-height: 1.6em; margin: 8px 0 0; }
+.reveal { direction: ltr; display: inline-grid; margin: 0 auto; border-radius: 10px; overflow: hidden; }
+.reveal i { width: 14px; height: 14px; background: var(--card); }
+.reveal i.f { background: var(--accent); }
+.lvl .mini-pic { font-size: 12px; color: var(--muted); }
+.free { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.section-title { font-size: 22px; margin: 26px 0 12px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const { $, esc } = Hub;
+
+// Pictures for the levels ("#" = filled). Any drawing that matches all the clues counts as solved.
+const PICS = [
+  { name: "לב", rows: [".#.#.", "#####", "#####", ".###.", "..#.."] },
+  { name: "חץ", rows: ["..#..", ".###.", "#.#.#", "..#..", "..#.."] },
+  { name: "פרח", rows: [".#.#.", "#####", ".###.", "..#..", ".##.."] },
+  { name: "בית", rows: ["..#..", ".###.", "#####", ".#.#.", ".#.#."] },
+  { name: "עץ", rows: ["..#..", ".###.", "#####", "..#..", ".###."] },
+  { name: "לב גדול", rows: [".##....##.", "####..####", "##########", "##########", "##########", ".########.", "..######..", "...####...", "....##....", ".........."] },
+  { name: "אורן", rows: ["....##....", "...####...", "..######..", ".########.", "..######..", ".########.", "##########", "....##....", "....##....", "...####..."] },
+  { name: "בית קטן", rows: ["....##....", "...####...", "..######..", ".########.", "##########", ".#......#.", ".#.##.#.#.", ".#.##...#.", ".#.##...#.", ".########."] },
+  { name: "כוכב", rows: ["....##....", "....##....", "...####...", "##########", ".########.", "..######..", "..######..", ".###..###.", ".##....##.", "##......##"] },
+  { name: "ירח", rows: ["...#####..", "..###.....", ".###......", ".##.......", "###.......", "###.......", ".##.......", ".###......", "..###.....", "...#####.."] },
+  { name: "פטרייה", rows: ["...####...", ".########.", "##..##..##", "##########", "#..####..#", ".########.", "...#..#...", "...#..#...", "...#..#...", "...####..."] },
+  { name: "מטרייה", rows: ["....##....", "..######..", ".########.", "##########", "#..#..#..#", "....#.....", "....#.....", "....#.....", ".#..#.....", "..##......"] },
+  { name: "דג", rows: ["..........", "....####..", "#..######.", "##.###.###", "##########", "##.#######", "#..######.", "....####..", "..........", ".........."] },
+  { name: "חתול", rows: ["#........#", "##......##", "###....###", "##########", "#..####..#", "##########", "###.##.###", ".########.", "..######..", "...####..."] },
+  { name: "תו מוזיקלי", rows: ["....######", "....######", "....#....#", "....#....#", "....#....#", "....#....#", "..###..###", ".####.####", ".####.####", "..##...##."] },
+].map(p => ({ ...p, grid: p.rows.map(r => [...r].map(ch => ch === "#" ? 1 : 0)) }));
+
+const CFG = {
+  id: "nonogram", title: "ציור נסתר", startCoins: 40, startStock: { hint: 3 },
+  items: [
+    Hub.theme("slate", 0), Hub.theme("sage", 120), Hub.theme("rose", 120), Hub.theme("terracotta", 150), Hub.theme("night", 220),
+    { id: "fill-square", slot: "fill", name: "ריבועים", price: 0 },
+    { id: "fill-round", slot: "fill", name: "פנינים", price: 80 },
+    { id: "fill-soft", slot: "fill", name: "כריות", price: 90 },
+    { id: "fill-diamond", slot: "fill", name: "יהלומים", price: 110 },
+    { id: "fill-stitch", slot: "fill", name: "רקמה", price: 140 },
+    { id: "hints3", consumable: true, stockId: "hint", amount: 3, name: "3 רמזים", desc: "רמז ממלא משבצת נכונה", price: 30 },
+    { id: "hints10", consumable: true, stockId: "hint", amount: 10, name: "10 רמזים", desc: "חבילה משתלמת", price: 85 },
+  ],
+  storeGroups: [{ slot: "theme", title: "ערכות צבע" }, { slot: "fill", title: "צורת המילוי" }, { consumable: true, title: "עזרים" }],
+  preview: it => `<div class="mini ${it.id}">${[1, 0, 1, 1, 1, 1, 0, 1, 0].map(v => `<div class="nc ${v ? "f" : ""}"></div>`).join("")}</div>`,
+};
+
+let W, view = "menu", nav = [], G = null, drag = null;
+const P = () => W.progress; // { done: {level: stars}, solved: count }
+
+// ---------- Puzzle logic ----------
+const runs = line => { const out = []; let n = 0; for (const v of line) { if (v === 1) n++; else if (n) { out.push(n); n = 0; } } if (n) out.push(n); return out.length ? out : [0]; };
+const col = (g, c) => g.map(r => r[c]);
+const same = (a, b) => a.length === b.length && a.every((v, i) => v === b[i]);
+
+function newGame(level, size) {
+  let sol, name = null;
+  if (level !== null) { sol = PICS[level].grid; name = PICS[level].name; }
+  else { // free play: a random picture, about 60% filled
+    sol = Array.from({ length: size }, () => Array.from({ length: size }, () => Math.random() < .6 ? 1 : 0));
+  }
+  const n = sol.length;
+  G = {
+    level, name, sol, n,
+    rowClues: sol.map(runs), colClues: sol[0].map((_, c) => runs(col(sol, c))),
+    cells: Array.from({ length: n }, () => Array(n).fill(0)), // 0 empty, 1 filled, 2 marked ✕
+    tool: 1, hints: 0, secs: 0, done: false, hot: null, hist: [],
+  };
+}
+const rowOk = r => same(runs(G.cells[r].map(v => v === 1 ? 1 : 0)), G.rowClues[r]);
+const colOk = c => same(runs(G.cells.map(row => row[c] === 1 ? 1 : 0)), G.colClues[c]);
+const solved = () => G.cells.every((_, r) => rowOk(r)) && G.cells[0].every((_, c) => colOk(c));
+
+// ---------- Views ----------
+function go(v) { nav.push(view); view = v; render(); scrollTo(0, 0); }
+function back() { stopTimer(); view = nav.pop() || "menu"; render(); }
+function render() {
+  Hub.closeOverlay();
+  $("#app").innerHTML = ({ menu: menuView, levels: levelsView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+  if (view === "game") { drawBoard(); if (!G.done) startTimer(); }
+}
+function menuView() {
+  return Hub.menu({ tagline: "המספרים בשוליים אומרים כמה משבצות צבועות ברצף יש בכל שורה ועמודה. צבעו נכון — והציור יתגלה.", buttons: [["levels", "בואו נצייר", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+}
+function levelsView() {
+  const done = P().done || {};
+  const open = i => i === 0 || done[i - 1] !== undefined;
+  const btn = (i) => `<button class="btn lvl ${done[i] !== undefined ? "done" : ""}" data-act="play" data-level="${i}" ${open(i) ? "" : "disabled"} aria-label="שלב ${i + 1}">
+      <small>${PICS[i].grid.length}×${PICS[i].grid.length}</small><b>${i + 1}</b><i>${!open(i) ? "🔒" : done[i] !== undefined ? "★".repeat(done[i]) + "☆".repeat(3 - done[i]) : "·"}</i></button>`;
+  return `${Hub.topbar("שלבים")}
+    <h2 class="section-title">ציורים קטנים · 5×5</h2><div class="levels">${PICS.map((p, i) => i < 5 ? btn(i) : "").join("")}</div>
+    <h2 class="section-title">ציורים גדולים · 10×10</h2><div class="levels">${PICS.map((p, i) => i >= 5 ? btn(i) : "").join("")}</div>
+    <h2 class="section-title">משחק חופשי</h2><p class="small">לוח אקראי בכל פעם. אין ציור מוכן — רק היגיון.</p>
+    <div class="free"><button class="btn" data-act="free" data-size="10">אקראי 10×10</button><button class="btn" data-act="free" data-size="15">אקראי 15×15</button></div>`;
+}
+function gameView() {
+  const title = G.level !== null ? `שלב ${G.level + 1}` : `חופשי ${G.n}×${G.n}`;
+  return `${Hub.topbar(title)}
+    <div class="row" style="margin-bottom:14px"><span class="chip" id="timer">⏱ 0:00</span><span class="chip">💡 <b id="hintCount">${Hub.stock("hint")}</b></span></div>
+    <div class="ng-wrap"><div class="ng ${Hub.equipped("fill").id}" id="board"></div></div>
+    <div class="tools">
+      <button class="btn tool ${G.tool === 1 ? "on" : ""}" data-act="tool" data-tool="1" aria-pressed="${G.tool === 1}">■ צביעה</button>
+      <button class="btn tool ${G.tool === 2 ? "on" : ""}" data-act="tool" data-tool="2" aria-pressed="${G.tool === 2}">✕ סימון ריק</button>
+      <button class="btn" data-act="undo">↩ ביטול</button>
+      <button class="btn" data-act="hint">💡 רמז</button>
+      <button class="btn" data-act="clear">ניקוי</button>
+    </div>
+    <p class="status" id="status">גררו כדי לצבוע כמה משבצות בבת אחת. ✕ מסמן משבצת שבטוח ריקה.</p>`;
+}
+function drawBoard() {
+  const b = $("#board"), n = G.n;
+  const maxR = Math.max(...G.rowClues.map(c => c.length)), maxC = Math.max(...G.colClues.map(c => c.length));
+  const avail = Math.min(innerWidth, 900) - 40;
+  const cs = Math.max(20, Math.min(n <= 5 ? 56 : 40, Math.floor(avail / (n + maxR * .62))));
+  b.style.setProperty("--cs", cs + "px");
+  b.style.gridTemplateColumns = `auto repeat(${n}, ${cs}px)`;
+  b.style.gridTemplateRows = `${Math.max(maxC * cs * .45, cs) + 8}px repeat(${n}, ${cs}px)`;
+  let html = `<div></div>`;
+  for (let c = 0; c < n; c++) html += `<div class="clue-c" data-cc="${c}">${G.colClues[c].map(x => `<span>${x}</span>`).join("")}</div>`;
+  for (let r = 0; r < n; r++) {
+    html += `<div class="clue-r" data-rc="${r}">${G.rowClues[r].map(x => `<span>${x}</span>`).join("")}</div>`;
+    for (let c = 0; c < n; c++) html += `<div data-r="${r}" data-c="${c}" role="gridcell" aria-label="שורה ${r + 1} עמודה ${c + 1}"></div>`;
+  }
+  b.innerHTML = html;
+  refresh();
+}
+// Updates classes only, so filled cells don't replay their animation on every stroke
+function refresh() {
+  const n = G.n, [hr, hc] = G.hot || [-1, -1];
+  document.querySelectorAll("#board [data-r]").forEach(el => {
+    const r = +el.dataset.r, c = +el.dataset.c, v = G.cells[r][c];
+    el.className = ["nc", v === 1 ? "f" : v === 2 ? "m" : "", c === 0 ? "x0" : "", r === 0 ? "y0" : "", c % 5 === 4 || c === n - 1 ? "b5" : "", r % 5 === 4 || r === n - 1 ? "r5" : "", (r === hr || c === hc) ? "hot" : ""].join(" ");
+  });
+  document.querySelectorAll("#board [data-cc]").forEach(el => { const c = +el.dataset.cc; el.className = `clue-c ${colOk(c) ? "ok" : ""} ${c === hc ? "hot" : ""}`; });
+  document.querySelectorAll("#board [data-rc]").forEach(el => { const r = +el.dataset.rc; el.className = `clue-r ${rowOk(r) ? "ok" : ""} ${r === hr ? "hot" : ""}`; });
+}
+function helpView() {
+  return `${Hub.topbar("איך משחקים")}<div class="help card">
+    <h2>המטרה</h2><p>לגלות אילו משבצות צבועות. כשכל השורות והעמודות מתאימות למספרים — מתגלה ציור.</p>
+    <h2>הרמזים</h2><ul><li>המספרים ליד כל <b>שורה</b> ומעל כל <b>עמודה</b> אומרים כמה משבצות צבועות יש ברצף, ובאיזה סדר.</li>
+    <li>למשל <b>3 1</b>: קודם רצף של 3, אחר כך לפחות משבצת ריקה אחת, ואז משבצת צבועה אחת.</li><li>כששורה מתאימה למספרים שלה, המספרים מאפירים.</li></ul>
+    <h2>כלים</h2><ul><li><b>■ צביעה</b> ו-<b>✕ סימון ריק</b> — אפשר לגרור על כמה משבצות. לחיצה על משבצת שכבר צבועה מוחקת אותה.</li>
+    <li><b>💡 רמז</b> מתקן משבצת אחת. רמזים קונים בחנות.</li></ul>
+    <h2>מטבעות וכוכבים</h2><ul><li>בלי רמזים = 3 כוכבים. כל ציור נותן מטבעות, ציור גדול נותן יותר.</li><li>פעם ראשונה בשלב — פרס מלא. משחק חוזר — חצי.</li></ul>
+    <p class="small" style="margin-top:14px">💡 טיפ: התחילו משורות עם מספר גדול — רצף של 8 בשורה של 10 חייב לכסות את 6 המשבצות שבאמצע.</p></div>`;
+}
+
+// ---------- Playing ----------
+let timerId = 0;
+function startTimer() { stopTimer(); timerId = setInterval(() => { G.secs++; const t = $("#timer"); if (t) t.textContent = "⏱ " + Hub.fmtTime(G.secs); }, 1000); }
+function stopTimer() { clearInterval(timerId); }
+
+function setCell(r, c, v) { if (G.cells[r][c] === v) return false; G.cells[r][c] = v; return true; }
+function cellAt(x, y) { const el = document.elementFromPoint(x, y)?.closest(".nc[data-r]"); return el ? [+el.dataset.r, +el.dataset.c] : null; }
+// A stroke stays on the row or column it started in, and fills every cell between the start and the pointer
+function paint(r, c) {
+  const [sr, sc] = drag.start;
+  if (!drag.axis && (r !== sr || c !== sc)) drag.axis = r === sr ? "row" : c === sc ? "col" : Math.abs(c - sc) >= Math.abs(r - sr) ? "row" : "col";
+  if (drag.axis === "row") r = sr; else if (drag.axis === "col") c = sc;
+  let changed = false;
+  for (let i = Math.min(sr, r); i <= Math.max(sr, r); i++)
+    for (let j = Math.min(sc, c); j <= Math.max(sc, c); j++) changed = setCell(i, j, drag.value) || changed;
+  G.hot = [r, c];
+  if (changed) Hub.sound("tap");
+  refresh();
+}
+
+function finish() {
+  G.done = true; stopTimer();
+  const stars = G.hints === 0 ? 3 : G.hints === 1 ? 2 : 1;
+  const big = G.n >= 15 ? 55 : G.n >= 10 ? 30 : 12;
+  let coins = big + (G.hints === 0 ? Math.round(big / 3) : 0);
+  const p = P(); p.done = p.done || {};
+  if (G.level !== null) {
+    if (p.done[G.level] !== undefined) coins = Math.ceil(coins / 2);
+    p.done[G.level] = Math.max(p.done[G.level] || 0, stars);
+  }
+  p.solved = (p.solved || 0) + 1;
+  Hub.save(); Hub.earn(coins); Hub.sound("win"); Hub.confetti();
+  const pic = `<div class="reveal" style="grid-template-columns:repeat(${G.n},14px)">${G.cells.flat().map(v => `<i class="${v === 1 ? "f" : ""}"></i>`).join("")}</div>`;
+  const hasNext = G.level !== null && G.level < PICS.length - 1;
+  Hub.result({
+    title: G.name ? `גילית: ${G.name}!` : "פתרת את הלוח!",
+    sub: `${pic}<br>זמן: ${Hub.fmtTime(G.secs)} · רמזים: ${G.hints}`, stars, coins,
+    buttons: [hasNext ? ["next", "לציור הבא ←", true] : ["again", "עוד לוח אקראי", true], ["tolevels", "לכל השלבים"]],
+  });
+}
+
+document.addEventListener("pointerdown", e => {
+  if (view !== "game" || G.done || !e.target.closest("#board")) return;
+  const at = cellAt(e.clientX, e.clientY); if (!at) return;
+  e.preventDefault();
+  const [r, c] = at, cur = G.cells[r][c];
+  G.hist.push(JSON.stringify(G.cells));
+  drag = { value: cur === G.tool ? 0 : G.tool, start: [r, c], axis: null };
+  paint(r, c);
+});
+document.addEventListener("pointermove", e => { if (!drag) return; const at = cellAt(e.clientX, e.clientY); if (at) paint(...at); });
+document.addEventListener("pointerup", () => {
+  if (!drag) return; drag = null;
+  if (view === "game" && !G.done && solved()) finish();
+});
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "back") return back();
+  if (a === "levels") return go("levels");
+  if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
+  if (a === "help") return go("help");
+  if (a === "buy") { Hub.buy(b.dataset.item); return render(); }
+  if (a === "play") { newGame(+b.dataset.level); return go("game"); }
+  if (a === "free") { newGame(null, +b.dataset.size); return go("game"); }
+  if (a === "tool") { G.tool = +b.dataset.tool; document.querySelectorAll(".tool").forEach(t => { const on = +t.dataset.tool === G.tool; t.classList.toggle("on", on); t.setAttribute("aria-pressed", on); }); return; }
+  if (a === "undo") { if (G.done || !G.hist.length) return; G.cells = JSON.parse(G.hist.pop()); return refresh(); }
+  if (a === "clear") { if (G.done) return; G.hist.push(JSON.stringify(G.cells)); G.cells = G.cells.map(r => r.map(() => 0)); return refresh(); }
+  if (a === "hint") {
+    if (G.done) return;
+    const wrong = [];
+    G.cells.forEach((row, r) => row.forEach((v, c) => { if ((v === 1) !== (G.sol[r][c] === 1)) wrong.push([r, c]); }));
+    if (!wrong.length) return;
+    if (!Hub.useStock("hint")) { $("#status").textContent = "נגמרו הרמזים — אפשר לקנות עוד בחנות 💡"; return Hub.sound("wrong"); }
+    const [r, c] = wrong[Math.floor(Math.random() * wrong.length)];
+    G.hist.push(JSON.stringify(G.cells));
+    G.cells[r][c] = G.sol[r][c] ? 1 : 2; G.hints++; G.hot = [r, c]; Hub.sound("hint");
+    refresh(); $(`.nc[data-r="${r}"][data-c="${c}"]`).classList.add("flash"); $("#hintCount").textContent = Hub.stock("hint");
+    if (solved()) finish();
+    return;
+  }
+  if (a === "next") { newGame(G.level + 1); return render(); }
+  if (a === "again") { newGame(null, G.n); return render(); }
+  if (a === "tolevels") { view = "levels"; nav = ["menu"]; return render(); }
+});
+addEventListener("resize", () => { if (view === "game") drawBoard(); });
+document.addEventListener("visibilitychange", () => { if (view !== "game" || G.done) return; document.hidden ? stopTimer() : startTimer(); });
+
+Hub.start(CFG, (u, w) => { W = w; render(); });
+</script>
+</body>
+</html>

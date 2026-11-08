@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>גן הפנסים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<style>
+/* The garden is always a night scene, so the lit lanterns glow whatever palette is chosen */
+.garden {
+  --night: color-mix(in srgb, var(--ink) 88%, #0b1020);
+  width: min(100%, 480px); margin: 0 auto; padding: clamp(14px, 4vw, 22px); border-radius: 30px; direction: ltr;
+  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--accent) 22%, var(--night)), var(--night));
+  box-shadow: 0 30px 60px -30px color-mix(in srgb, var(--ink) 80%, transparent), inset 0 1px 0 rgba(255,255,255,.08);
+  display: grid; gap: clamp(6px, 2vw, 10px);
+}
+.lamp { aspect-ratio: 1; border: 0; border-radius: 50%; background: none; padding: 0; cursor: pointer; display: grid; place-items: center; position: relative; -webkit-tap-highlight-color: transparent; }
+.lamp:focus-visible { outline: 2px solid #FFE3A0; outline-offset: 2px; }
+.lamp .orb { width: 70%; height: 70%; border-radius: 50%; transition: background .3s, box-shadow .3s, transform .2s; background: radial-gradient(circle at 40% 35%, rgba(255,255,255,.18), rgba(255,255,255,.04)); box-shadow: inset 0 0 0 1.5px rgba(255,255,255,.14); }
+.lamp.on .orb { background: radial-gradient(circle at 40% 35%, #FFF6D8, #FFD36E 45%, color-mix(in srgb, var(--accent) 80%, #FFB347)); box-shadow: 0 0 22px 6px color-mix(in srgb, #FFC857 55%, transparent), 0 0 60px 10px color-mix(in srgb, #FFC857 18%, transparent); }
+.lamp .emo { font-size: min(9vw, calc(var(--ls) * .58)); line-height: 1; transition: filter .3s, opacity .3s, transform .2s; filter: grayscale(1) brightness(.75); opacity: .35; }
+.lamp.on .emo { filter: drop-shadow(0 0 10px rgba(255, 210, 110, .85)); opacity: 1; }
+.lamp.pulse .orb, .lamp.pulse .emo { animation: pulse .32s ease-out; }
+@keyframes pulse { 40% { transform: scale(1.18); } }
+.lamp.hint::after { content: ""; position: absolute; inset: 4%; border-radius: 50%; border: 2px dashed #FFE3A0; animation: spin 3s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.hud { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px; }
+.tools { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
+.status { text-align: center; color: var(--muted); min-height: 1.6em; margin: 10px 0 0; }
+.pv-garden { display: grid; grid-template-columns: repeat(3, 22px); gap: 4px; padding: 8px; border-radius: 14px; background: color-mix(in srgb, var(--ink) 88%, #0b1020); direction: ltr; --ls: 22px; }
+.pv-garden .lamp { width: 22px; cursor: default; }
+.size-title { font-size: 20px; margin: 24px 0 10px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const { $, esc } = Hub;
+
+const CFG = {
+  id: "lights", title: "גן הפנסים", startCoins: 40, startStock: { hint: 3 },
+  items: [
+    Hub.theme("amber", 0), Hub.theme("terracotta", 110), Hub.theme("plum", 120), Hub.theme("ocean", 120), Hub.theme("night", 200),
+    { id: "lamp-orb", slot: "lamp", name: "פנסי נייר", price: 0 },
+    { id: "lamp-tulip", slot: "lamp", name: "צבעונים", price: 90, on: "🌷", off: "🌱" },
+    { id: "lamp-moon", slot: "lamp", name: "ירחים", price: 110, on: "🌕", off: "🌑" },
+    { id: "lamp-star", slot: "lamp", name: "כוכבים", price: 120, on: "🌟" },
+    { id: "lamp-candle", slot: "lamp", name: "נרות", price: 140, on: "🕯️" },
+    { id: "hints3", consumable: true, stockId: "hint", amount: 3, name: "3 רמזים", desc: "רמז מסמן פנס שכדאי ללחוץ עליו", price: 30 },
+    { id: "hints10", consumable: true, stockId: "hint", amount: 10, name: "10 רמזים", desc: "חבילה משתלמת", price: 85 },
+  ],
+  storeGroups: [{ slot: "theme", title: "ערכות צבע" }, { slot: "lamp", title: "סוג הפנסים" }, { consumable: true, title: "עזרים" }],
+  preview: it => `<div class="pv-garden">${[1, 0, 1, 0, 1, 1, 1, 0, 0].map(v => lampHTML(v, it)).join("")}</div>`,
+};
+const LEVELS = 30;
+const sizeOf = l => l <= 5 ? 3 : l <= 12 ? 4 : l <= 20 ? 5 : l <= 26 ? 6 : 7;
+const pressesOf = l => Math.min(sizeOf(l) ** 2 - 1, 2 + Math.floor(l * .62));
+const levelCoins = l => 10 + l * 2;
+
+let W, view = "menu", nav = [], G = null;
+const P = () => { W.progress.stars = W.progress.stars || {}; return W.progress; };
+function lampHTML(on, style = Hub.equipped("lamp")) {
+  const inner = style.on ? `<span class="emo">${on || !style.off ? style.on : style.off}</span>` : `<span class="orb"></span>`;
+  return `<span class="lamp ${on ? "on" : ""}">${inner}</span>`;
+}
+
+// ---------- Logic: a press flips the lantern and its four neighbours ----------
+function flip(state, n, i) {
+  const r = Math.floor(i / n), c = i % n;
+  for (const [dr, dc] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const rr = r + dr, cc = c + dc;
+    if (rr >= 0 && rr < n && cc >= 0 && cc < n) state[rr * n + cc] ^= 1;
+  }
+}
+function newGame(level) {
+  const n = sizeOf(level), k = pressesOf(level);
+  let state, gen;
+  do { // start from a lit garden and make k random presses, so the puzzle is always solvable
+    state = Array(n * n).fill(1); gen = Array(n * n).fill(0);
+    for (const i of Hub.shuffle([...Array(n * n).keys()]).slice(0, k)) { flip(state, n, i); gen[i] = 1; }
+  } while (state.every(v => v));
+  G = { level, n, par: k, start: state.slice(), state, gen, pressed: Array(n * n).fill(0), moves: 0, hist: [], hint: -1, hints: 0, done: false };
+}
+// Pressing every lantern in (generator XOR what you pressed) solves it, since presses cancel in pairs and order doesn't matter
+const remaining = () => G.gen.map((g, i) => g ^ G.pressed[i]);
+
+// ---------- Views ----------
+function go(v) { nav.push(view); view = v; render(); scrollTo(0, 0); }
+function back() { view = nav.pop() || "menu"; render(); }
+function render() {
+  Hub.closeOverlay();
+  $("#app").innerHTML = ({ menu: menuView, levels: levelsView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+}
+function menuView() {
+  return Hub.menu({ tagline: "כל לחיצה על פנס מדליקה או מכבה אותו — וגם את ארבעת השכנים שלו. האם תצליחו להאיר את כל הגן?", buttons: [["levels", "להאיר את הגן", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+}
+function levelsView() {
+  const st = P().stars, open = l => l === 1 || st[l - 1] !== undefined;
+  const groups = [[3, "גינה קטנה · 3×3"], [4, "חצר · 4×4"], [5, "פארק · 5×5"], [6, "יער · 6×6"], [7, "עמק · 7×7"]];
+  return `${Hub.topbar("שלבים")}${groups.map(([n, title]) => `<h2 class="size-title">${title}</h2><div class="levels">${Array.from({ length: LEVELS }, (_, k) => k + 1).filter(l => sizeOf(l) === n).map(l =>
+    `<button class="btn lvl ${st[l] !== undefined ? "done" : ""}" data-act="play" data-level="${l}" ${open(l) ? "" : "disabled"} aria-label="שלב ${l}"><small>שלב</small><b>${l}</b><i>${!open(l) ? "🔒" : st[l] !== undefined ? "★".repeat(st[l]) + "☆".repeat(3 - st[l]) : "·"}</i></button>`).join("")}</div>`).join("")}`;
+}
+function gameView() {
+  const lit = G.state.filter(Boolean).length;
+  return `${Hub.topbar(`שלב ${G.level}`)}
+    <div class="hud"><span class="chip">מהלכים <b>${G.moves}</b> / ${G.par}</span><span class="chip">✨ <b>${lit}</b> מתוך ${G.n * G.n}</span><span class="chip">💡 <b>${Hub.stock("hint")}</b></span></div>
+    <div class="garden" style="grid-template-columns:repeat(${G.n},1fr);--ls:${Math.floor(440 / G.n)}px" role="grid" aria-label="גן הפנסים">
+      ${G.state.map((v, i) => lampHTML(v).replace('<span class="lamp', `<button data-act="press" data-i="${i}" aria-label="פנס ${i + 1} ${v ? "דולק" : "כבוי"}" class="lamp${i === G.hint ? " hint" : ""}`).replace(/<\/span>$/, "</button>")).join("")}
+    </div>
+    <div class="tools"><button class="btn" data-act="undo">↩ ביטול</button><button class="btn" data-act="hint">💡 רמז</button><button class="btn" data-act="restart">התחלה מחדש</button></div>
+    <p class="status" id="status">יעד: להדליק את כל הפנסים ב-${G.par} מהלכים או פחות</p>`;
+}
+function helpView() {
+  return `${Hub.topbar("איך משחקים")}<div class="help card">
+    <h2>המטרה</h2><p>להדליק את <b>כל</b> הפנסים בגן.</p>
+    <h2>החוק היחיד</h2><ul><li>לחיצה על פנס מחליפה את המצב שלו (דולק ↔ כבוי) <b>וגם</b> של השכנים מלמעלה, מלמטה, מימין ומשמאל.</li>
+    <li>ללחוץ פעמיים על אותו פנס זה כמו לא ללחוץ בכלל — וסדר הלחיצות לא משנה.</li></ul>
+    <h2>כוכבים ומטבעות</h2><ul><li>לסיים במספר המהלכים של היעד או פחות = 3 כוכבים.</li><li>כל שלב נותן מטבעות, ועוד בונוס על כוכבים. משחק חוזר נותן חצי.</li>
+    <li><b>💡 רמז</b> מסמן פנס שכדאי ללחוץ עליו. רמזים קונים בחנות.</li></ul>
+    <p class="small" style="margin-top:14px">💡 טיפ: נסו להדליק שורה אחרי שורה מלמעלה — כדי לתקן פנס כבוי, לחצו על הפנס שמתחתיו.</p></div>`;
+}
+
+// ---------- Playing ----------
+function press(i) {
+  if (G.done) return;
+  G.hist.push(i); flip(G.state, G.n, i); G.pressed[i] ^= 1; G.moves++;
+  if (G.hint === i || (G.hint >= 0 && !remaining()[G.hint])) G.hint = -1;
+  Hub.sound("flip");
+  render();
+  const r = Math.floor(i / G.n), c = i % G.n;
+  document.querySelectorAll("[data-act=press]").forEach(el => { const j = +el.dataset.i, rr = Math.floor(j / G.n), cc = j % G.n; if (Math.abs(rr - r) + Math.abs(cc - c) <= 1) el.classList.add("pulse"); });
+  if (G.state.every(Boolean)) finish();
+}
+function finish() {
+  G.done = true;
+  const p = P(), stars = G.moves <= G.par ? 3 : G.moves <= Math.ceil(G.par * 1.5) ? 2 : 1;
+  let coins = levelCoins(G.level) + (stars - 1) * 5;
+  if (p.stars[G.level] !== undefined) coins = Math.ceil(coins / 2);
+  p.stars[G.level] = Math.max(p.stars[G.level] || 0, stars);
+  Hub.save(); Hub.earn(coins);
+  setTimeout(() => {
+    Hub.sound("win"); Hub.confetti();
+    Hub.result({ title: "הגן מואר!", sub: `${G.moves} מהלכים · היעד היה ${G.par}`, stars, coins, buttons: [G.level < LEVELS ? ["next", "לשלב הבא ←", true] : ["tolevels", "סיימת את כל הגן! ✨", true], ["replay", "לשחק שוב"], ["tolevels", "לכל השלבים"]] });
+  }, 450);
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "back") return back();
+  if (a === "levels") return go("levels");
+  if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
+  if (a === "help") return go("help");
+  if (a === "buy") { Hub.buy(b.dataset.item); return render(); }
+  if (a === "play") { newGame(+b.dataset.level); return go("game"); }
+  if (a === "press") return press(+b.dataset.i);
+  if (a === "undo") { if (G.done || !G.hist.length) return; const i = G.hist.pop(); flip(G.state, G.n, i); G.pressed[i] ^= 1; G.moves--; G.hint = -1; return render(); }
+  if (a === "restart") { if (G.done) return; G.state = G.start.slice(); G.pressed.fill(0); G.moves = 0; G.hist = []; G.hint = -1; return render(); }
+  if (a === "hint") {
+    if (G.done) return;
+    const todo = remaining().map((v, i) => v ? i : -1).filter(i => i >= 0);
+    if (G.hint >= 0) return;
+    if (!Hub.useStock("hint")) { Hub.sound("wrong"); render(); $("#status").textContent = "נגמרו הרמזים — אפשר לקנות עוד בחנות 💡"; return; }
+    G.hint = todo[Math.floor(Math.random() * todo.length)]; G.hints++; Hub.sound("hint");
+    render(); $("#status").textContent = "לחצו על הפנס המסומן ✨";
+    return;
+  }
+  if (a === "next") { newGame(G.level + 1); return render(); }
+  if (a === "replay") { newGame(G.level); return render(); }
+  if (a === "tolevels") { view = "levels"; nav = ["menu"]; return render(); }
+});
+
+Hub.start(CFG, (u, w) => { W = w; render(); });
+</script>
+</body>
+</html>

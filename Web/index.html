@@ -359,7 +359,7 @@ function menuView() {
     <p class="sub" style="color:var(--dark);font-size:22px;font-weight:500">${player === "אורח" ? "משחקים כאורח" : "שלום, " + esc(player) + "!"} 💖</p>
     <div class="row hearts"><span>♥</span><button class="btn big" data-act="levels">Let's play ▶</button><span>♥</span></div>
     <div class="row"><button class="btn" data-act="store">🛍️ חנות</button><button class="btn" data-act="help">? איך משחקים</button></div>
-    <button class="btn" data-act="logout" style="align-self:center;font-size:14px;padding:7px 16px">החלף שחקן</button>
+    ${hubUser ? `<a class="btn" href="../Hub/index.html" style="align-self:center;font-size:14px;padding:7px 16px;text-decoration:none">⌂ חזרה לסטודיו</a>` : `<button class="btn" data-act="logout" style="align-self:center;font-size:14px;padding:7px 16px">החלף שחקן</button>`}
   </div>`;
 }
 function login(name) {
@@ -622,6 +622,15 @@ document.addEventListener("keydown", e => {
 document.addEventListener("visibilitychange", () => { if (view !== "game" || !G) return; if (document.hidden) stopTimer(); else if (!G.finished && !G.paused) startTimer(); });
 
 // ---------- Start ----------
-if (save.last && save.profiles[save.last]) { player = save.last; P = save.profiles[player]; }
+// Opened from Mind Studio (the hub in ../Hub): its shared login chooses the player, and the coins stay this game's own
+const hubUser = (() => {
+  try {
+    const s = JSON.parse(localStorage.getItem("mindstudio.session")), users = JSON.parse(localStorage.getItem("mindstudio.users")) || {};
+    return s && users[s.key] ? users[s.key].name : null;
+  } catch (e) { return null; }
+})();
+addEventListener("storage", e => { if (e.key === "mindstudio.session") location.reload(); });
+if (hubUser) login(hubUser);
+else if (save.last && save.profiles[save.last]) { player = save.last; P = save.profiles[player]; }
 applyTheme(); render(); connectCloud().then(() => { if (view === "menu") render(); });
 </script>

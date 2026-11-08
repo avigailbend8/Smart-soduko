@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>דמקה · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<style>
+.disc { width: 76%; height: 76%; border-radius: 50%; pointer-events: none; display: grid; place-items: center; position: relative; transition: transform .18s, opacity .25s; }
+.disc.me { background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--da) 70%, #fff), var(--da) 55%, color-mix(in srgb, var(--da) 80%, #000)); box-shadow: 0 3px 0 color-mix(in srgb, var(--da) 60%, #000), 0 6px 10px -4px rgba(0,0,0,.45); }
+.disc.ai { background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--db) 70%, #fff), var(--db) 55%, color-mix(in srgb, var(--db) 75%, #000)); box-shadow: 0 3px 0 color-mix(in srgb, var(--db) 55%, #000), 0 6px 10px -4px rgba(0,0,0,.5); }
+.disc::before { content: ""; position: absolute; inset: 18%; border-radius: 50%; border: 2px solid rgba(255,255,255,.35); }
+.disc.ai::before { border-color: rgba(255,255,255,.22); }
+.disc .crown { font-size: calc(min(100vw - 32px, 540px, 72vh) / 8 * .38); line-height: 1; color: var(--gold); text-shadow: 0 1px 0 rgba(0,0,0,.35); font-family: "Segoe UI Symbol", serif; }
+.sq.sel .disc { transform: translateY(-3px) scale(1.06); }
+.disc.ghost { opacity: .28; transform: scale(.85); }
+.sq.can .disc { box-shadow: 0 0 0 3px var(--gold), 0 6px 10px -4px rgba(0,0,0,.45); }
+.score { display: flex; justify-content: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.mini { display: inline-block; width: 14px; height: 14px; border-radius: 50%; vertical-align: -2px; }
+.tools { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px; }
+.pv-dam { display: grid; grid-template-columns: repeat(4, 26px); border-radius: 6px; overflow: hidden; direction: ltr; }
+.pv-dam i { width: 26px; height: 26px; display: grid; place-items: center; }
+.pv-dam i b { width: 19px; height: 19px; border-radius: 50%; display: block; box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const { $, esc } = Hub;
+
+const BOARDS = [
+  { id: "board-sea", name: "חוף", price: 0, l: "#F1EADB", d: "#5E8FA0" },
+  { id: "board-wood", name: "עץ", price: 90, l: "#EBD9BE", d: "#A9764E" },
+  { id: "board-sage", name: "מרווה", price: 110, l: "#EEF1E4", d: "#7E9F82" },
+  { id: "board-rose", name: "ורד", price: 120, l: "#F7E9E6", d: "#BF8590" },
+  { id: "board-midnight", name: "חצות", price: 160, l: "#6E6B86", d: "#34323F" },
+];
+const DISCS = [
+  { id: "discs-classic", name: "שמנת ופחם", price: 0, a: "#F3EBDD", b: "#3A3636" },
+  { id: "discs-coral", name: "אלמוג וטורקיז", price: 100, a: "#E8846B", b: "#2E7D86" },
+  { id: "discs-gold", name: "זהב והובנה", price: 150, a: "#E2BE62", b: "#2A2220" },
+  { id: "discs-plum", name: "לבנדר ושזיף", price: 120, a: "#C9B6E4", b: "#5B3F72" },
+];
+const CFG = {
+  id: "checkers", title: "דמקה", startCoins: 50, startStock: { hint: 3, undo: 3 },
+  items: [
+    Hub.theme("ocean", 0), Hub.theme("sage", 100), Hub.theme("terracotta", 100), Hub.theme("indigo", 120), Hub.theme("night", 200),
+    ...BOARDS.map(b => ({ ...b, slot: "board" })),
+    ...DISCS.map(d => ({ ...d, slot: "discs" })),
+    { id: "hints3", consumable: true, stockId: "hint", amount: 3, name: "3 רמזים", desc: "המחשב מסמן לך מהלך טוב", price: 25 },
+    { id: "undo3", consumable: true, stockId: "undo", amount: 3, name: "3 ביטולים", desc: "מחזיר את המהלך האחרון שלך", price: 25 },
+  ],
+  storeGroups: [{ slot: "theme", title: "ערכות צבע" }, { slot: "board", title: "לוחות" }, { slot: "discs", title: "אבנים" }, { consumable: true, title: "עזרים" }],
+  preview: it => {
+    const bd = it.slot === "board" ? it : Hub.equipped("board"), ds = it.slot === "discs" ? it : Hub.equipped("discs");
+    return `<div class="pv-dam">${Array.from({ length: 8 }, (_, i) => { const dark = (i + (i >> 2)) % 2; return `<i style="background:${dark ? bd.d : bd.l}">${dark ? `<b style="background:${i < 4 ? ds.b : ds.a}"></b>` : ""}</i>`; }).join("")}</div>`;
+  },
+};
+const DIFFS = {
+  easy: { name: "מתחיל", desc: "מחשב שמסתכל מהלך אחד קדימה", coins: 15, depth: 1, time: 200, random: .3 },
+  mid: { name: "מתקדם", desc: "חושב כמה מהלכים קדימה", coins: 35, depth: 4, time: 700, random: 0 },
+  hard: { name: "אמן", desc: "מחשב לעומק ומנצל כל טעות", coins: 70, depth: 9, time: 1300, random: 0 },
+};
+
+// ---------- Rules (Israeli checkers) ----------
+// 64 squares, 0 = top left. 1 = your piece, 2 = your king, -1 / -2 = the computer's. You start at the bottom and move up.
+const DIAG = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
+const inB = (r, c) => r >= 0 && r < 8 && c >= 0 && c < 8;
+function initial() {
+  const b = Array(64).fill(0);
+  for (let sq = 0; sq < 64; sq++) { const r = sq >> 3, c = sq & 7; if ((r + c) % 2) { if (r < 3) b[sq] = -1; if (r > 4) b[sq] = 1; } }
+  return b;
+}
+// All capture sequences of one piece. Captured pieces stay on the board (and block) until the move ends, and can't be jumped twice.
+function captures(b, sq, side, king, path, taken, out) {
+  const r = sq >> 3, c = sq & 7; let found = false;
+  for (const [dr, dc] of DIAG) {
+    if (king) {
+      let rr = r + dr, cc = c + dc;
+      while (inB(rr, cc) && b[rr * 8 + cc] === 0) { rr += dr; cc += dc; }
+      if (!inB(rr, cc)) continue;
+      const mid = rr * 8 + cc;
+      if (Math.sign(b[mid]) !== -side || taken.includes(mid)) continue;
+      let lr = rr + dr, lc = cc + dc;
+      while (inB(lr, lc) && b[lr * 8 + lc] === 0) {
+        const land = lr * 8 + lc, nb = b.slice(); nb[land] = nb[sq]; nb[sq] = 0; found = true;
+        captures(nb, land, side, true, [...path, land], [...taken, mid], out);
+        lr += dr; lc += dc;
+      }
+    } else {
+      const mr = r + dr, mc = c + dc, lr = r + 2 * dr, lc = c + 2 * dc;
+      if (!inB(lr, lc)) continue;
+      const mid = mr * 8 + mc, land = lr * 8 + lc;
+      if (Math.sign(b[mid]) === -side && !taken.includes(mid) && b[land] === 0) {
+        const nb = b.slice(); nb[land] = nb[sq]; nb[sq] = 0; found = true;
+        captures(nb, land, side, false, [...path, land], [...taken, mid], out);
+      }
+    }
+  }
+  if (!found && taken.length) out.push({ path, caps: taken });
+}
+function genMoves(b, side) {
+  const caps = [], quiet = [];
+  for (let sq = 0; sq < 64; sq++) {
+    if (Math.sign(b[sq]) !== side) continue;
+    const king = Math.abs(b[sq]) === 2, r = sq >> 3, c = sq & 7;
+    captures(b, sq, side, king, [sq], [], caps);
+    if (caps.length) continue;
+    for (const [dr, dc] of DIAG) {
+      if (!king && dr !== -side) continue; // men move forward only (captures may go backwards)
+      let rr = r + dr, cc = c + dc;
+      while (inB(rr, cc) && b[rr * 8 + cc] === 0) { quiet.push({ path: [sq, rr * 8 + cc], caps: [] }); if (!king) break; rr += dr; cc += dc; }
+    }
+  }
+  return caps.length ? caps : quiet; // capturing is mandatory
+}
+function apply(b, m) {
+  const nb = b.slice(), from = m.path[0], to = m.path[m.path.length - 1], v = nb[from];
+  nb[from] = 0; for (const x of m.caps) nb[x] = 0;
+  const lastRow = v > 0 ? 0 : 7;
+  nb[to] = Math.abs(v) === 1 && (to >> 3) === lastRow ? v * 2 : v;
+  return nb;
+}
+
+// ---------- The computer ----------
+function evaluate(b, side) {
+  let s = 0;
+  for (let sq = 0; sq < 64; sq++) {
+    const v = b[sq]; if (!v) continue;
+    const r = sq >> 3, c = sq & 7;
+    let x = Math.abs(v) === 2 ? 290 : 100 + (v > 0 ? 7 - r : r) * 6;
+    if (c >= 2 && c <= 5 && r >= 2 && r <= 5) x += 5;
+    if (Math.abs(v) === 1 && (v > 0 ? r === 7 : r === 0)) x += 10; // guarding the back row
+    s += Math.sign(v) * x;
+  }
+  return s * side;
+}
+const ABORT = {}; let deadline = 0, nodes = 0;
+const MATE = 100000;
+function negamax(b, side, depth, alpha, beta, ply) {
+  if ((++nodes & 511) === 0 && Date.now() > deadline) throw ABORT;
+  const moves = genMoves(b, side);
+  if (!moves.length) return -MATE + ply;
+  if (depth <= 0 && (!moves[0].caps.length || ply > 22)) return evaluate(b, side);
+  moves.sort((x, y) => y.caps.length - x.caps.length);
+  for (const m of moves) {
+    const sc = -negamax(apply(b, m), -side, depth - 1, -beta, -alpha, ply + 1);
+    if (sc >= beta) return beta;
+    if (sc > alpha) alpha = sc;
+  }
+  return alpha;
+}
+function bestMove(b, side, depth, time) {
+  let moves = genMoves(b, side), best = moves[0];
+  if (moves.length === 1) return best;
+  deadline = Date.now() + time; nodes = 0;
+  try {
+    for (let d = 1; d <= depth; d++) {
+      let alpha = -Infinity, bestD = null; const scored = [];
+      for (const m of moves) {
+        const sc = -negamax(apply(b, m), -side, d - 1, -Infinity, -alpha, 1) + Math.random() * .5;
+        scored.push([sc, m]); if (sc > alpha) { alpha = sc; bestD = m; }
+      }
+      best = bestD; moves = scored.sort((x, y) => y[0] - x[0]).map(x => x[1]);
+      if (alpha > MATE - 100) break;
+    }
+  } catch (e) { if (e !== ABORT) throw e; }
+  return best;
+}
+
+// ---------- State ----------
+let W, view = "menu", nav = [], G = null;
+const P = () => { const p = W.progress; p.wins = p.wins || { easy: 0, mid: 0, hard: 0 }; p.draws = p.draws || 0; p.losses = p.losses || 0; return p; };
+function newGame(diff) {
+  G = { diff, b: initial(), turn: 1, hist: [], prefix: [], last: null, over: null, thinking: false, hint: null, helps: 0, quiet: 0, ply: 0, msg: "", show: null };
+  G.moves = genMoves(G.b, 1);
+}
+const candidates = () => G.moves.filter(m => G.prefix.every((sq, i) => m.path[i] === sq));
+
+// ---------- Views ----------
+function go(v) { nav.push(view); view = v; render(); scrollTo(0, 0); }
+function back() { view = nav.pop() || "menu"; render(); }
+function render() {
+  if (view !== "game") Hub.closeOverlay();
+  const bd = Hub.equipped("board"), ds = Hub.equipped("discs"), st = document.documentElement.style;
+  st.setProperty("--sq-l", bd.l); st.setProperty("--sq-d", bd.d); st.setProperty("--da", ds.a); st.setProperty("--db", ds.b);
+  $("#app").innerHTML = ({ menu: menuView, diffs: diffsView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+}
+function menuView() {
+  return Hub.menu({ tagline: "דמקה ישראלית מול המחשב: אכילה היא חובה, אפשר לאכול גם אחורה, ומלך עף לאורך כל האלכסון.", buttons: [["diffs", "משחק חדש", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+}
+function diffsView() {
+  const p = P();
+  return `${Hub.topbar("בחירת רמה")}
+    <div class="diffs">${Object.entries(DIFFS).map(([k, d]) => `<button class="btn card diff" data-act="start" data-diff="${k}">
+      <span><b>${d.name}</b><span class="small">${d.desc} · ניצחונות: ${p.wins[k]}</span></span><span class="chip">${Hub.coinSvg}${d.coins}</span></button>`).join("")}</div>
+    <p class="fine">תיקו שווה שליש מהפרס.</p>`;
+}
+// What the board looks like right now, including a capture that is only half done (yours or the computer's)
+function shown() {
+  const b = G.b.slice(), ghosts = [];
+  const seq = G.show || (G.prefix.length > 1 ? { path: G.prefix, caps: candidates()[0].caps.slice(0, G.prefix.length - 1) } : null);
+  if (seq) { const from = seq.path[0], at = seq.path[seq.path.length - 1]; if (from !== at) { b[at] = b[from]; b[from] = 0; } ghosts.push(...seq.caps); }
+  return { b, ghosts, at: seq ? seq.path[seq.path.length - 1] : G.prefix[0] ?? -1 };
+}
+function gameView() {
+  const { b, ghosts, at } = shown();
+  const cands = G.prefix.length ? candidates() : [];
+  const nexts = new Set(cands.map(m => m.path[G.prefix.length]).filter(x => x !== undefined));
+  const mustCap = G.turn === 1 && G.moves[0]?.caps.length;
+  const movable = new Set(mustCap && !G.prefix.length ? G.moves.map(m => m.path[0]) : []);
+  const count = s => b.filter((v, i) => Math.sign(v) === s && !ghosts.includes(i)).length;
+  const status = G.over ? G.over.text : G.thinking ? `<span class="thinking">המחשב חושב</span>` : G.msg || (mustCap ? "חובה לאכול!" : "תורך");
+  let sqs = "";
+  for (let i = 0; i < 64; i++) {
+    const r = i >> 3, c = i & 7, dark = (r + c) % 2, v = b[i];
+    const cls = ["sq", dark ? "d" : "", i === at && G.turn === 1 && !G.show ? "sel" : "", G.last && G.last.includes(i) ? "last" : "", nexts.has(i) ? "tgt" : "", movable.has(i) ? "can" : "", G.hint && G.hint.path.includes(i) ? "hint" : ""].filter(Boolean).join(" ");
+    sqs += `<button class="${cls}" data-act="sq" data-i="${i}" ${dark ? "" : "tabindex='-1' aria-hidden='true'"} aria-label="משבצת ${i + 1}">${v ? `<span class="disc ${v > 0 ? "me" : "ai"} ${ghosts.includes(i) ? "ghost" : ""}">${Math.abs(v) === 2 ? `<span class="crown">♛︎</span>` : ""}</span>` : ""}</button>`;
+  }
+  return `${Hub.topbar(`דמקה · ${DIFFS[G.diff].name}`)}
+    <div class="score"><span class="chip"><i class="mini" style="background:var(--da)"></i> אתם <b>${count(1)}</b></span><span class="chip status" role="status">${status}</span><span class="chip"><i class="mini" style="background:var(--db)"></i> המחשב <b>${count(-1)}</b></span></div>
+    <div class="board-wrap"><div class="board8">${sqs}</div></div>
+    <div class="tools">
+      <button class="btn" data-act="undo" ${G.over || G.thinking ? "disabled" : ""}>↩ ביטול · ${Hub.stock("undo")}</button>
+      <button class="btn" data-act="hint" ${G.over || G.thinking ? "disabled" : ""}>💡 רמז · ${Hub.stock("hint")}</button>
+      ${G.over ? `<button class="btn primary" data-act="again">משחק חדש</button>` : `<button class="btn" data-act="resign">🏳 כניעה</button>`}
+    </div>`;
+}
+function helpView() {
+  return `${Hub.topbar("איך משחקים")}<div class="help card">
+    <h2>המטרה</h2><p>לאכול את כל האבנים של המחשב, או להשאיר אותו בלי מהלך.</p>
+    <h2>תנועה</h2><ul><li>אבן זזה צעד אחד באלכסון <b>קדימה</b>, רק על המשבצות הכהות.</li>
+    <li>אוכלים בקפיצה מעל אבן של היריב אל משבצת ריקה מאחוריה. <b>אכילה היא חובה</b>, ומותר לאכול גם אחורה.</li>
+    <li>אם אחרי קפיצה אפשר לאכול שוב, ממשיכים באותו תור (לוחצים על כל נחיתה בתורה).</li></ul>
+    <h2>מלך</h2><ul><li>אבן שמסיימת מהלך בשורה האחרונה הופכת למלך ♛.</li><li>מלך עף: זז ואוכל לאורך כל האלכסון, ויכול לנחות בכל משבצת ריקה אחרי האבן שאכל.</li></ul>
+    <h2>תיקו ומטבעות</h2><ul><li>אחרי 40 מהלכים בלי אכילה ובלי תזוזה של אבן רגילה, המשחק נגמר בתיקו.</li>
+    <li>ניצחון מזכה במטבעות לפי הרמה, ותיקו בשליש. רמזים וביטולים מורידים כוכבים.</li></ul></div>`;
+}
+
+// ---------- Playing ----------
+function play(m) {
+  const moverIsMe = G.turn === 1;
+  if (moverIsMe) G.hist.push({ b: G.b, quiet: G.quiet, last: G.last, ply: G.ply });
+  const v = G.b[m.path[0]];
+  G.quiet = m.caps.length || Math.abs(v) === 1 ? 0 : G.quiet + 1;
+  G.b = apply(G.b, m); G.last = m.path; G.prefix = []; G.hint = null; G.msg = ""; G.show = null; G.ply++;
+  G.turn = -G.turn; G.moves = genMoves(G.b, G.turn);
+  Hub.sound(m.caps.length ? "good" : "move");
+  if (!G.moves.length) return finish(G.turn === -1 ? "win" : "lose");
+  if (G.quiet >= 40 || G.ply >= 300) return finish("draw");
+  if (G.turn === -1) computerTurn(); else render();
+}
+function computerTurn() {
+  G.thinking = true; render();
+  setTimeout(() => {
+    const d = DIFFS[G.diff];
+    let m = bestMove(G.b, -1, d.depth, d.time);
+    if (Math.random() < d.random) m = G.moves[Math.floor(Math.random() * G.moves.length)];
+    G.thinking = false;
+    // Show a multi-jump step by step
+    let k = 1;
+    const step = () => {
+      if (k >= m.path.length) return play(m);
+      G.show = { path: m.path.slice(0, k + 1), caps: m.caps.slice(0, k) }; k++;
+      Hub.sound("tap"); render(); setTimeout(step, 320);
+    };
+    if (m.path.length > 2) step(); else play(m);
+  }, 300);
+}
+function finish(kind) {
+  const d = DIFFS[G.diff], p = P();
+  let coins = 0, stars = null, title, sub;
+  if (kind === "win") { coins = d.coins; stars = Math.max(1, 3 - G.helps); p.wins[G.diff]++; title = "ניצחת! ♛"; sub = `ניצחון מול רמת ${d.name}`; Hub.sound("win"); Hub.confetti(); }
+  else if (kind === "draw") { coins = Math.ceil(d.coins / 3); p.draws++; title = "תיקו"; sub = "40 מהלכים בלי התקדמות"; Hub.sound("good"); }
+  else { p.losses++; title = kind === "resign" ? "נכנעת" : "המחשב ניצח"; sub = "בפעם הבאה! אפשר לנסות רמה קלה יותר."; Hub.sound("lose"); }
+  G.over = { kind, text: title };
+  Hub.save(); if (coins) Hub.earn(coins);
+  render();
+  setTimeout(() => Hub.result({ title, sub, stars, coins, buttons: [["again", "משחק חדש", true], ["view", "להסתכל על הלוח"], ["tomenu", "לתפריט"]] }), kind === "resign" ? 50 : 600);
+}
+function clickSquare(i) {
+  if (G.over || G.thinking || G.turn !== 1) return;
+  if (G.prefix.length) {
+    const nexts = new Set(candidates().map(m => m.path[G.prefix.length]));
+    if (nexts.has(i)) {
+      G.prefix.push(i);
+      const c2 = candidates(), done = c2.find(m => m.path.length === G.prefix.length);
+      if (done) return play(done);
+      G.msg = "ממשיכים לאכול!"; Hub.sound("good"); return render();
+    }
+    if (G.prefix.length > 1) { G.msg = "צריך להמשיך לאכול עם אותה אבן"; Hub.sound("wrong"); return render(); }
+  }
+  G.msg = "";
+  if (G.b[i] > 0 && G.moves.some(m => m.path[0] === i)) { G.prefix = G.prefix[0] === i ? [] : [i]; Hub.sound("tap"); }
+  else if (G.b[i] > 0) { G.prefix = []; G.msg = G.moves[0]?.caps.length ? "חובה לאכול! האבנים שיכולות לאכול מסומנות" : "לאבן הזאת אין לאן לזוז"; Hub.sound("wrong"); }
+  else G.prefix = [];
+  render();
+}
+
+document.addEventListener("click", e => {
+  const b = e.target.closest("[data-act]"); if (!b) return;
+  const a = b.dataset.act;
+  if (a === "back") { Hub.closeOverlay(); return back(); }
+  if (a === "diffs") return go("diffs");
+  if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
+  if (a === "help") return go("help");
+  if (a === "buy") { Hub.buy(b.dataset.item); return render(); }
+  if (a === "start") { newGame(b.dataset.diff); return go("game"); }
+  if (a === "sq") return clickSquare(+b.dataset.i);
+  if (a === "undo") {
+    if (G.over || G.thinking || !G.hist.length) return;
+    if (!Hub.useStock("undo")) { G.msg = "נגמרו הביטולים — אפשר לקנות עוד בחנות"; Hub.sound("wrong"); return render(); }
+    const h = G.hist.pop();
+    Object.assign(G, { b: h.b, quiet: h.quiet, last: h.last, ply: h.ply, turn: 1, prefix: [], hint: null, msg: "המהלך בוטל" }); G.helps++;
+    G.moves = genMoves(G.b, 1); Hub.sound("flip"); return render();
+  }
+  if (a === "hint") {
+    if (G.over || G.thinking) return;
+    if (!Hub.useStock("hint")) { G.msg = "נגמרו הרמזים — אפשר לקנות עוד בחנות"; Hub.sound("wrong"); return render(); }
+    G.helps++; G.thinking = true; render();
+    setTimeout(() => { G.hint = bestMove(G.b, 1, 6, 700); G.thinking = false; G.prefix = []; G.msg = "💡 המהלך המומלץ מסומן בזהב"; Hub.sound("hint"); render(); }, 60);
+    return;
+  }
+  if (a === "resign") { Hub.overlay(`<h2 class="display sm">להיכנע?</h2><p class="lede">המשחק ייגמר בהפסד.</p><div class="stack"><button class="btn wide" data-act="close">להמשיך לשחק</button><button class="btn wide primary" data-act="doresign">כן, להיכנע</button></div>`); return; }
+  if (a === "doresign") { Hub.closeOverlay(); return finish("resign"); }
+  if (a === "close" || a === "view") return Hub.closeOverlay();
+  if (a === "again") { Hub.closeOverlay(); newGame(G.diff); return render(); }
+  if (a === "tomenu") { view = "menu"; nav = []; return render(); }
+});
+
+Hub.start(CFG, (u, w) => { W = w; render(); });
+</script>
+</body>
+</html>
