@@ -22,6 +22,8 @@ namespace Smart_Sudoku
             new Achievement("streak7", "🗓️", "שבוע ברצף", "לפתור אתגר יומי 7 ימים ברצף", 300),
             new Achievement("duel-win", "⚔️", "ניצחון בדו-קרב", "לנצח בדו-קרב ברשת", 100),
             new Achievement("duel-5", "🏆", "אלופת הזירה", "לנצח 5 דו-קרבות", 250),
+            new Achievement("ai-win", "🤖", "חכמה מהמחשב", "לנצח את המחשב בדו-קרב", 100),
+            new Achievement("ai-hard", "🧠", "ניצחת את המוח", "לנצח את \"המוח\" בדו-קרב נגד המחשב", 300),
             new Achievement("shopper", "🛍️", "קנייה ראשונה", "לקנות משהו בחנות", 30),
             new Achievement("wheel", "🎡", "בר מזל", "לסובב את גלגל המזל", 20),
             new Achievement("mini", "🧩", "סודוקו קטן", "לפתור לוח 4×4 או 6×6", 50),

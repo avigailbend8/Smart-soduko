@@ -69,7 +69,7 @@ MenuPage, GamePage, StorePage, LevelsPage, ... (17 דפים)
 
 ### 2.3 `partial` – מחלקה אחת בכמה קבצים
 
-`GamePage` גדולה, ולכן היא מחולקת ל-3 קבצים. כולם **אותה מחלקה** (`public sealed partial class GamePage`):
+`GamePage` גדולה, ולכן היא מחולקת ל-4 קבצים (הרביעי, `GamePage.AiDuel.cs`, הוא הדו-קרב נגד המחשב). כולם **אותה מחלקה** (`public sealed partial class GamePage`):
 - `GamePage.xaml.cs` – הלוח, הזנת מספרים, רמזים, ביטול, ניצחון והפסד.
 - `GamePage.Extras.cs` – אנימציות, הקמע, מקלדת, שמירת משחק, אתגר יומי, מצב זן, הרפתקה, הישגים.
 - `GamePage.Duel.cs` – כל מה ששייך לדו-קרב ברשת.
@@ -103,6 +103,8 @@ MenuPage, GamePage, StorePage, LevelsPage, ... (17 דפים)
 | `Sounds` | צלילים ומוזיקת רקע | `GameData` (האם הצליל פועל) |
 | `Backup` | גיבוי יומי של הנתונים לתיקייה שבוחרים, ושחזור | `Database`, `GuestStore` |
 
+**מחלקה רגילה (לא סטטית): `AiOpponent`** – יריב מחשב לדו-קרב. יש **3 אובייקטים** ממנה (`AiOpponent.All`): ‏🐣 רובי המתחיל, 🤖 רובוטית ו-🧠 המוח. לכל אחד שדות פרטיים משלו: כמה זמן הוא חושב, כמה הוא טועה, ואיזה לוח הוא מקבל. `GamePage` שומרת את היריב הנבחר ומבקשת ממנו מהלכים (`ChooseMove`), ומקבלת בחזרה אובייקט `AiMove` (שורה, עמודה, מספר, נכון/שגוי).
+
 ### 3.2 מחלקות נתונים (מה שנשמר או נשלח)
 
 | מחלקה | מה היא מחזיקה |
@@ -134,6 +136,7 @@ MenuPage ─┬─ SingInPage / RegisterPage   (התחברות / הרשמה → 
           ├─ GamePage(ZenStart)           ← מצב זן
           ├─ AdventureMapPage ── GamePage(AdventureStart)
           ├─ DuelLobbyPage ── GamePage(DuelGame)
+          ├─ GamePage(AiDuelStart)        ← דו-קרב נגד המחשב (תפריט עם 3 יריבים)
           ├─ MiniSudokuPage, LuckyWheelPage, AchievementsPage, MissionsPage,
           ├─ StatsPage, FriendsPage, SettingsPage, LeaderboardPage
           └─ GamePage ── HelpPage
@@ -181,6 +184,8 @@ MenuPage ─┬─ SingInPage / RegisterPage   (התחברות / הרשמה → 
 | `MistakesButton_Click` | מצב אתגר: בלי סימון טעויות באדום |
 
 **Extras:** `OnKeyDown` (משחק במקלדת: 1–9, חיצים, Backspace, ‏N, ‏Ctrl+Z), ‏`PopCell` / `ShakeCell` / `FlashCell` / `Celebrate` / `Fireworks` (אנימציות), ‏`Mascot` (הפרצוף מגיב), ‏`SaveCurrentGame` / `ResumeGame` (שמירה אחרי כל מהלך והמשך), `StartDaily` / `StartZen` / `StartAdventure` ופעולות `Win...` המתאימות, `CheckLevelAchievements`.
+
+**AiDuel** (קובץ רביעי, `GamePage.AiDuel.cs`): דו-קרב נגד המחשב, ראו סעיף 5.9.
 
 **Duel:** `StartDuel` (מקבלת את הלוח מהשרת), `RunCountdown` (5-4-3-2-1), `DuelMove` (10 נקודות למשבצת נכונה, ‎-5 לטעות. כל משבצת נספרת רק פעם אחת), `DuelFinish`, `RefreshScoreboard` (טבלת ניקוד חיה), `OnDuelGameOver` (מנצח + מטבעות), תגובות אימוג'י.
 
@@ -277,6 +282,22 @@ MenuPage ─┬─ SingInPage / RegisterPage   (התחברות / הרשמה → 
 5. כשכולם סיימו → `GameOver` עם המנצח, והשרת שומר את המשחק ב-`database.db` שלו.
 
 כל הודעה היא `Message { Command, Data }` ב-JSON. `DuelJson.Pack` אורזת את ההודעה ו-`Unpack` פותחת אותה. השרת משתמש ב-`lock` כי הודעות מכמה שחקנים יכולות להגיע באותו רגע.
+
+### 5.9 דו-קרב נגד המחשב (`AiOpponent` + `GamePage.AiDuel.cs`)
+- בתפריט לוחצים על "🤖 דו-קרב נגד המחשב" ובוחרים יריב. `GamePage` מקבלת `AiDuelStart` עם המזהה שלו.
+- שניהם מקבלים **אותו לוח**. למחשב יש עותק משלו (`aiBoard`), והוא לא רואה מה השחקן כותב.
+- **איך המחשב "חושב":** בכל תור `ChooseMove` עוברת על כל המשבצות הריקות, סופרת בכל אחת כמה מספרים מתאימים (`CanPlace`), ובוחרת את המשבצת עם **הכי מעט אפשרויות**. כך פותר גם אדם: קודם משבצות שיש בהן רק אפשרות אחת.
+- **כדי שאפשר יהיה לנצח אותו:** `DispatcherTimer` מחכה זמן אקראי בין מהלכים (`NextThinkTime`). לפעמים (`mistakeChance`) הוא כותב מספר שגוי: מאבד 5 נקודות, מוחק, ומנסה שוב בהמשך.
+
+| יריב | לוח | זמן בין מהלכים | טעויות | בונוס ניצחון |
+|---|---|---|---|---|
+| 🐣 רובי המתחיל | קל | 9–13 שניות | 15% | 50 🪙 |
+| 🤖 רובוטית | בינוני | 6–9 שניות | 8% | 100 🪙 |
+| 🧠 המוח | קשה | 3.5–6 שניות | 3% | 200 🪙 |
+
+- **מי מנצח:** מי שממלא את כל הלוח ראשון. אם לשחקן נגמרים 5 הלבבות, המחשב מנצח. הניקוד כמו בדו-קרב ברשת (‎+10 למשבצת, ‎-5 לטעות, ‎+100 למי שסיים) מוצג למעלה, יחד עם כמה משבצות נשארו למחשב.
+- **מה שהיה קיים וממוחזר:** הספירה 5-4-3-2-1, לוח הניקוד, חלון התוצאה וכפתור "לסיבוב נוסף". בדו-קרב נגד המחשב הכפתור פותח לוח חדש מול אותו יריב.
+- **פרסים:** מטבעות כמו בשלב + בונוס היריב (מפסידים מקבלים 10), ‏XP, משימה יומית חדשה ("לנצח את המחשב"), ושני הישגים: 🤖 "חכמה מהמחשב" ו-🧠 "ניצחת את המוח".
 
 ---
 

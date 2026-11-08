@@ -115,6 +115,7 @@ namespace Smart_Sudoku
             new Mission("fast", "לפתור שלב בפחות מ-4 דקות", 1),
             new Mission("zen", "לפתור לוח במצב זן", 1),
             new Mission("adventure", "לעבור שלב במסע ההרפתקאות", 1),
+            new Mission("ai", "לנצח את המחשב בדו-קרב", 1),
         };
 
         public const int MissionReward = 30;
@@ -239,6 +240,17 @@ namespace Smart_Sudoku
                 Write("stats.duelWins", Stat("duelWins") + 1);
             AddXp(won ? 60 : 30);
             Advance("duel");
+        }
+
+        public static void AiDuelPlayed(bool won)
+        {
+            Write("stats.aiDuels", Stat("aiDuels") + 1);
+            if (won)
+            {
+                Write("stats.aiWins", Stat("aiWins") + 1);
+                Advance("ai");
+            }
+            AddXp(won ? 50 : 20);
         }
 
         public static void MiniSolved()

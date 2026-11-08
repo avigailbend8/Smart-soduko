@@ -135,6 +135,13 @@ namespace Smart_Sudoku.Pages
             Frame.Navigate(typeof(GamePage), new DailyChallengeStart());
         }
 
+        // One of the three computer opponents was chosen (its id is in the item's Tag)
+        private void AiOpponent_Click(object sender, RoutedEventArgs e)
+        {
+            string opponentId = (string)((MenuFlyoutItem)sender).Tag;
+            Frame.Navigate(typeof(GamePage), new AiDuelStart(opponentId));
+        }
+
         private void DuelButton_Click(object sender, RoutedEventArgs e)
         {
             Frame.Navigate(typeof(DuelLobbyPage));

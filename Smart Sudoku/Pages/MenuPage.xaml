@@ -174,7 +174,19 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
+
+                    <!-- Duel against the computer: the menu lets the player pick an opponent -->
+                    <Button Grid.Row="4" Grid.ColumnSpan="3" Content="🤖 דו-קרב נגד המחשב">
+                        <Button.Flyout>
+                            <MenuFlyout Placement="Bottom">
+                                <MenuFlyoutItem Text="🐣 רובי המתחיל · לוח קל" Tag="easy" Click="AiOpponent_Click" FlowDirection="RightToLeft" />
+                                <MenuFlyoutItem Text="🤖 רובוטית · לוח בינוני" Tag="medium" Click="AiOpponent_Click" FlowDirection="RightToLeft" />
+                                <MenuFlyoutItem Text="🧠 המוח · לוח קשה" Tag="hard" Click="AiOpponent_Click" FlowDirection="RightToLeft" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
 
                     <Button x:Name="DailyButton" Click="DailyButton_Click" />
                     <Button Grid.Column="1" Content="🗺️ מסע הרפתקאות" Click="AdventureButton_Click" />

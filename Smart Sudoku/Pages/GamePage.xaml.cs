@@ -69,7 +69,10 @@ namespace Smart_Sudoku.Pages
             if (e.NavigationMode == NavigationMode.Back && hasGame)
             {
                 if (!finished && !paused)
+                {
                     timer.Start();
+                    aiTimer?.Start();
+                }
                 Refresh();
                 return;
             }
@@ -77,12 +80,25 @@ namespace Smart_Sudoku.Pages
             if (e.Parameter is Duel.DuelGame duelGame)
             {
                 isDaily = false;
+                EndAiDuel();
                 StartDuel(duelGame);
+                return;
+            }
+
+            if (e.Parameter is AiDuelStart aiStart)
+            {
+                isDaily = false;
+                isZen = false;
+                adventure = null;
+                if (IsDuel)
+                    EndDuel();
+                StartAiDuel(aiStart);
                 return;
             }
 
             if (IsDuel)
                 EndDuel();
+            EndAiDuel();
 
             switch (e.Parameter)
             {
@@ -112,6 +128,7 @@ namespace Smart_Sudoku.Pages
         {
             base.OnNavigatedFrom(e);
             timer.Stop();
+            aiTimer?.Stop();
             UnhookKeyboard();
             SaveCurrentGame();
             Sounds.ApplyMusicSetting();
@@ -612,7 +629,7 @@ namespace Smart_Sudoku.Pages
         private void NumberButton_Click(object sender, RoutedEventArgs e) => PlaceNumber((int)((Button)sender).Tag);
 
         /// <summary>Mistakes are shown (red, and cost a heart) unless the player turned that off. Duels always show them.</summary>
-        private bool MistakesShown => IsDuel || GameData.ShowMistakes;
+        private bool MistakesShown => IsDuel || IsAiDuel || GameData.ShowMistakes;
 
         private void PlaceNumber(int n)
         {
@@ -671,6 +688,10 @@ namespace Smart_Sudoku.Pages
                 {
                     DuelMove(false, selRow, selCol);
                 }
+                else if (IsAiDuel)
+                {
+                    AiPlayerMove(false, selRow, selCol);
+                }
                 else if (lives <= 0 && GameData.UseBonusLife())
                 {
                     lives = 1;
@@ -682,6 +703,8 @@ namespace Smart_Sudoku.Pages
                 {
                     if (IsDuel)
                         DuelFinish(solved: false);
+                    else if (IsAiDuel)
+                        AiDuelOver(playerWon: false);
                     else
                         GameOver();
                 }
@@ -692,6 +715,8 @@ namespace Smart_Sudoku.Pages
             StatusText.Text = "יופי! 💕";
             if (IsDuel)
                 DuelMove(true, selRow, selCol);
+            else if (IsAiDuel)
+                AiPlayerMove(true, selRow, selCol);
             Refresh();
             PopCell(selRow, selCol);
             FlashCell(selRow, selCol);
@@ -702,6 +727,8 @@ namespace Smart_Sudoku.Pages
             {
                 if (IsDuel)
                     DuelFinish(solved: true);
+                else if (IsAiDuel)
+                    AiDuelOver(playerWon: true);
                 else
                     Win();
             }
@@ -880,6 +907,7 @@ namespace Smart_Sudoku.Pages
         {
             if (IsDuel)
                 LeaveDuel();
+            EndAiDuel();
             base.BackButton_Click(sender, e);
         }
     }

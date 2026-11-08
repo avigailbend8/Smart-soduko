@@ -189,6 +189,7 @@ namespace Smart_Sudoku.Pages
                     CountdownOverlay.Visibility = Visibility.Collapsed;
                     seconds = 0;
                     timer.Start();
+                    StartAiTimer();   // only does something in a duel against the computer
                 }
             };
             tick.Start();
@@ -420,6 +421,12 @@ namespace Smart_Sudoku.Pages
 
         private void DuelLobby_Click(object sender, RoutedEventArgs e)
         {
+            // Against the computer, "another round" means a new board with the same opponent
+            if (ai != null)
+            {
+                StartAiDuel(new AiDuelStart(ai.Id));
+                return;
+            }
             EndDuel();
             if (Frame.CanGoBack)
                 Frame.GoBack();
@@ -427,7 +434,10 @@ namespace Smart_Sudoku.Pages
 
         private void DuelExit_Click(object sender, RoutedEventArgs e)
         {
-            Client.Current?.Disconnect();
+            if (IsAiDuel)
+                EndAiDuel();
+            else
+                Client.Current?.Disconnect();
             EndDuel();
             Frame.Navigate(typeof(MenuPage));
             Frame.BackStack.Clear();

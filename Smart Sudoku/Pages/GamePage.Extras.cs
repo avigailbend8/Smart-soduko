@@ -347,7 +347,7 @@ namespace Smart_Sudoku.Pages
         private void SaveCurrentGame()
         {
             // Duels, zen and adventure stages are short and aren't saved to continue later
-            if (IsDuel || isZen || adventure != null || !hasGame || finished)
+            if (IsDuel || IsAiDuel || isZen || adventure != null || !hasGame || finished)
                 return;
 
             GameData.SavedGame = new SavedGame

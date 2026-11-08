@@ -318,7 +318,7 @@
             <StackPanel VerticalAlignment="Center" Spacing="10">
                 <TextBlock Text="⚔️ דו-קרב מתחיל!" Style="{StaticResource TitleText}" FontSize="36" />
                 <TextBlock x:Name="CountdownText" Style="{StaticResource TitleText}" FontSize="140" Foreground="{StaticResource RoseBrush}" Text="3" />
-                <TextBlock Text="כולם מקבלים את אותו לוח — בהצלחה!" Style="{StaticResource SubtitleText}" />
+                <TextBlock x:Name="CountdownHint" Text="כולם מקבלים את אותו לוח — בהצלחה!" Style="{StaticResource SubtitleText}" />
             </StackPanel>
         </Grid>
 
