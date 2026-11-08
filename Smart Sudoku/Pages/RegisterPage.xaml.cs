@@ -10,7 +10,7 @@ namespace Smart_Sudoku.Pages
     /// <summary>
     /// Creates a new user in the database and signs them in.
     /// </summary>
-    public sealed partial class RegisterPage : Page
+    public sealed partial class RegisterPage : BasePage
     {
         public RegisterPage()
         {
@@ -23,12 +23,6 @@ namespace Smart_Sudoku.Pages
 
             // Offer to carry over the guest's coins, stars and purchases, if there are any
             TransferGuestBox.Visibility = GuestStore.Load().HasAnyProgress ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        private void BackButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (Frame.CanGoBack)
-                Frame.GoBack();
         }
 
         private void Field_KeyDown(object sender, KeyRoutedEventArgs e)

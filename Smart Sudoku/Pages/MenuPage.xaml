@@ -1,4 +1,4 @@
-﻿<Page
+﻿<local:BasePage
     x:Class="Smart_Sudoku.Pages.MenuPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -8,7 +8,7 @@
     mc:Ignorable="d"
     Background="Transparent">
 
-    <Page.Resources>
+    <local:BasePage.Resources>
         <Style x:Key="Deco" TargetType="TextBlock">
             <Setter Property="FontFamily" Value="Segoe UI Symbol" />
             <Setter Property="Foreground" Value="{StaticResource RoseBrush}" />
@@ -52,10 +52,10 @@
             <DoubleAnimation Storyboard.TargetName="BottomSparkles" Storyboard.TargetProperty="Opacity"
                              From="0.45" To="1" Duration="0:0:1.2" AutoReverse="True" />
         </Storyboard>
-    </Page.Resources>
+    </local:BasePage.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24,40" Spacing="16" MaxWidth="520">
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24,40" Spacing="16" MaxWidth="560">
 
             <Image Source="ms-appx:///Assets/Square150x150Logo.png" Width="130" Height="130" />
 
@@ -102,6 +102,20 @@
                            FontSize="22"
                            FontWeight="SemiBold" />
 
+                <!-- Player level and this week's league -->
+                <Border HorizontalAlignment="Center"
+                        Background="{StaticResource CardBrush}"
+                        BorderBrush="{StaticResource SoftPinkBrush}"
+                        BorderThickness="1"
+                        CornerRadius="16"
+                        Padding="16,6">
+                    <TextBlock x:Name="LevelChip"
+                               FontSize="16"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource BerryBrush}"
+                               FlowDirection="RightToLeft" />
+                </Border>
+
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="18">
                     <TextBlock Text="♥" FontSize="34" Style="{StaticResource Deco}" Foreground="{StaticResource DecoBrush}">
                         <TextBlock.RenderTransform>
@@ -141,21 +155,43 @@
                         Visibility="Collapsed"
                         Click="ContinueButton_Click" />
 
-                <!-- Everything else to play -->
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" FlowDirection="RightToLeft">
-                    <Button x:Name="DailyButton" FontSize="17" Padding="18,10" Click="DailyButton_Click" />
-                    <Button Content="⚔️ דו-קרב ברשת" FontSize="17" Padding="18,10" Click="DuelButton_Click" />
-                    <Button Content="🧩 סודוקו קטן" FontSize="17" Padding="18,10" Click="MiniButton_Click" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" FlowDirection="RightToLeft">
-                    <Button x:Name="WheelButton" FontSize="17" Padding="18,10" Click="WheelButton_Click" />
-                    <Button Content="🏅 הישגים" FontSize="17" Padding="18,10" Click="AchievementsButton_Click" />
-                    <Button x:Name="NightButton" FontSize="17" Padding="18,10" Click="NightButton_Click" />
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" FlowDirection="RightToLeft">
-                    <Button Content="🏆 טבלת שיאים" FontSize="17" Padding="18,10" Click="LeaderboardButton_Click" />
-                    <Button x:Name="AvatarButton" Content="📷 תמונת פרופיל" FontSize="17" Padding="18,10" Click="AvatarButton_Click" />
-                </StackPanel>
+                <!-- Everything else to play, three in a row -->
+                <Grid FlowDirection="RightToLeft" ColumnSpacing="10" RowSpacing="10" Width="520">
+                    <Grid.Resources>
+                        <Style TargetType="Button" BasedOn="{StaticResource WhiteButton}">
+                            <Setter Property="FontSize" Value="17" />
+                            <Setter Property="Padding" Value="10,10" />
+                            <Setter Property="HorizontalAlignment" Value="Stretch" />
+                        </Style>
+                    </Grid.Resources>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Button x:Name="DailyButton" Click="DailyButton_Click" />
+                    <Button Grid.Column="1" Content="🗺️ מסע הרפתקאות" Click="AdventureButton_Click" />
+                    <Button Grid.Column="2" Content="⚔️ דו-קרב ברשת" Click="DuelButton_Click" />
+
+                    <Button Grid.Row="1" Content="🧩 סודוקו קטן" Click="MiniButton_Click" />
+                    <Button Grid.Row="1" Grid.Column="1" Content="🧘 מצב זן" Click="ZenButton_Click" />
+                    <Button Grid.Row="1" Grid.Column="2" x:Name="WheelButton" Click="WheelButton_Click" />
+
+                    <Button Grid.Row="2" x:Name="MissionsButton" Click="MissionsButton_Click" />
+                    <Button Grid.Row="2" Grid.Column="1" Content="🏅 הישגים" Click="AchievementsButton_Click" />
+                    <Button Grid.Row="2" Grid.Column="2" Content="📊 סטטיסטיקות" Click="StatsButton_Click" />
+
+                    <Button Grid.Row="3" Content="🏆 טבלת שיאים" Click="LeaderboardButton_Click" />
+                    <Button Grid.Row="3" Grid.Column="1" x:Name="FriendsButton" Content="👭 חברים" Click="FriendsButton_Click" />
+                    <Button Grid.Row="3" Grid.Column="2" Content="⚙️ הגדרות" Click="SettingsButton_Click" />
+                </Grid>
 
                 <Button Content="החלף משתמש"
                         HorizontalAlignment="Center"
@@ -166,4 +202,4 @@
             </StackPanel>
         </StackPanel>
     </ScrollViewer>
-</Page>
+</local:BasePage>

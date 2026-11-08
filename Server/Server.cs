@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Smart_Sudoku;
 using Smart_Sudoku.Duel;
 using WatsonTcp;
@@ -18,9 +19,13 @@ using WatsonTcp;
  *      send GetLeaderboard             ----------->  1) read the top players from database.db
  *                                                    2) send Leaderboard(top)         ---------->   (only to the asking client)
  *
- *      1) choose a difficulty and click Start
- *      2) send StartGame(difficulty)   ----------->  1) set 0 score and change status to "playing"
- *                                                       for all players in the room
+ *      send GetOnline                  ----------->  1) list everyone connected       ---------->   (only to the asking client)
+ *      send Invite(friend)             ----------->  1) find the friend               ---------->   1) the friend sees the invite
+ *      send Chat(text)                 ----------->  1) clean rude words, pass it on  ---------->   1) show the chat line
+ *
+ *      1) choose a difficulty (and teams) and click Start
+ *      2) send StartGame(options)      ----------->  1) set 0 score and change status to "playing"
+ *                                                       for all players in the room (in teams: red / blue)
  *                                                    2) send UpdatePlayers(_players)  ---------->   1) refresh players table
  *                                                    3) send StartGame(board)         ---------->   2) open Start dialog (5-4-3-2-1)
  *                                                                                                       and play the same board
@@ -41,6 +46,7 @@ using WatsonTcp;
  *                                                    3) if all players are finished,
  *                                                       save the game in database.db and
  *                                                       send GameOver(winner)         ---------->   1) open GameOver dialog with winner name
+ *                                                       (in teams: the team with the higher total wins)
  *
  * ********************************************************************************************************************
  *
@@ -60,6 +66,7 @@ namespace Server
             public string Code = DefaultRoom;
             public readonly Dictionary<Guid, Player> _players = new();
             public bool GameRunning;
+            public bool Teams;
         }
 
         private readonly WatsonTcpServer _server;
@@ -106,7 +113,19 @@ namespace Server
                         OnGetLeaderboard(client);
                         break;
                     case Commands.StartGame:
-                        OnStartGame(client, JsonSerializer.Deserialize(message.Data, DuelJson.Default.Int32));
+                        if (JsonSerializer.Deserialize(message.Data, DuelJson.Default.StartOptions) is StartOptions options)
+                            OnStartGame(client, options);
+                        break;
+                    case Commands.Chat:
+                        if (JsonSerializer.Deserialize(message.Data, DuelJson.Default.ChatMessage) is ChatMessage chat)
+                            OnChat(client, chat);
+                        break;
+                    case Commands.GetOnline:
+                        OnGetOnline(client);
+                        break;
+                    case Commands.Invite:
+                        if (JsonSerializer.Deserialize(message.Data, DuelJson.Default.InviteMessage) is InviteMessage invite)
+                            OnInvite(client, invite);
                         break;
                     case Commands.ChangePlayer:
                         if (JsonSerializer.Deserialize(message.Data, DuelJson.Default.Player) is Player player)
@@ -160,8 +179,9 @@ namespace Server
         }
 
         // Start button: reset everyone in the room, then send the same new board to all of them
-        private void OnStartGame(Guid client, int difficulty)
+        private void OnStartGame(Guid client, StartOptions options)
         {
+            int difficulty = options.Difficulty;
             DuelGame game;
             Room? room;
             lock (_lock)
@@ -169,14 +189,19 @@ namespace Server
                 if (!_roomOf.TryGetValue(client, out room) || room.GameRunning || room._players.Count == 0)
                     return;
 
+                // Teams need at least 2 players; players are split red, blue, red, blue... in the order they joined
+                room.Teams = options.Teams && room._players.Count >= 2;
+                int index = 0;
                 foreach (var player in room._players.Values)
                 {
                     player.Score = 0;
                     player.Solved = false;
                     player.Status = PlayerStatus.Playing;
+                    player.Team = room.Teams ? (index++ % 2 == 0 ? Smart_Sudoku.Duel.Teams.Red : Smart_Sudoku.Duel.Teams.Blue) : "";
                 }
                 room.GameRunning = true;
                 game = MakeBoard(Math.Clamp(difficulty, 0, Levels.Difficulties.Count - 1));
+                game.Teams = room.Teams;
             }
 
             Log($"Game started in room \"{room.Code}\" ({Levels.Difficulties[game.Difficulty].Name})");
@@ -232,6 +257,74 @@ namespace Server
             Broadcast(room, DuelJson.Pack(Commands.Emoji, safe, DuelJson.Default.EmojiMessage));
         }
 
+        // ---------- Chat, friends online, invites ----------
+
+        private static readonly string[] RudeWords = { "טיפש", "טיפשה", "מטומטם", "מטומטמת", "אידיוט", "סתום", "סתמי", "דפוק", "stupid", "idiot", "dumb", "shut up" };
+
+        private void OnChat(Guid client, ChatMessage chat)
+        {
+            Room? room;
+            string name;
+            lock (_lock)
+            {
+                if (!_roomOf.TryGetValue(client, out room) || !room._players.TryGetValue(client, out var player))
+                    return;
+                name = player.Name;
+            }
+
+            // Short messages only, and rude words become hearts
+            string text = chat.Text.Trim();
+            if (text.Length == 0)
+                return;
+            if (text.Length > 120)
+                text = text.Substring(0, 120);
+            foreach (string word in RudeWords)
+                text = Regex.Replace(text, Regex.Escape(word), "💖", RegexOptions.IgnoreCase);
+
+            Broadcast(room, DuelJson.Pack(Commands.Chat, new ChatMessage { Name = name, Text = text }, DuelJson.Default.ChatMessage));
+        }
+
+        private void OnGetOnline(Guid client)
+        {
+            List<OnlinePlayer> online;
+            lock (_lock)
+            {
+                online = _rooms.Values.SelectMany(room => room._players.Values.Select(p => new OnlinePlayer
+                {
+                    Name = p.Name,
+                    Room = room.Code == DefaultRoom ? "" : room.Code,
+                    Status = p.Status,
+                })).ToList();
+            }
+            _ = _server.SendAsync(client, DuelJson.Pack(Commands.Online, online, DuelJson.Default.ListOnlinePlayer));
+        }
+
+        // Passes an invitation to the named player, telling them which room to join
+        private void OnInvite(Guid client, InviteMessage invite)
+        {
+            Guid? target = null;
+            InviteMessage forward;
+            lock (_lock)
+            {
+                if (!_roomOf.TryGetValue(client, out var room) || !room._players.TryGetValue(client, out var sender))
+                    return;
+                forward = new InviteMessage { From = sender.Name, To = invite.To, Room = room.Code == DefaultRoom ? "" : room.Code };
+                foreach (var other in _rooms.Values)
+                {
+                    foreach (var pair in other._players)
+                    {
+                        if (pair.Value.Name == invite.To)
+                            target = pair.Key;
+                    }
+                }
+            }
+            if (target is Guid to)
+            {
+                Log($"\"{forward.From}\" invited \"{forward.To}\"");
+                _ = _server.SendAsync(to, DuelJson.Pack(Commands.Invite, forward, DuelJson.Default.InviteMessage));
+            }
+        }
+
         private void OnClientDisconnected(object? sender, DisconnectionEventArgs e)
         {
             bool gameOver = false;
@@ -264,9 +357,18 @@ namespace Server
             {
                 room.GameRunning = false;
                 var ranking = room._players.Values.OrderByDescending(p => p.Score)
-                    .Select(p => new Player { Name = p.Name, Score = p.Score, Status = PlayerStatus.Finish, Solved = p.Solved })
+                    .Select(p => new Player { Name = p.Name, Score = p.Score, Status = PlayerStatus.Finish, Solved = p.Solved, Team = p.Team })
                     .ToList();
                 result = new GameResult { Winner = ranking.FirstOrDefault()?.Name ?? "", Players = ranking };
+
+                // In teams, each team's points are added up and the higher total wins
+                if (room.Teams)
+                {
+                    result.RedScore = ranking.Where(p => p.Team == Smart_Sudoku.Duel.Teams.Red).Sum(p => p.Score);
+                    result.BlueScore = ranking.Where(p => p.Team == Smart_Sudoku.Duel.Teams.Blue).Sum(p => p.Score);
+                    result.WinnerTeam = result.RedScore >= result.BlueScore ? Smart_Sudoku.Duel.Teams.Red : Smart_Sudoku.Duel.Teams.Blue;
+                    result.Winner = Smart_Sudoku.Duel.Teams.Name(result.WinnerTeam);
+                }
                 foreach (var player in room._players.Values)
                     player.Status = PlayerStatus.Waiting;
             }

@@ -16,7 +16,7 @@ namespace Smart_Sudoku.Pages
     /// Connect to the duel server and a room, see who is in it, see the champions table,
     /// and start a game for everyone in the room.
     /// </summary>
-    public sealed partial class DuelLobbyPage : Page
+    public sealed partial class DuelLobbyPage : BasePage
     {
         private const string ServerSettingKey = "duel.server";
         private const string RoomSettingKey = "duel.room";
@@ -27,8 +27,6 @@ namespace Smart_Sudoku.Pages
         {
             this.InitializeComponent();
         }
-
-        private static Brush Res(string key) => (Brush)Application.Current.Resources[key];
 
         private string PlayerName => Session.PlayerName ?? "אורח";
 
@@ -60,6 +58,8 @@ namespace Smart_Sudoku.Pages
             client.GameStarted += OnGameStarted;
             client.Disconnected += OnDisconnected;
             client.LeaderboardReceived += OnLeaderboardReceived;
+            client.ChatReceived += OnChatReceived;
+            client.InviteReceived += OnInviteReceived;
         }
 
         private void Unsubscribe(Client client)
@@ -68,6 +68,8 @@ namespace Smart_Sudoku.Pages
             client.GameStarted -= OnGameStarted;
             client.Disconnected -= OnDisconnected;
             client.LeaderboardReceived -= OnLeaderboardReceived;
+            client.ChatReceived -= OnChatReceived;
+            client.InviteReceived -= OnInviteReceived;
         }
 
         private async void Connect_Click(object sender, RoutedEventArgs e)
@@ -109,6 +111,10 @@ namespace Smart_Sudoku.Pages
             RoomCard.Visibility = Visibility.Visible;
             string room = Client.Current?.Room ?? "";
             RoomTitle.Text = room.Length > 0 ? $"השחקנים בחדר \"{room}\"" : "השחקנים בחדר הראשי";
+            ChatCard.Visibility = Visibility.Visible;
+            ChatList.Children.Clear();
+            foreach (var line in Client.Current?.ChatHistory ?? new List<ChatMessage>())
+                AddChatLine(line);
             RefreshPlayers();
         }
 
@@ -175,19 +181,22 @@ namespace Smart_Sudoku.Pages
 
             bool someonePlaying = players.Any(p => p.Status == PlayerStatus.Playing);
             StartButton.IsEnabled = players.Count >= 2 && !someonePlaying;
-            RoomHint.Text = someonePlaying
-                ? "משחק כבר רץ בחדר — חכו שייגמר ואז תוכלו להצטרף לסיבוב הבא."
-                : players.Count < 2
-                    ? "מחכים לעוד שחקן... (2 שחקנים = אחד על אחד, יותר = דו-קרב קבוצתי)"
-                    : $"{players.Count} שחקנים מוכנים! כל אחד יכול ללחוץ Start.";
+            if (someonePlaying)
+                RoomHint.Text = "משחק כבר רץ בחדר — חכו שייגמר ואז תוכלו להצטרף לסיבוב הבא.";
+            else if (players.Count < 2)
+                RoomHint.Text = "מחכים לעוד שחקן... (2 שחקנים = אחד על אחד, יותר = דו-קרב קבוצתי)";
+            else
+                RoomHint.Text = $"{players.Count} שחקנים מוכנים! כל אחד יכול ללחוץ Start.";
         }
 
-        private static string StatusText(string status) => status switch
+        private static string StatusText(string status)
         {
-            PlayerStatus.Playing => "משחק/ת 🎮",
-            PlayerStatus.Finish => "סיים/ה ✓",
-            _ => "מחכה ⏳",
-        };
+            if (status == PlayerStatus.Playing)
+                return "משחק/ת 🎮";
+            if (status == PlayerStatus.Finish)
+                return "סיים/ה ✓";
+            return "מחכה ⏳";
+        }
 
         private void ShowLeaderboard(List<LeaderboardEntry> top)
         {
@@ -205,7 +214,7 @@ namespace Smart_Sudoku.Pages
             int place = 1;
             foreach (var entry in top)
             {
-                string medal = place switch { 1 => "🥇", 2 => "🥈", 3 => "🥉", _ => $"{place}." };
+                string medal = Medal(place);
                 LeaderboardList.Children.Add(new TextBlock
                 {
                     Text = $"{medal}  {entry.Name} — {entry.Wins} ניצחונות מתוך {entry.GamesPlayed} · שיא {entry.BestScore}",
@@ -224,7 +233,7 @@ namespace Smart_Sudoku.Pages
             if (Client.Current is Client client)
             {
                 StartButton.IsEnabled = false;
-                await client.StartGameAsync(selectedDifficulty);
+                await client.StartGameAsync(selectedDifficulty, TeamsBox.IsChecked == true);
             }
         }
 
@@ -243,20 +252,86 @@ namespace Smart_Sudoku.Pages
             }
             RoomCard.Visibility = Visibility.Collapsed;
             LeaderboardCard.Visibility = Visibility.Collapsed;
+            ChatCard.Visibility = Visibility.Collapsed;
             ConnectCard.Visibility = Visibility.Visible;
         }
 
-        private void BackButton_Click(object sender, RoutedEventArgs e)
+        // ---------- Chat ----------
+
+        private void AddChatLine(ChatMessage line)
+        {
+            bool me = line.Name == PlayerName;
+            var text = new TextBlock { FontSize = 16, TextWrapping = TextWrapping.Wrap, Foreground = Res("BerryBrush") };
+            text.Inlines.Add(new Windows.UI.Xaml.Documents.Run { Text = line.Name + ": ", FontWeight = FontWeights.Bold, Foreground = Res(me ? "RoseBrush" : "BerryBrush") });
+            text.Inlines.Add(new Windows.UI.Xaml.Documents.Run { Text = line.Text });
+            ChatList.Children.Add(text);
+            ChatScroll.ChangeView(null, double.MaxValue, null);
+        }
+
+        private async void SendChat_Click(object sender, RoutedEventArgs e)
+        {
+            string text = ChatBox.Text.Trim();
+            if (text.Length == 0 || Client.Current is not Client client)
+                return;
+            ChatBox.Text = "";
+            await client.SendChatAsync(text);
+        }
+
+        private void ChatBox_KeyDown(object sender, Windows.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Enter)
+                SendChat_Click(sender, e);
+        }
+
+        // ---------- Invitations ----------
+
+        private InviteMessage? pendingInvite;
+
+        private void JoinInvite_Click(object sender, RoutedEventArgs e)
+        {
+            if (pendingInvite == null)
+                return;
+            // Move to the friend's room on the same server
+            RoomBox.Text = pendingInvite.Room;
+            InviteBanner.Visibility = Visibility.Collapsed;
+            pendingInvite = null;
+            if (Client.Current is Client client)
+            {
+                Unsubscribe(client);
+                client.Disconnect();
+            }
+            Connect_Click(sender, e);
+        }
+
+        private void DismissInvite_Click(object sender, RoutedEventArgs e)
+        {
+            InviteBanner.Visibility = Visibility.Collapsed;
+            pendingInvite = null;
+        }
+
+        // Overrides the back button of BasePage: leave the room first, then go back
+        protected override void BackButton_Click(object sender, RoutedEventArgs e)
         {
             Leave_Click(sender, e);
-            if (Frame.CanGoBack)
-                Frame.GoBack();
+            base.BackButton_Click(sender, e);
         }
 
         // ---------- Server events (background thread -> UI thread) ----------
 
         private async void OnPlayersUpdated() =>
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, RefreshPlayers);
+
+        private async void OnChatReceived(ChatMessage line) =>
+            await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => AddChatLine(line));
+
+        private async void OnInviteReceived(InviteMessage invite) =>
+            await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+            {
+                pendingInvite = invite;
+                InviteText.Text = $"💌 {invite.From} מזמינ/ה אותך לדו-קרב" + (invite.Room.Length > 0 ? $" בחדר \"{invite.Room}\"" : " בחדר הראשי");
+                InviteBanner.Visibility = Visibility.Visible;
+                Sounds.Play("coin");
+            });
 
         private async void OnLeaderboardReceived(List<LeaderboardEntry> top) =>
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => ShowLeaderboard(top));

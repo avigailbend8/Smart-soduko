@@ -33,6 +33,12 @@ namespace Smart_Sudoku
         public event Action? Disconnected;
         public event Action<List<LeaderboardEntry>>? LeaderboardReceived;
         public event Action<EmojiMessage>? EmojiReceived;
+        public event Action<ChatMessage>? ChatReceived;
+        public event Action<List<OnlinePlayer>>? OnlineReceived;
+        public event Action<InviteMessage>? InviteReceived;
+
+        /// <summary>Recent chat lines in the room, so a page opened later can still show them.</summary>
+        public List<ChatMessage> ChatHistory { get; } = new List<ChatMessage>();
 
         /// <summary>The room code this client joined.</summary>
         public string Room { get; private set; } = "";
@@ -83,7 +89,16 @@ namespace Smart_Sudoku
         }
 
         /// <summary>The Start button: asks the server to start a game for everyone in the room.</summary>
-        public Task StartGameAsync(int difficulty) => SendAsync(Commands.StartGame, difficulty, DuelJson.Default.Int32);
+        public Task StartGameAsync(int difficulty, bool teams) =>
+            SendAsync(Commands.StartGame, new StartOptions { Difficulty = difficulty, Teams = teams }, DuelJson.Default.StartOptions);
+
+        public Task SendChatAsync(string text) => SendAsync(Commands.Chat, new ChatMessage { Name = Me.Name, Text = text }, DuelJson.Default.ChatMessage);
+
+        /// <summary>Asks who is connected; the answer arrives through OnlineReceived.</summary>
+        public Task GetOnlineAsync() => SendAsync(Commands.GetOnline, "", DuelJson.Default.String);
+
+        /// <summary>Invites a player (by name) to this room.</summary>
+        public Task InviteAsync(string friendName) => SendAsync(Commands.Invite, new InviteMessage { To = friendName }, DuelJson.Default.InviteMessage);
 
         /// <summary>Asks for the champions table; the answer arrives through LeaderboardReceived.</summary>
         public Task GetLeaderboardAsync() => SendAsync(Commands.GetLeaderboard, "", DuelJson.Default.String);
@@ -116,6 +131,12 @@ namespace Smart_Sudoku
             {
                 case Commands.UpdatePlayers:
                     Players = JsonSerializer.Deserialize(message.Data, DuelJson.Default.ListPlayer) ?? new List<Player>();
+                    // Learn which team this player is on (team duels)
+                    foreach (var player in Players)
+                    {
+                        if (player.Name == Me.Name)
+                            Me.Team = player.Team;
+                    }
                     PlayersUpdated?.Invoke();
                     break;
 
@@ -131,6 +152,25 @@ namespace Smart_Sudoku
 
                 case Commands.Leaderboard:
                     LeaderboardReceived?.Invoke(JsonSerializer.Deserialize(message.Data, DuelJson.Default.ListLeaderboardEntry) ?? new List<LeaderboardEntry>());
+                    break;
+
+                case Commands.Chat:
+                    if (JsonSerializer.Deserialize(message.Data, DuelJson.Default.ChatMessage) is ChatMessage chat)
+                    {
+                        ChatHistory.Add(chat);
+                        if (ChatHistory.Count > 50)
+                            ChatHistory.RemoveAt(0);
+                        ChatReceived?.Invoke(chat);
+                    }
+                    break;
+
+                case Commands.Online:
+                    OnlineReceived?.Invoke(JsonSerializer.Deserialize(message.Data, DuelJson.Default.ListOnlinePlayer) ?? new List<OnlinePlayer>());
+                    break;
+
+                case Commands.Invite:
+                    if (JsonSerializer.Deserialize(message.Data, DuelJson.Default.InviteMessage) is InviteMessage invite)
+                        InviteReceived?.Invoke(invite);
                     break;
 
                 case Commands.Emoji:

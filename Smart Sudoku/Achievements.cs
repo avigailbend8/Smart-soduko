@@ -26,6 +26,12 @@ namespace Smart_Sudoku
             new Achievement("wheel", "🎡", "בר מזל", "לסובב את גלגל המזל", 20),
             new Achievement("mini", "🧩", "סודוקו קטן", "לפתור לוח 4×4 או 6×6", 50),
             new Achievement("night", "🌙", "ינשוף לילה", "להפעיל מצב לילה", 20),
+            new Achievement("boss", "🐉", "מנצחת בוסים", "לנצח בוס במסע ההרפתקאות", 150),
+            new Achievement("adventure-all", "🗺️", "הרפתקנית", "לסיים את כל 4 העולמות במסע", 500),
+            new Achievement("zen", "🧘", "שלווה", "לפתור לוח במצב זן", 30),
+            new Achievement("speed", "⏱️", "מהירה כמו רוח", "לפתור 5 לוחות במצב מהירות", 100),
+            new Achievement("friend", "💕", "חברה טובה", "להוסיף חבר/ה לרשימה", 30),
+            new Achievement("level10", "⭐", "רמה 10", "להגיע לרמת שחקן 10", 300),
         };
 
         /// <summary>Unlocks an achievement (once), pays its coins and shows a notification.</summary>

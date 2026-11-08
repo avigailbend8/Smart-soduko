@@ -1,4 +1,4 @@
-<Page
+<local:BasePage
     x:Class="Smart_Sudoku.Pages.SingInPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -47,9 +47,32 @@
                                          HorizontalAlignment="Center"
                                          Foreground="{StaticResource RoseBrush}"
                                          Click="RegisterLink_Click" />
+                        <HyperlinkButton Content="שכחתי סיסמה 🔑"
+                                         HorizontalAlignment="Center"
+                                         Foreground="{StaticResource MutedTextBrush}"
+                                         Click="ForgotLink_Click" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Forgot password: the secret word chosen in the settings gives a new password -->
+                <Border x:Name="ForgotPanel" Style="{StaticResource Card}" FlowDirection="RightToLeft" Visibility="Collapsed">
+                    <StackPanel Spacing="14">
+                        <TextBlock Text="🔑 איפוס סיסמה"
+                                   FontSize="22"
+                                   FontWeight="Bold"
+                                   Foreground="{StaticResource RoseBrush}" />
+                        <TextBlock Text="הקלידו את שם המשתמש ואת מילת הסוד שבחרתם בהגדרות, ואז סיסמה חדשה."
+                                   FontSize="15"
+                                   TextWrapping="Wrap"
+                                   Foreground="{StaticResource MutedTextBrush}" />
+                        <TextBox x:Name="ForgotNameBox" Header="שם משתמש" FontSize="17" CornerRadius="12" />
+                        <PasswordBox x:Name="SecretWordBox" Header="מילת הסוד" FontSize="17" CornerRadius="12" />
+                        <PasswordBox x:Name="NewPasswordBox" Header="סיסמה חדשה" FontSize="17" CornerRadius="12" />
+                        <TextBlock x:Name="ForgotResultText" FontSize="15" TextWrapping="Wrap" Foreground="{StaticResource BerryBrush}" />
+                        <Button Content="לאפס את הסיסמה" HorizontalAlignment="Stretch" Click="ResetPassword_Click" />
                     </StackPanel>
                 </Border>
             </StackPanel>
         </ScrollViewer>
     </Grid>
-</Page>
+</local:BasePage>

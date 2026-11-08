@@ -6,6 +6,8 @@ using Windows.UI.Core;
 using Windows.UI.Text;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
+using Windows.UI.Xaml.Media;
+using Windows.UI.Xaml.Media.Animation;
 
 namespace Smart_Sudoku.Pages
 {
@@ -23,6 +25,7 @@ namespace Smart_Sudoku.Pages
 
         private Client? duelClient;
         private bool[,] duelScored = new bool[9, 9];
+        private bool duelTeams;
         private bool IsDuel => duelClient != null;
 
         private void StartDuel(DuelGame game)
@@ -38,6 +41,7 @@ namespace Smart_Sudoku.Pages
             BuildEmojiBar();
 
             // Duel boards are mid-difficulty, so coins are counted like the middle level of that difficulty
+            duelTeams = game.Teams;
             level = Levels.Id(game.Difficulty, Levels.PerDifficulty / 2);
             duelCoins = 0;
             for (int i = 0; i < 81; i++)
@@ -121,7 +125,7 @@ namespace Smart_Sudoku.Pages
         // A bubble with the name and emoji that floats up and fades away
         private void ShowEmojiBubble(EmojiMessage message)
         {
-            var transform = new Windows.UI.Xaml.Media.TranslateTransform();
+            var transform = new TranslateTransform();
             var bubble = new Border
             {
                 Background = Res("ButtonHoverBrush"),
@@ -143,13 +147,13 @@ namespace Smart_Sudoku.Pages
             Canvas.SetTop(bubble, ActualHeight * 0.75);
             CelebrationCanvas.Children.Add(bubble);
 
-            var storyboard = new Windows.UI.Xaml.Media.Animation.Storyboard();
-            var rise = new Windows.UI.Xaml.Media.Animation.DoubleAnimation { To = -ActualHeight * 0.45, Duration = TimeSpan.FromSeconds(2.6) };
-            Windows.UI.Xaml.Media.Animation.Storyboard.SetTarget(rise, transform);
-            Windows.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(rise, "Y");
-            var fade = new Windows.UI.Xaml.Media.Animation.DoubleAnimation { To = 0, BeginTime = TimeSpan.FromSeconds(1.6), Duration = TimeSpan.FromSeconds(1) };
-            Windows.UI.Xaml.Media.Animation.Storyboard.SetTarget(fade, bubble);
-            Windows.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(fade, "Opacity");
+            var storyboard = new Storyboard();
+            var rise = new DoubleAnimation { To = -ActualHeight * 0.45, Duration = TimeSpan.FromSeconds(2.6) };
+            Storyboard.SetTarget(rise, transform);
+            Storyboard.SetTargetProperty(rise, "Y");
+            var fade = new DoubleAnimation { To = 0, BeginTime = TimeSpan.FromSeconds(1.6), Duration = TimeSpan.FromSeconds(1) };
+            Storyboard.SetTarget(fade, bubble);
+            Storyboard.SetTargetProperty(fade, "Opacity");
             storyboard.Children.Add(rise);
             storyboard.Children.Add(fade);
             storyboard.Completed += (s, e) => CelebrationCanvas.Children.Remove(bubble);
@@ -231,7 +235,7 @@ namespace Smart_Sudoku.Pages
             // Solving the board earns coins just like a regular level (no level progress is saved)
             if (solved)
             {
-                int stars = mistakes == 0 ? 3 : mistakes <= 2 ? 2 : 1;
+                int stars = StarsFor(mistakes);
                 duelCoins = GameData.RewardCoins(level, stars, seconds);
                 GameData.AddCoins(duelCoins);
                 UpdateStats();
@@ -253,11 +257,26 @@ namespace Smart_Sudoku.Pages
                 return;
 
             DuelScoreboard.Children.Clear();
+
+            // Team duels: the two team totals come first
+            if (duelTeams)
+            {
+                AddTeamTotal(Teams.Red, "🔴", Windows.UI.Color.FromArgb(255, 255, 214, 214));
+                AddTeamTotal(Teams.Blue, "🔵", Windows.UI.Color.FromArgb(255, 210, 228, 255));
+            }
+
             foreach (var player in duelClient.Players.OrderByDescending(p => p.Score))
             {
                 bool me = player.Name == duelClient.Me.Name;
-                // My own score is shown from my moves right away, before the server echoes it back
-                int score = me ? Math.Max(player.Score, duelClient.Me.Score) : player.Score;
+                int score = ShownScore(player);
+
+                string team = "";
+                if (player.Team == Teams.Red)
+                    team = "🔴 ";
+                else if (player.Team == Teams.Blue)
+                    team = "🔵 ";
+                string done = player.Status == PlayerStatus.Finish ? " ✓" : "";
+
                 DuelScoreboard.Children.Add(new Border
                 {
                     Background = Res(me ? "SelectedCellBrush" : "RelatedCellBrush"),
@@ -267,7 +286,7 @@ namespace Smart_Sudoku.Pages
                     Padding = new Thickness(14, 6, 14, 6),
                     Child = new TextBlock
                     {
-                        Text = $"{player.Name}  {score}{(player.Status == PlayerStatus.Finish ? " ✓" : "")}",
+                        Text = $"{team}{player.Name}  {score}{done}",
                         FontSize = 18,
                         FontWeight = me ? FontWeights.Bold : FontWeights.SemiBold,
                         Foreground = Res("BerryBrush"),
@@ -276,13 +295,49 @@ namespace Smart_Sudoku.Pages
             }
         }
 
+        // My own score is shown from my moves right away, before the server sends it back
+        private int ShownScore(Player player)
+        {
+            if (duelClient != null && player.Name == duelClient.Me.Name)
+                return Math.Max(player.Score, duelClient.Me.Score);
+            return player.Score;
+        }
+
+        // One team's total points, in its own color
+        private void AddTeamTotal(string team, string emoji, Windows.UI.Color color)
+        {
+            if (duelClient == null)
+                return;
+
+            int total = 0;
+            foreach (var player in duelClient.Players)
+            {
+                if (player.Team == team)
+                    total += ShownScore(player);
+            }
+
+            DuelScoreboard.Children.Add(new Border
+            {
+                Background = new SolidColorBrush(color),
+                CornerRadius = new CornerRadius(14),
+                Padding = new Thickness(14, 6, 14, 6),
+                Child = new TextBlock
+                {
+                    Text = $"{emoji} {total}",
+                    FontSize = 20,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 60, 30, 60)),
+                },
+            });
+        }
+
         private void ShowRanking(IEnumerable<Player> players)
         {
             DuelRanking.Children.Clear();
             int place = 1;
             foreach (var player in players.OrderByDescending(p => p.Score))
             {
-                string medal = place switch { 1 => "🥇", 2 => "🥈", 3 => "🥉", _ => $"{place}." };
+                string medal = Medal(place);
                 DuelRanking.Children.Add(new TextBlock
                 {
                     Text = $"{medal}  {player.Name} — {player.Score} נקודות",
@@ -314,7 +369,13 @@ namespace Smart_Sudoku.Pages
 
                 finished = true;
                 timer.Stop();
-                bool iWon = result.Winner == duelClient.Me.Name;
+                // In teams, everyone on the winning team wins
+                bool teamGame = result.WinnerTeam.Length > 0;
+                bool iWon;
+                if (teamGame)
+                    iWon = duelClient.Me.Team == result.WinnerTeam;
+                else
+                    iWon = result.Winner == duelClient.Me.Name;
                 if (iWon)
                 {
                     GameData.AddCoins(WinnerBonus);
@@ -325,12 +386,20 @@ namespace Smart_Sudoku.Pages
                         Achievements.Unlock("duel-5");
                 }
 
+                Progression.DuelPlayed(iWon);
                 int total = duelCoins + (iWon ? WinnerBonus : 0);
                 DuelTitle.Text = iWon ? "ניצחת! 🏆" : "המשחק נגמר";
-                DuelText.Text = $"🏆 המנצח/ת: {result.Winner}\n"
-                    + (duelCoins > 0 ? $"פתרון הלוח: +{duelCoins} 🪙\n" : "")
-                    + (iWon ? $"בונוס ניצחון: +{WinnerBonus} 🪙\n" : "")
-                    + $"🪙 סה\"כ בדו-קרב: +{total}";
+                string text;
+                if (teamGame)
+                    text = $"🏆 ניצחה {result.Winner}\n🔴 {result.RedScore}  ·  🔵 {result.BlueScore}\n";
+                else
+                    text = $"🏆 המנצח/ת: {result.Winner}\n";
+                if (duelCoins > 0)
+                    text += $"פתרון הלוח: +{duelCoins} 🪙\n";
+                if (iWon)
+                    text += $"בונוס ניצחון: +{WinnerBonus} 🪙\n";
+                text += $"🪙 סה\"כ בדו-קרב: +{total}";
+                DuelText.Text = text;
                 ShowRanking(result.Players);
                 DuelButtons.Visibility = Visibility.Visible;
                 DuelOverlay.Visibility = Visibility.Visible;

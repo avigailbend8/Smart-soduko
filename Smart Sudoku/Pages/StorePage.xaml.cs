@@ -1,5 +1,5 @@
 using System;
-using System.Linq;
+using System.Collections.Generic;
 using Windows.UI.Text;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
@@ -12,7 +12,7 @@ namespace Smart_Sudoku.Pages
     /// <summary>
     /// Spend coins on extra hints, color themes and symbol sets.
     /// </summary>
-    public sealed partial class StorePage : Page
+    public sealed partial class StorePage : BasePage
     {
         private const int HintPackPrice = 30;
         private const int HintPackSize = 3;
@@ -27,8 +27,6 @@ namespace Smart_Sudoku.Pages
             base.OnNavigatedTo(e);
             RefreshStore();
         }
-
-        private static Brush Res(string key) => (Brush)Application.Current.Resources[key];
 
         private void RefreshStore()
         {
@@ -99,16 +97,11 @@ namespace Smart_Sudoku.Pages
                         Themes.Apply(theme.Id);
 
                         // Switch the board to the theme's own symbols too
-                        if (SymbolSets.ForTheme(theme.Id) is SymbolSet matching && GameData.Owns(matching.Id))
+                        SymbolSet? matching = SymbolSets.ForTheme(theme.Id);
+                        if (matching != null && GameData.Owns(matching.Id))
                             GameData.SelectSymbols(matching.Id);
                     },
-                    credit: string.Join("\n", new[]
-                    {
-                        SymbolSets.ForTheme(theme.Id) is SymbolSet included
-                            ? "כולל סמלים בלוח: " + string.Join(" ", included.Symbols[0], included.Symbols[1], included.Symbols[2])
-                            : null,
-                        theme.Credit,
-                    }.Where(line => line != null)) is string text && text.Length > 0 ? text : null);
+                    credit: ThemeCredit(theme));
             }
 
             FramesGrid.Children.Clear();
@@ -167,6 +160,49 @@ namespace Smart_Sudoku.Pages
                     credit: themeName != null ? $"מתאים לערכה {themeName}" : null,
                     lockedText: set.Price == 0 && themeName != null ? $"מגיע עם {themeName}" : null);
             }
+
+            MascotsGrid.Children.Clear();
+            index = 0;
+            foreach (var mascot in Cosmetics.Mascots)
+            {
+                var preview = new TextBlock
+                {
+                    Text = string.Join(" ", mascot.Faces["😊"], mascot.Faces["🥳"], mascot.Faces["😢"]),
+                    FontSize = 26,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                };
+                AddItem(MascotsGrid, index++, preview, mascot.Name, "mascot-" + mascot.Id, mascot.Price,
+                    selected: Cosmetics.CurrentMascot.Id == mascot.Id,
+                    select: () => GameData.SetExtra("mascot", mascot.Id));
+            }
+
+            AvatarFramesGrid.Children.Clear();
+            index = 0;
+            foreach (var frame in Cosmetics.AvatarFrames)
+            {
+                var preview = new Grid { Height = 70 };
+                var circle = Avatars.Circle(null, Session.PlayerName ?? "🙂", 58, frame.Id);
+                circle.HorizontalAlignment = HorizontalAlignment.Center;
+                preview.Children.Add(circle);
+                AddItem(AvatarFramesGrid, index++, preview, frame.Name, "aframe-" + frame.Id, frame.Price,
+                    selected: Cosmetics.CurrentFrameId == frame.Id,
+                    select: () => GameData.SetExtra("avatarFrame", frame.Id));
+            }
+        }
+
+        // The small lines under a theme: which board symbols it includes, and who drew its pictures
+        private static string? ThemeCredit(ThemePalette theme)
+        {
+            var lines = new List<string>();
+            SymbolSet? included = SymbolSets.ForTheme(theme.Id);
+            if (included != null)
+                lines.Add("כולל סמלים בלוח: " + included.Symbols[0] + " " + included.Symbols[1] + " " + included.Symbols[2]);
+            if (theme.Credit != null)
+                lines.Add(theme.Credit);
+
+            if (lines.Count == 0)
+                return null;
+            return string.Join("\n", lines);
         }
 
         // One store tile: preview, name, and a buy / choose button. Tiles wrap into rows of 4.
@@ -181,12 +217,22 @@ namespace Smart_Sudoku.Pages
 
             // Free items (like the classic frame) are owned from the start
             bool owned = GameData.Owns(id) || (price == 0 && lockedText == null);
+            string buttonText;
+            if (selected)
+                buttonText = "✓ בשימוש";
+            else if (owned)
+                buttonText = "לבחירה";
+            else if (lockedText != null)
+                buttonText = lockedText;
+            else
+                buttonText = $"{price} 🪙";
+
             var button = new Button
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 FontSize = 16,
                 Padding = new Thickness(8, 8, 8, 8),
-                Content = selected ? "✓ בשימוש" : owned ? "לבחירה" : lockedText ?? $"{price} 🪙",
+                Content = buttonText,
                 IsEnabled = !selected && (owned || lockedText == null),
             };
             button.Click += (s, e) =>
@@ -310,12 +356,6 @@ namespace Smart_Sudoku.Pages
             }
             GiftCodeBox.Password = "";
             RefreshStore();
-        }
-
-        private void BackButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (Frame.CanGoBack)
-                Frame.GoBack();
         }
     }
 }

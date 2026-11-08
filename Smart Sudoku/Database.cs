@@ -72,6 +72,17 @@ namespace Smart_Sudoku
                     UserId    INTEGER PRIMARY KEY REFERENCES Users(Id) ON DELETE CASCADE,
                     Image     BLOB    NOT NULL,
                     UpdatedAt TEXT    NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS Friends (
+                    UserId     INTEGER NOT NULL REFERENCES Users(Id) ON DELETE CASCADE,
+                    FriendName TEXT    NOT NULL COLLATE NOCASE,
+                    AddedAt    TEXT    NOT NULL,
+                    PRIMARY KEY (UserId, FriendName)
+                );
+                CREATE TABLE IF NOT EXISTS Recovery (
+                    UserId INTEGER PRIMARY KEY REFERENCES Users(Id) ON DELETE CASCADE,
+                    Hash   TEXT    NOT NULL,
+                    Salt   TEXT    NOT NULL
                 );");
         }
 
@@ -123,11 +134,11 @@ namespace Smart_Sudoku
 
             using var reader = command.ExecuteReader();
             if (!reader.Read())
-                return null;
+                return null;   // no such user
 
-            byte[] expected = Convert.FromBase64String(reader.GetString(1));
-            byte[] actual = HashPassword(password, Convert.FromBase64String(reader.GetString(2)));
-            return CryptographicOperations.FixedTimeEquals(expected, actual) ? reader.GetInt32(0) : null;
+            if (!PasswordMatches(password, reader.GetString(1), reader.GetString(2)))
+                return null;   // wrong password
+            return reader.GetInt32(0);
         }
 
         /// <summary>The user name as it was registered (keeps the original spelling).</summary>
@@ -277,6 +288,167 @@ namespace Smart_Sudoku
             transaction.Commit();
         }
 
+        // ---------- Passwords ----------
+
+        private static bool CheckPassword(SqliteConnection connection, int userId, string password)
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT PasswordHash, Salt FROM Users WHERE Id = $id";
+            command.Parameters.AddWithValue("$id", userId);
+            using var reader = command.ExecuteReader();
+            if (!reader.Read())
+                return false;
+            return PasswordMatches(password, reader.GetString(0), reader.GetString(1));
+        }
+
+        private static void SetPassword(SqliteConnection connection, int userId, string newPassword)
+        {
+            byte[] salt = RandomNumberGenerator.GetBytes(16);
+            using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE Users SET PasswordHash = $hash, Salt = $salt WHERE Id = $id";
+            command.Parameters.AddWithValue("$hash", Convert.ToBase64String(HashPassword(newPassword, salt)));
+            command.Parameters.AddWithValue("$salt", Convert.ToBase64String(salt));
+            command.Parameters.AddWithValue("$id", userId);
+            command.ExecuteNonQuery();
+        }
+
+        /// <summary>Changes the password, if the old one is right.</summary>
+        public static bool ChangePassword(int userId, string oldPassword, string newPassword)
+        {
+            using var connection = Open();
+            if (!CheckPassword(connection, userId, oldPassword))
+                return false;
+            SetPassword(connection, userId, newPassword);
+            return true;
+        }
+
+        /// <summary>Saves a secret recovery word (hashed, like a password) for "forgot password".</summary>
+        public static void SetRecoveryWord(int userId, string word)
+        {
+            byte[] salt = RandomNumberGenerator.GetBytes(16);
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "INSERT OR REPLACE INTO Recovery (UserId, Hash, Salt) VALUES ($id, $hash, $salt)";
+            command.Parameters.AddWithValue("$id", userId);
+            command.Parameters.AddWithValue("$hash", Convert.ToBase64String(HashPassword(word.Trim(), salt)));
+            command.Parameters.AddWithValue("$salt", Convert.ToBase64String(salt));
+            command.ExecuteNonQuery();
+        }
+
+        public static bool HasRecoveryWord(int userId)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT 1 FROM Recovery WHERE UserId = $id";
+            command.Parameters.AddWithValue("$id", userId);
+            return command.ExecuteScalar() != null;
+        }
+
+        /// <summary>"Forgot password": sets a new password if the recovery word is right.</summary>
+        public static bool ResetPassword(string userName, string recoveryWord, string newPassword)
+        {
+            using var connection = Open();
+            int? userId = FindUser(connection, userName);
+            if (userId == null)
+                return false;
+            int id = userId.Value;
+
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "SELECT Hash, Salt FROM Recovery WHERE UserId = $id";
+                command.Parameters.AddWithValue("$id", id);
+                using var reader = command.ExecuteReader();
+                if (!reader.Read())
+                    return false;   // the user never chose a secret word
+                if (!PasswordMatches(recoveryWord.Trim(), reader.GetString(0), reader.GetString(1)))
+                    return false;
+            }
+
+            SetPassword(connection, id, newPassword);
+            return true;
+        }
+
+        // ---------- Friends ----------
+
+        private static int? FindUser(SqliteConnection connection, string userName)
+        {
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Id FROM Users WHERE UserName = $name";
+            command.Parameters.AddWithValue("$name", userName.Trim());
+            object? result = command.ExecuteScalar();
+            if (result == null)
+                return null;   // no user with that name
+            return Convert.ToInt32(result);
+        }
+
+        /// <summary>The id of a user registered on this computer, or null.</summary>
+        public static int? FindUser(string userName)
+        {
+            using var connection = Open();
+            return FindUser(connection, userName);
+        }
+
+        public static List<string> GetFriends(int userId)
+        {
+            var friends = new List<string>();
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT FriendName FROM Friends WHERE UserId = $id ORDER BY AddedAt";
+            command.Parameters.AddWithValue("$id", userId);
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+                friends.Add(reader.GetString(0));
+            return friends;
+        }
+
+        public static void AddFriend(int userId, string friendName)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "INSERT OR IGNORE INTO Friends (UserId, FriendName, AddedAt) VALUES ($id, $name, $at)";
+            command.Parameters.AddWithValue("$id", userId);
+            command.Parameters.AddWithValue("$name", friendName.Trim());
+            command.Parameters.AddWithValue("$at", DateTime.UtcNow.ToString("o"));
+            command.ExecuteNonQuery();
+        }
+
+        public static void RemoveFriend(int userId, string friendName)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "DELETE FROM Friends WHERE UserId = $id AND FriendName = $name";
+            command.Parameters.AddWithValue("$id", userId);
+            command.Parameters.AddWithValue("$name", friendName);
+            command.ExecuteNonQuery();
+        }
+
+        /// <summary>Adds coins to another user on this computer (a gift). Returns false if there's no such user.</summary>
+        public static bool GiveCoins(string userName, int amount)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "UPDATE Users SET Coins = Coins + $amount WHERE UserName = $name";
+            command.Parameters.AddWithValue("$amount", amount);
+            command.Parameters.AddWithValue("$name", userName.Trim());
+            return command.ExecuteNonQuery() == 1;
+        }
+
+        /// <summary>One saved setting of any user (for example their profile picture frame), or null.</summary>
+        public static string? GetSetting(int userId, string key)
+        {
+            using var connection = Open();
+            using var command = connection.CreateCommand();
+            command.CommandText = "SELECT Value FROM UserSettings WHERE UserId = $id AND Key = $key";
+            command.Parameters.AddWithValue("$id", userId);
+            command.Parameters.AddWithValue("$key", key);
+            return command.ExecuteScalar() as string;
+        }
+
+        /// <summary>Lets go of open database files (needed before restoring a backup over them).</summary>
+        public static void CloseAll() => SqliteConnection.ClearAllPools();
+
+        public static string FilePath => Path.Combine(ApplicationData.Current.LocalFolder.Path, "smartsudoku.db");
+
         // ---------- Profile pictures ----------
 
         /// <summary>Saves (or replaces) a user's profile picture. The image is already small (see Avatars).</summary>
@@ -348,8 +520,26 @@ namespace Smart_Sudoku
             return rows;
         }
 
-        private static byte[] HashPassword(string password, byte[] salt) =>
-            Rfc2898DeriveBytes.Pbkdf2(password, salt, HashIterations, HashAlgorithmName.SHA256, 32);
+        /// <summary>
+        /// Turns a password into a "hash": a code that can't be turned back into the password.
+        /// The salt is a random value per user, so two users with the same password get different hashes.
+        /// </summary>
+        private static byte[] HashPassword(string password, byte[] salt)
+        {
+            return Rfc2898DeriveBytes.Pbkdf2(password, salt, HashIterations, HashAlgorithmName.SHA256, 32);
+        }
+
+        /// <summary>
+        /// Checks a typed password against the saved hash and salt (both saved as Base64 text).
+        /// Used for signing in, changing the password and the secret recovery word.
+        /// </summary>
+        private static bool PasswordMatches(string password, string savedHash, string savedSalt)
+        {
+            byte[] expected = Convert.FromBase64String(savedHash);
+            byte[] actual = HashPassword(password, Convert.FromBase64String(savedSalt));
+            // Compares every byte even after a difference, so the time taken gives nothing away
+            return CryptographicOperations.FixedTimeEquals(expected, actual);
+        }
 
         private static SqliteConnection Open()
         {

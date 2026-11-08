@@ -18,7 +18,7 @@ namespace Smart_Sudoku.Pages
     /// The prizes change after every spin, and can include store items the player doesn't own yet.
     /// Extra spins can be bought with coins.
     /// </summary>
-    public sealed partial class LuckyWheelPage : Page
+    public sealed partial class LuckyWheelPage : BasePage
     {
         /// <param name="Label">Short text on the wheel slice.</param>
         /// <param name="Message">What the player is told when they win it.</param>
@@ -39,8 +39,6 @@ namespace Smart_Sudoku.Pages
         {
             this.InitializeComponent();
         }
-
-        private static Brush Res(string key) => (Brush)Application.Current.Resources[key];
 
         private static SolidColorBrush Solid(uint argb) => new SolidColorBrush(Themes.ToColor(argb));
 
@@ -311,12 +309,6 @@ namespace Smart_Sudoku.Pages
             golden = true;
             ResultText.Text = "";
             NewPrizes();
-        }
-
-        private void BackButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (Frame.CanGoBack)
-                Frame.GoBack();
         }
     }
 }

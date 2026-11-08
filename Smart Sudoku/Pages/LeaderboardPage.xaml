@@ -1,4 +1,4 @@
-<Page
+<local:BasePage
     x:Class="Smart_Sudoku.Pages.LeaderboardPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -8,13 +8,13 @@
     mc:Ignorable="d"
     Background="Transparent">
 
-    <Page.Resources>
+    <local:BasePage.Resources>
         <Style x:Key="HeaderText" TargetType="TextBlock">
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
         </Style>
-    </Page.Resources>
+    </local:BasePage.Resources>
 
     <Grid>
         <ScrollViewer VerticalScrollBarVisibility="Auto">
@@ -66,4 +66,4 @@
         </Button>
     </Grid>
 
-</Page>
+</local:BasePage>

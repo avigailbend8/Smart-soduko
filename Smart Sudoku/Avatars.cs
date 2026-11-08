@@ -111,16 +111,21 @@ namespace Smart_Sudoku
             return source;
         }
 
-        /// <summary>A round picture, or the name's first letter in a circle when there's no picture.</summary>
-        public static Border Circle(ImageSource? picture, string name, double size)
+        /// <summary>
+        /// A round picture, or the name's first letter in a circle when there's no picture.
+        /// A frame from the store (see Cosmetics) adds a colored ring and a badge.
+        /// </summary>
+        public static FrameworkElement Circle(ImageSource? picture, string name, double size, string? frameId = null)
         {
+            var frame = Cosmetics.FrameFor(frameId);
+            bool fancy = frame.Id != "none";
             var circle = new Border
             {
                 Width = size,
                 Height = size,
                 CornerRadius = new CornerRadius(size / 2),
-                BorderBrush = (Brush)Application.Current.Resources["RoseBrush"],
-                BorderThickness = new Thickness(size > 60 ? 3 : 2),
+                BorderBrush = fancy ? BoardFrames.Gradient(frame.Colors) : (Brush)Application.Current.Resources["RoseBrush"],
+                BorderThickness = new Thickness(fancy ? Math.Max(3, size / 14) : size > 60 ? 3 : 2),
             };
 
             if (picture != null)
@@ -140,7 +145,23 @@ namespace Smart_Sudoku
                     VerticalAlignment = VerticalAlignment.Center,
                 };
             }
-            return circle;
+
+            if (frame.Badge == null)
+                return circle;
+
+            // The badge sits on the top corner of the ring
+            var holder = new Grid { Width = size, Height = size };
+            holder.Children.Add(circle);
+            holder.Children.Add(new TextBlock
+            {
+                Text = frame.Badge,
+                FontSize = Math.Max(14, size * 0.3),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, -size * 0.12, -size * 0.08, 0),
+                IsHitTestVisible = false,
+            });
+            return holder;
         }
     }
 }

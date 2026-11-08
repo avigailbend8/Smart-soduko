@@ -13,7 +13,7 @@ namespace Smart_Sudoku.Pages
     /// The leaderboard of every user on this computer (from the database), with their profile pictures.
     /// The guest is included too, when it has progress.
     /// </summary>
-    public sealed partial class LeaderboardPage : Page
+    public sealed partial class LeaderboardPage : BasePage
     {
         private enum SortBy { Stars, Levels, Coins }
 
@@ -25,8 +25,6 @@ namespace Smart_Sudoku.Pages
             this.InitializeComponent();
         }
 
-        private static Brush Res(string key) => (Brush)Application.Current.Resources[key];
-
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
@@ -37,7 +35,12 @@ namespace Smart_Sudoku.Pages
             var guest = GuestStore.Load();
             if (guest.HasAnyProgress)
             {
-                int fastest = guest.BestTimes.Values.Where(t => t > 0).DefaultIfEmpty(0).Min();
+                int fastest = 0;
+                foreach (int time in guest.BestTimes.Values)
+                {
+                    if (time > 0 && (fastest == 0 || time < fastest))
+                        fastest = time;
+                }
                 rows.Add(new LeaderboardRow(0, "אורח", guest.Coins, guest.Stars.Count, guest.Stars.Values.Sum(), fastest, false));
             }
 
@@ -72,20 +75,26 @@ namespace Smart_Sudoku.Pages
 
         private async System.Threading.Tasks.Task ShowRowsAsync()
         {
-            var sorted = sortBy switch
-            {
-                SortBy.Levels => rows.OrderByDescending(r => r.Solved).ThenByDescending(r => r.Stars),
-                SortBy.Coins => rows.OrderByDescending(r => r.Coins),
-                _ => rows.OrderByDescending(r => r.Stars).ThenByDescending(r => r.Solved),
-            };
+            List<LeaderboardRow> sorted;
+            if (sortBy == SortBy.Levels)
+                sorted = rows.OrderByDescending(r => r.Solved).ThenByDescending(r => r.Stars).ToList();
+            else if (sortBy == SortBy.Coins)
+                sorted = rows.OrderByDescending(r => r.Coins).ToList();
+            else
+                sorted = rows.OrderByDescending(r => r.Stars).ThenByDescending(r => r.Solved).ToList();
 
             RowsPanel.Children.Clear();
             EmptyText.Visibility = rows.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
             int place = 1;
-            foreach (var row in sorted.ToList())
+            foreach (var row in sorted)
             {
-                bool me = row.UserId == (Session.UserId ?? 0) && (Session.UserId != null || Session.IsGuest);
+                // The guest's line has UserId 0
+                bool me;
+                if (Session.IsGuest)
+                    me = row.UserId == 0;
+                else
+                    me = Session.UserId != null && row.UserId == Session.UserId;
                 var picture = row.HasAvatar ? await Avatars.LoadAsync(row.UserId) : null;
 
                 var line = new Grid
@@ -96,19 +105,25 @@ namespace Smart_Sudoku.Pages
                     CornerRadius = new CornerRadius(16),
                     Padding = new Thickness(14, 8, 14, 8),
                 };
-                foreach (double width in new[] { 56.0, 64, -1, 90, 90, 100, 90 })
-                    line.ColumnDefinitions.Add(new ColumnDefinition { Width = width < 0 ? new GridLength(1, GridUnitType.Star) : new GridLength(width) });
+                // Columns: place, picture, name (takes the free space), stars, levels, coins, fastest time
+                line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(56) });
+                line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
+                line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+                line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
+                line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
+                line.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(90) });
 
-                string medal = place switch { 1 => "🥇", 2 => "🥈", 3 => "🥉", _ => $"{place}" };
+                string medal = place <= 3 ? Medal(place) : place.ToString();
                 Add(line, 0, Text(medal, 24, FontWeights.Bold));
-                var circle = Avatars.Circle(picture, row.Name, 48);
+                var circle = Avatars.Circle(picture, row.Name, 48, me ? Cosmetics.CurrentFrameId : Database.GetSetting(row.UserId, "avatarFrame"));
                 Grid.SetColumn(circle, 1);
                 line.Children.Add(circle);
                 Add(line, 2, Text(row.Name + (me ? "  (אני)" : ""), 19, FontWeights.SemiBold));
                 Add(line, 3, Text(row.Stars.ToString(), 18, FontWeights.Bold));
                 Add(line, 4, Text(row.Solved.ToString(), 18, FontWeights.Normal));
                 Add(line, 5, Text(row.Coins.ToString("N0"), 18, FontWeights.Normal));
-                Add(line, 6, Text(row.FastestSeconds > 0 ? $"{row.FastestSeconds / 60:00}:{row.FastestSeconds % 60:00}" : "—", 18, FontWeights.Normal));
+                Add(line, 6, Text(row.FastestSeconds > 0 ? Ui.Time(row.FastestSeconds) : "—", 18, FontWeights.Normal));
 
                 RowsPanel.Children.Add(line);
                 place++;
@@ -129,12 +144,6 @@ namespace Smart_Sudoku.Pages
         {
             Grid.SetColumn(element, column);
             grid.Children.Add(element);
-        }
-
-        private void BackButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (Frame.CanGoBack)
-                Frame.GoBack();
         }
     }
 }

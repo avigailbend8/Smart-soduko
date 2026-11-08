@@ -22,6 +22,7 @@ namespace Smart_Sudoku
     /// <summary>JSON for the app's own saved data. Source-generated, so it works in trimmed builds.</summary>
     [JsonSerializable(typeof(Dictionary<string, string>))]
     [JsonSerializable(typeof(SavedGame))]
+    [JsonSerializable(typeof(PlayerProgress))]
     public partial class AppJson : JsonSerializerContext
     {
     }

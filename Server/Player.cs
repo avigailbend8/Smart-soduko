@@ -16,5 +16,8 @@ namespace Smart_Sudoku.Duel
 
         /// <summary>True when the player filled the whole board (not just ran out of hearts).</summary>
         public bool Solved { get; set; }
+
+        /// <summary>In a team duel: Teams.Red or Teams.Blue. Empty otherwise.</summary>
+        public string Team { get; set; } = "";
     }
 }

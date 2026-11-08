@@ -86,9 +86,15 @@ namespace Smart_Sudoku
         // ---------- Store ----------
 
         /// <summary>Owned items, counting a theme's symbol set as owned once the theme is.</summary>
-        public static bool Owns(string itemId) =>
-            progress.Owned.Contains(itemId)
-            || SymbolSets.All.Any(s => s.Id == itemId && s.ThemeId != null && progress.Owned.Contains(s.ThemeId));
+        public static bool Owns(string itemId)
+        {
+            if (progress.Owned.Contains(itemId))
+                return true;
+
+            // A symbol set that comes with a theme is owned when its theme is owned
+            SymbolSet set = SymbolSets.Get(itemId);
+            return set.Id == itemId && set.ThemeId != null && progress.Owned.Contains(set.ThemeId);
+        }
 
         public static bool Buy(string itemId, int price)
         {
@@ -113,7 +119,7 @@ namespace Smart_Sudoku
             Save();
         }
 
-        /// <summary>Gives a store item for free (a lucky wheel prize). A theme also brings its board symbols.</summary>
+        /// <summary>Gives a store item for free (a lucky wheel prize). A theme's board symbols count as owned through Owns().</summary>
         public static void GiveItem(string itemId)
         {
             progress.Owned.Add(itemId);
@@ -206,6 +212,13 @@ namespace Smart_Sudoku
         {
             get => GetExtra("showMistakes", "1") == "1";
             set => SetExtra("showMistakes", value ? "1" : "0");
+        }
+
+        /// <summary>Background music (off by default).</summary>
+        public static bool MusicOn
+        {
+            get => GetExtra("music") == "1";
+            set => SetExtra("music", value ? "1" : "0");
         }
 
         public static bool NightMode
@@ -364,14 +377,25 @@ namespace Smart_Sudoku
         private static T Get<T>(string key, T fallback) =>
             Values.TryGetValue(Prefix + key, out object? value) && value is T typed ? typed : fallback;
 
-        // "1:3;2:2" <-> {1:3, 2:2}
-        private static Dictionary<int, int> ParseMap(string text) =>
-            text.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(pair => pair.Split(':'))
-                .Where(parts => parts.Length == 2)
-                .ToDictionary(parts => int.Parse(parts[0]), parts => int.Parse(parts[1]));
+        // A dictionary is saved as text: {1:3, 2:2} <-> "1:3;2:2"
+        private static Dictionary<int, int> ParseMap(string text)
+        {
+            var map = new Dictionary<int, int>();
+            foreach (string pair in text.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                string[] parts = pair.Split(':');
+                if (parts.Length == 2)
+                    map[int.Parse(parts[0])] = int.Parse(parts[1]);
+            }
+            return map;
+        }
 
-        private static string FormatMap(Dictionary<int, int> map) =>
-            string.Join(";", map.Select(kv => $"{kv.Key}:{kv.Value}"));
+        private static string FormatMap(Dictionary<int, int> map)
+        {
+            var pairs = new List<string>();
+            foreach (var item in map)
+                pairs.Add(item.Key + ":" + item.Value);
+            return string.Join(";", pairs);
+        }
     }
 }

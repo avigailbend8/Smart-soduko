@@ -14,7 +14,7 @@ namespace Smart_Sudoku.Pages
     /// <summary>
     /// The Sudoku board. Receives the level number from LevelsPage.
     /// </summary>
-    public sealed partial class GamePage : Page
+    public sealed partial class GamePage : BasePage
     {
         private const double CellSize = 50;
         private const int MaxLives = 5;
@@ -30,7 +30,7 @@ namespace Smart_Sudoku.Pages
         private readonly TextBlock[,] cellTexts = new TextBlock[9, 9];
         private readonly TextBlock[,,] noteTexts = new TextBlock[9, 9, 9];
         private readonly DispatcherTimer timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        private readonly Stack<(int[,] Board, int[,] Notes, bool[,] Hinted)> history = new Stack<(int[,], int[,], bool[,])>();
+        private readonly Stack<BoardSnapshot> history = new Stack<BoardSnapshot>();   // for the undo button
 
         private int level = 1;  // level id: difficulty * 100 + level number (see Levels)
         private int[,] puzzle = new int[9, 9];
@@ -54,8 +54,6 @@ namespace Smart_Sudoku.Pages
                 UpdateStats();
             };
         }
-
-        private static Brush Res(string key) => (Brush)Application.Current.Resources[key];
 
         private static string Symbol(int n) => SymbolSets.Current.Symbols[n - 1];
 
@@ -94,6 +92,12 @@ namespace Smart_Sudoku.Pages
                 case DailyChallengeStart:
                     StartDaily();
                     break;
+                case ZenStart:
+                    StartZen();
+                    break;
+                case AdventureStart stage:
+                    StartAdventure(stage);
+                    break;
                 case int chosenLevel:
                     level = chosenLevel;
                     NewGame();
@@ -110,6 +114,7 @@ namespace Smart_Sudoku.Pages
             timer.Stop();
             UnhookKeyboard();
             SaveCurrentGame();
+            Sounds.ApplyMusicSetting();
         }
 
         // ---------- Building the UI ----------
@@ -234,7 +239,13 @@ namespace Smart_Sudoku.Pages
 
         private void NewGame()
         {
+            if (isZen)
+            {
+                StartZen();
+                return;
+            }
             isDaily = false;
+            adventure = null;
             (puzzle, solution) = SudokuGenerator.Create(Levels.EmptyCells(level));
             StartBoard();
             SaveCurrentGame();
@@ -258,8 +269,8 @@ namespace Smart_Sudoku.Pages
             selRow = selCol = -1;
 
             SetTitle();
-            MascotFace.Text = "😊";
-            NewBoardButton.Visibility = isDaily || IsDuel ? Visibility.Collapsed : Visibility.Visible;
+            MascotFace.Text = Cosmetics.Face("😊");
+            NewBoardButton.Visibility = isDaily || IsDuel || adventure != null ? Visibility.Collapsed : Visibility.Visible;
             StatusText.Text = "בחרו משבצת ריקה ואז מספר";
             WinOverlay.Visibility = Visibility.Collapsed;
             GameOverOverlay.Visibility = Visibility.Collapsed;
@@ -270,8 +281,21 @@ namespace Smart_Sudoku.Pages
             Refresh();
         }
 
-        private void PushHistory() =>
-            history.Push(((int[,])board.Clone(), (int[,])notes.Clone(), (bool[,])hinted.Clone()));
+        // Saves a copy of the board before a move, so Undo can bring it back
+        private void PushHistory()
+        {
+            history.Push(new BoardSnapshot((int[,])board.Clone(), (int[,])notes.Clone(), (bool[,])hinted.Clone()));
+        }
+
+        /// <summary>3 stars with no mistakes or hints, 2 stars with up to 2, otherwise 1.</summary>
+        private static int StarsFor(int mistakesAndHints)
+        {
+            if (mistakesAndHints == 0)
+                return 3;
+            if (mistakesAndHints <= 2)
+                return 2;
+            return 1;
+        }
 
         private bool BoardFull()
         {
@@ -335,14 +359,22 @@ namespace Smart_Sudoku.Pages
             finished = true;
             timer.Stop();
 
-            int earnedStars = (mistakes + hintsUsed) switch
-            {
-                0 => 3,
-                <= 2 => 2,
-                _ => 1,
-            };
+            int earnedStars = StarsFor(mistakes + hintsUsed);
             ClearSavedGame();
             Mascot("🥳", stay: true);
+
+            if (isZen || adventure != null)
+            {
+                if (isZen)
+                    WinZen();
+                else
+                    WinAdventure(earnedStars);
+                WinOverlay.Visibility = Visibility.Visible;
+                Sounds.Play("win");
+                Celebrate();
+                Refresh();
+                return;
+            }
 
             if (isDaily)
             {
@@ -361,12 +393,13 @@ namespace Smart_Sudoku.Pages
             var difficulty = Levels.DifficultyFor(level);
             bool finishedDifficulty = Levels.NumberOf(level) == Levels.PerDifficulty;
 
-            WinStarsText.Text = new string('★', earnedStars) + new string('☆', 3 - earnedStars);
-            WinText.Text = next == null
-                ? "סיימת את כל השלבים בכל הדרגות! איזו אלופה 💖"
-                : finishedDifficulty
-                    ? $"סיימת את כל דרגת {difficulty.Name}! {difficulty.Emoji} 🎉"
-                    : $"פתרת את שלב {Levels.NumberOf(level)} 🎉";
+            WinStarsText.Text = StarsText(earnedStars);
+            if (next == null)
+                WinText.Text = "סיימת את כל השלבים בכל הדרגות! איזו אלופה 💖";
+            else if (finishedDifficulty)
+                WinText.Text = $"סיימת את כל דרגת {difficulty.Name}! {difficulty.Emoji} 🎉";
+            else
+                WinText.Text = $"פתרת את שלב {Levels.NumberOf(level)} 🎉";
             WinDetailsText.Text =
                 $"⏱ {FormatTime(seconds)}" +
                 (newBest ? "   🏆 שיא חדש!" : $"   (שיא: {FormatTime(oldBest)})") +
@@ -375,11 +408,12 @@ namespace Smart_Sudoku.Pages
                 $"\nמהירות ⚡: {GameData.SpeedCoins(level, seconds)}+" +
                 $"\nבונוס כפול: ×{GameData.CoinMultiplier}" +
                 $"\n🪙 סה\"כ: {earnedCoins}+ מטבעות";
-            NextLevelButton.Content = next == null
-                ? "חזרה לשלבים"
-                : finishedDifficulty
-                    ? $"לדרגה הבאה: {Levels.DifficultyFor(next.Value).Name}  ▶"
-                    : "לשלב הבא  ▶";
+            if (next == null)
+                NextLevelButton.Content = "חזרה לשלבים";
+            else if (finishedDifficulty)
+                NextLevelButton.Content = $"לדרגה הבאה: {Levels.DifficultyFor(next.Value).Name}  ▶";
+            else
+                NextLevelButton.Content = "לשלב הבא  ▶";
             BackToLevelsButton.Visibility = next == null ? Visibility.Collapsed : Visibility.Visible;
             WinOverlay.Visibility = Visibility.Visible;
 
@@ -387,6 +421,9 @@ namespace Smart_Sudoku.Pages
             Celebrate();
             Refresh();
             CheckLevelAchievements(earnedStars);
+            if (Levels.DifficultyOf(level) == 3)
+                Fireworks();
+            Progression.LevelSolved(level, earnedStars, seconds, mistakes, hintsUsed, earnedCoins);
         }
 
         private void GameOver()
@@ -588,6 +625,8 @@ namespace Smart_Sudoku.Pages
                     return;
                 PushHistory();
                 notes[selRow, selCol] ^= 1 << n;
+                if ((notes[selRow, selCol] & (1 << n)) != 0)
+                    Progression.NoteWritten();
                 Refresh();
                 PopCell(selRow, selCol, 1.2);
                 SaveCurrentGame();
@@ -621,7 +660,8 @@ namespace Smart_Sudoku.Pages
             if (n != solution[selRow, selCol])
             {
                 mistakes++;
-                lives--;
+                if (!isZen)
+                    lives--;   // zen mode never takes hearts
                 Sounds.Play("wrong");
                 StatusText.Text = "אופס, המספר הזה לא מתאים כאן";
                 ShakeCell(selRow, selCol);
@@ -725,7 +765,10 @@ namespace Smart_Sudoku.Pages
             if (finished || history.Count == 0)
                 return;
 
-            (board, notes, hinted) = history.Pop();
+            BoardSnapshot last = history.Pop();
+            board = last.Board;
+            notes = last.Notes;
+            hinted = last.Hinted;
             StatusText.Text = "ביטלנו את הצעד האחרון ↩";
             Refresh();
             SaveCurrentGame();
@@ -770,6 +813,17 @@ namespace Smart_Sudoku.Pages
 
         private void NextLevelButton_Click(object sender, RoutedEventArgs e)
         {
+            if (isZen)
+            {
+                StartZen();
+                return;
+            }
+            if (adventure != null)
+            {
+                if (Frame.CanGoBack)
+                    Frame.GoBack();
+                return;
+            }
             if (isDaily)
             {
                 Frame.Navigate(typeof(MenuPage));
@@ -777,14 +831,16 @@ namespace Smart_Sudoku.Pages
                 return;
             }
 
-            if (Levels.Next(level) is not int next)
+            int? next = Levels.Next(level);
+            if (next == null)
             {
+                // That was the very last level
                 if (Frame.CanGoBack)
                     Frame.GoBack();
                 return;
             }
 
-            level = next;
+            level = next.Value;
             NewGame();
         }
 
@@ -819,12 +875,12 @@ namespace Smart_Sudoku.Pages
             Frame.Navigate(typeof(HelpPage));
         }
 
-        private void BackButton_Click(object sender, RoutedEventArgs e)
+        // Overrides the back button of BasePage: leaving in the middle of a duel tells the server first
+        protected override void BackButton_Click(object sender, RoutedEventArgs e)
         {
             if (IsDuel)
                 LeaveDuel();
-            if (Frame.CanGoBack)
-                Frame.GoBack();
+            base.BackButton_Click(sender, e);
         }
     }
 }

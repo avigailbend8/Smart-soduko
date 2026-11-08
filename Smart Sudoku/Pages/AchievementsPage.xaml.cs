@@ -8,7 +8,7 @@ using Windows.UI.Xaml.Navigation;
 namespace Smart_Sudoku.Pages
 {
     /// <summary>All the badges: unlocked ones in color, locked ones faded with how to get them.</summary>
-    public sealed partial class AchievementsPage : Page
+    public sealed partial class AchievementsPage : BasePage
     {
         private const int PerRow = 3;
 
@@ -16,8 +16,6 @@ namespace Smart_Sudoku.Pages
         {
             this.InitializeComponent();
         }
-
-        private static Brush Res(string key) => (Brush)Application.Current.Resources[key];
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
@@ -83,12 +81,6 @@ namespace Smart_Sudoku.Pages
                 BadgesGrid.Children.Add(badge);
                 index++;
             }
-        }
-
-        private void BackButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (Frame.CanGoBack)
-                Frame.GoBack();
         }
     }
 }

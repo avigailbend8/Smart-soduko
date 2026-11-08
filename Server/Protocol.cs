@@ -16,13 +16,55 @@ namespace Smart_Sudoku.Duel
 
         public const string GetLeaderboard = "GetLeaderboard";
         public const string Emoji = "Emoji";
+        public const string Chat = "Chat";
+        public const string GetOnline = "GetOnline";
+        public const string Invite = "Invite";
 
         // Server -> clients
         public const string UpdatePlayers = "UpdatePlayers";
         public const string GameOver = "GameOver";
         public const string Leaderboard = "Leaderboard";
+        public const string Online = "Online";
         // StartGame is also sent from the server to everyone in the room, with the board they play;
-        // Emoji is passed on to everyone in the room
+        // Emoji and Chat are passed on to everyone in the room; Invite is passed on to the invited player
+    }
+
+    /// <summary>StartGame's data from a client: the difficulty, and whether to play in two teams.</summary>
+    public sealed class StartOptions
+    {
+        public int Difficulty { get; set; }
+        public bool Teams { get; set; }
+    }
+
+    /// <summary>A chat line in the duel room.</summary>
+    public sealed class ChatMessage
+    {
+        public string Name { get; set; } = "";
+        public string Text { get; set; } = "";
+    }
+
+    /// <summary>Someone connected to the server right now (for the friends list).</summary>
+    public sealed class OnlinePlayer
+    {
+        public string Name { get; set; } = "";
+        public string Room { get; set; } = "";
+        public string Status { get; set; } = "";
+    }
+
+    /// <summary>An invitation to join someone's room.</summary>
+    public sealed class InviteMessage
+    {
+        public string From { get; set; } = "";
+        public string To { get; set; } = "";
+        public string Room { get; set; } = "";
+    }
+
+    public static class Teams
+    {
+        public const string Red = "red";
+        public const string Blue = "blue";
+
+        public static string Name(string team) => team == Red ? "הקבוצה האדומה 🔴" : team == Blue ? "הקבוצה הכחולה 🔵" : "";
     }
 
     /// <summary>Register's data: the player's name and the room they join (players in different rooms never meet).</summary>
@@ -59,6 +101,7 @@ namespace Smart_Sudoku.Duel
     public sealed class DuelGame
     {
         public int Difficulty { get; set; }
+        public bool Teams { get; set; }
         public int[] Puzzle { get; set; } = new int[81];
         public int[] Solution { get; set; } = new int[81];
     }
@@ -67,6 +110,11 @@ namespace Smart_Sudoku.Duel
     {
         public string Winner { get; set; } = "";
         public List<Player> Players { get; set; } = new List<Player>();
+
+        /// <summary>In a team duel: the winning team (Teams.Red or Teams.Blue) and each team's total.</summary>
+        public string WinnerTeam { get; set; } = "";
+        public int RedScore { get; set; }
+        public int BlueScore { get; set; }
     }
 
     /// <summary>Points in a duel.</summary>
@@ -96,6 +144,10 @@ namespace Smart_Sudoku.Duel
     [JsonSerializable(typeof(RegisterInfo))]
     [JsonSerializable(typeof(EmojiMessage))]
     [JsonSerializable(typeof(List<LeaderboardEntry>))]
+    [JsonSerializable(typeof(StartOptions))]
+    [JsonSerializable(typeof(ChatMessage))]
+    [JsonSerializable(typeof(List<OnlinePlayer>))]
+    [JsonSerializable(typeof(InviteMessage))]
     public partial class DuelJson : JsonSerializerContext
     {
         public static string Pack<T>(string command, T data, System.Text.Json.Serialization.Metadata.JsonTypeInfo<T> type) =>

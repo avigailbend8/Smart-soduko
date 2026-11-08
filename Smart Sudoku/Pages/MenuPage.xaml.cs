@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
@@ -8,7 +9,7 @@ namespace Smart_Sudoku.Pages
     /// <summary>
     /// Start screen: sign in, register or continue as a guest, then go to the levels.
     /// </summary>
-    public sealed partial class MenuPage : Page
+    public sealed partial class MenuPage : BasePage
     {
         public MenuPage()
         {
@@ -77,33 +78,13 @@ namespace Smart_Sudoku.Pages
         /// <summary>Shows the player's profile picture above the greeting (registered users only).</summary>
         private async void ShowAvatar()
         {
-            AvatarButton.Visibility = Session.UserId != null ? Visibility.Visible : Visibility.Collapsed;
             if (Session.UserId is not int userId)
             {
                 AvatarHolder.Content = null;
                 return;
             }
             var picture = await Avatars.LoadAsync(userId);
-            AvatarHolder.Content = Avatars.Circle(picture, Session.PlayerName ?? "", 96);
-        }
-
-        private async void AvatarButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (Session.UserId is not int userId)
-                return;
-            try
-            {
-                if (await Avatars.PickAndSaveAsync(userId))
-                {
-                    Sounds.Play("coin");
-                    App.ShowToast("📷 תמונת הפרופיל עודכנה!");
-                    ShowAvatar();
-                }
-            }
-            catch (Exception)
-            {
-                App.ShowToast("לא הצלחנו לפתוח את התמונה. נסו תמונה אחרת (JPG או PNG).");
-            }
+            AvatarHolder.Content = Avatars.Circle(picture, Session.PlayerName ?? "", 96, Cosmetics.CurrentFrameId);
         }
 
         private void LeaderboardButton_Click(object sender, RoutedEventArgs e)
@@ -132,7 +113,15 @@ namespace Smart_Sudoku.Pages
                 ? "🎡 גלגל מזל ✓"
                 : "🎡 גלגל מזל ✨";
 
-            NightButton.Content = GameData.NightMode ? "☀️ מצב יום" : "🌙 מצב לילה";
+            var league = Progression.CurrentLeague;
+            LevelChip.Text = $"⭐ רמה {Progression.PlayerLevel}   ·   {league.Emoji} ליגת {league.Name}";
+
+            int missionsReady = Progression.TodaysMissions.Count(m => Progression.MissionDone(m) && !Progression.MissionClaimed(m.Id))
+                + (Progression.AllMissionsDone && !Progression.ChestClaimed ? 1 : 0);
+            MissionsButton.Content = missionsReady > 0 ? $"🎯 משימות 🎁{missionsReady}" : "🎯 משימות";
+
+            FriendsButton.IsEnabled = Session.UserId != null;
+            Sounds.ApplyMusicSetting();
         }
 
         private void ContinueButton_Click(object sender, RoutedEventArgs e)
@@ -166,14 +155,17 @@ namespace Smart_Sudoku.Pages
             Frame.Navigate(typeof(AchievementsPage));
         }
 
-        private void NightButton_Click(object sender, RoutedEventArgs e)
-        {
-            GameData.NightMode = !GameData.NightMode;
-            Themes.Apply(GameData.ThemeId);
-            if (GameData.NightMode)
-                Achievements.Unlock("night");
-            UpdateFeatureButtons();
-        }
+        private void AdventureButton_Click(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(AdventureMapPage));
+
+        private void ZenButton_Click(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(GamePage), new ZenStart());
+
+        private void MissionsButton_Click(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(MissionsPage));
+
+        private void StatsButton_Click(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(StatsPage));
+
+        private void FriendsButton_Click(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(FriendsPage));
+
+        private void SettingsButton_Click(object sender, RoutedEventArgs e) => Frame.Navigate(typeof(SettingsPage));
 
         private void LetsPlayButton_Click(object sender, RoutedEventArgs e)
         {

@@ -10,7 +10,7 @@ namespace Smart_Sudoku.Pages
     /// Shows the levels of the chosen difficulty with their stars;
     /// picking an unlocked one opens the game.
     /// </summary>
-    public sealed partial class LevelsPage : Page
+    public sealed partial class LevelsPage : BasePage
     {
         private const int Columns = 5;
 
@@ -36,8 +36,6 @@ namespace Smart_Sudoku.Pages
             BuildDifficultyTabs();
             BuildLevelButtons();
         }
-
-        private static Brush Res(string key) => (Brush)Application.Current.Resources[key];
 
         private void BuildDifficultyTabs()
         {
@@ -94,7 +92,7 @@ namespace Smart_Sudoku.Pages
                 });
                 content.Children.Add(new TextBlock
                 {
-                    Text = unlocked ? new string('★', stars) + new string('☆', 3 - stars) : "🔒",
+                    Text = unlocked ? StarsText(stars) : "🔒",
                     FontFamily = new FontFamily("Segoe UI Symbol"),
                     FontSize = 16,
                     HorizontalAlignment = HorizontalAlignment.Center,
@@ -129,12 +127,6 @@ namespace Smart_Sudoku.Pages
         private void StoreButton_Click(object sender, RoutedEventArgs e)
         {
             Frame.Navigate(typeof(StorePage));
-        }
-
-        private void BackButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (Frame.CanGoBack)
-                Frame.GoBack();
         }
     }
 }

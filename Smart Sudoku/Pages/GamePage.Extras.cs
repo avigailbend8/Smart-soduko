@@ -18,6 +18,8 @@ namespace Smart_Sudoku.Pages
     public sealed partial class GamePage
     {
         private bool isDaily;
+        private bool isZen;
+        private AdventureStart? adventure;
 
         // ---------- Keyboard ----------
 
@@ -91,9 +93,11 @@ namespace Smart_Sudoku.Pages
             storyboard.Begin();
         }
 
+        // The element's grow/shrink transform (made the first time it is needed)
         private static ScaleTransform ScaleOf(UIElement element)
         {
-            if (element.RenderTransform is not ScaleTransform scale)
+            var scale = element.RenderTransform as ScaleTransform;
+            if (scale == null)
             {
                 scale = new ScaleTransform();
                 element.RenderTransform = scale;
@@ -129,7 +133,8 @@ namespace Smart_Sudoku.Pages
         private void ShakeCell(int row, int col)
         {
             var cell = cells[row, col];
-            if (cell.RenderTransform is not TranslateTransform move)
+            var move = cell.RenderTransform as TranslateTransform;
+            if (move == null)
             {
                 move = new TranslateTransform();
                 cell.RenderTransform = move;
@@ -156,20 +161,33 @@ namespace Smart_Sudoku.Pages
         /// <summary>When a row, column or box is completed correctly, its cells pop one after another.</summary>
         private void CelebrateCompletedUnits(int row, int col)
         {
-            var units = new List<List<(int R, int C)>>();
-            var rowCells = Enumerable.Range(0, 9).Select(c => (row, c)).ToList();
-            var colCells = Enumerable.Range(0, 9).Select(r => (r, col)).ToList();
+            // Cells are kept as one number: index = row * 9 + column
+            var rowCells = new List<int>();
+            var colCells = new List<int>();
+            var boxCells = new List<int>();
             int br = row / 3 * 3, bc = col / 3 * 3;
-            var boxCells = Enumerable.Range(0, 9).Select(i => (br + i / 3, bc + i % 3)).ToList();
+            for (int i = 0; i < 9; i++)
+            {
+                rowCells.Add(row * 9 + i);
+                colCells.Add(i * 9 + col);
+                boxCells.Add((br + i / 3) * 9 + (bc + i % 3));
+            }
+
+            // The cells of every completed row / column / box, each cell once
+            var wave = new List<int>();
             foreach (var unit in new[] { rowCells, colCells, boxCells })
             {
-                if (unit.All(p => board[p.Item1, p.Item2] == solution[p.Item1, p.Item2]))
-                    units.Add(unit);
+                if (!IsUnitCorrect(unit))
+                    continue;
+                foreach (int index in unit)
+                {
+                    if (!wave.Contains(index))
+                        wave.Add(index);
+                }
             }
-            if (units.Count == 0)
+            if (wave.Count == 0)
                 return;
 
-            var wave = units.SelectMany(u => u).Distinct().ToList();
             int step = 0;
             var timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(45) };
             timer.Tick += (s, e) =>
@@ -179,7 +197,8 @@ namespace Smart_Sudoku.Pages
                     timer.Stop();
                     return;
                 }
-                var (r, c) = wave[step++];
+                int r = wave[step] / 9, c = wave[step] % 9;
+                step++;
                 PopCell(r, c, 1.3);
                 cells[r, c].Background = Res("SelectedCellBrush");
             };
@@ -194,6 +213,72 @@ namespace Smart_Sudoku.Pages
             Mascot("🤩");
         }
 
+        // True when every cell in the list holds its right number
+        private bool IsUnitCorrect(List<int> unit)
+        {
+            foreach (int index in unit)
+            {
+                if (board[index / 9, index % 9] != solution[index / 9, index % 9])
+                    return false;
+            }
+            return true;
+        }
+
+        // ---------- Fireworks (expert levels and bosses) ----------
+
+        private void Fireworks()
+        {
+            var random = new Random();
+            uint[] colors = { 0xFFFF6B9Du, 0xFFFFD166u, 0xFF6BD4FFu, 0xFFB38BFFu, 0xFF7CE38Bu, 0xFFFF9F5Au };
+            var storyboard = new Storyboard();
+
+            for (int burst = 0; burst < 6; burst++)
+            {
+                double x = ActualWidth * (0.15 + random.NextDouble() * 0.7);
+                double y = ActualHeight * (0.15 + random.NextDouble() * 0.4);
+                var color = new SolidColorBrush(Themes.ToColor(colors[random.Next(colors.Length)]));
+                var begin = TimeSpan.FromSeconds(burst * 0.4);
+
+                // Sparks fly out in a circle and fade
+                for (int i = 0; i < 22; i++)
+                {
+                    double angle = i * Math.PI * 2 / 22;
+                    double distance = 110 + random.NextDouble() * 60;
+                    var move = new TranslateTransform();
+                    var spark = new TextBlock { Text = "✦", FontSize = 18, Foreground = color, RenderTransform = move, Opacity = 0 };
+                    Canvas.SetLeft(spark, x);
+                    Canvas.SetTop(spark, y);
+                    CelebrationCanvas.Children.Add(spark);
+
+                    // Fly sideways (X) and down a little (Y), in the spark's direction
+                    storyboard.Children.Add(SparkFlight(move, "X", Math.Cos(angle) * distance, begin));
+                    storyboard.Children.Add(SparkFlight(move, "Y", Math.Sin(angle) * distance + 30, begin));
+                    var fade = new DoubleAnimationUsingKeyFrames { BeginTime = begin };
+                    fade.KeyFrames.Add(new LinearDoubleKeyFrame { KeyTime = TimeSpan.Zero, Value = 1 });
+                    fade.KeyFrames.Add(new LinearDoubleKeyFrame { KeyTime = TimeSpan.FromSeconds(0.6), Value = 1 });
+                    fade.KeyFrames.Add(new LinearDoubleKeyFrame { KeyTime = TimeSpan.FromSeconds(1.2), Value = 0 });
+                    Storyboard.SetTarget(fade, spark);
+                    Storyboard.SetTargetProperty(fade, "Opacity");
+                    storyboard.Children.Add(fade);
+                }
+            }
+            storyboard.Begin();
+        }
+
+        private static DoubleAnimation SparkFlight(TranslateTransform move, string property, double to, TimeSpan begin)
+        {
+            var fly = new DoubleAnimation
+            {
+                To = to,
+                BeginTime = begin,
+                Duration = TimeSpan.FromSeconds(1.1),
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+            };
+            Storyboard.SetTarget(fly, move);
+            Storyboard.SetTargetProperty(fly, property);
+            return fly;
+        }
+
         // ---------- Mascot ----------
 
         private DispatcherTimer? mascotTimer;
@@ -201,7 +286,7 @@ namespace Smart_Sudoku.Pages
         /// <summary>The little face next to the timer reacts to the game, then goes back to smiling.</summary>
         private void Mascot(string face, bool stay = false)
         {
-            MascotFace.Text = face;
+            MascotFace.Text = Cosmetics.Face(face);
             var scale = ScaleOf(MascotFace);
             Animate(scale, "ScaleX", 1, 1.3, 0.14, autoReverse: true);
             Animate(scale, "ScaleY", 1, 1.3, 0.14, autoReverse: true);
@@ -213,7 +298,7 @@ namespace Smart_Sudoku.Pages
             mascotTimer.Tick += (s, e) =>
             {
                 mascotTimer.Stop();
-                MascotFace.Text = notesMode ? "🤔" : "😊";
+                MascotFace.Text = Cosmetics.Face(notesMode ? "🤔" : "😊");
             };
             mascotTimer.Start();
         }
@@ -233,7 +318,22 @@ namespace Smart_Sudoku.Pages
 
         // ---------- Saving a game to continue later ----------
 
-        private static int[] Flat(int[,] grid) => Enumerable.Range(0, 81).Select(i => grid[i / 9, i % 9]).ToArray();
+        // A 9×9 grid as one list of 81 cells, row by row (that's how it is saved)
+        private static int[] Flat(int[,] grid)
+        {
+            var cells = new int[81];
+            for (int i = 0; i < 81; i++)
+                cells[i] = grid[i / 9, i % 9];
+            return cells;
+        }
+
+        private static bool[] Flat(bool[,] grid)
+        {
+            var cells = new bool[81];
+            for (int i = 0; i < 81; i++)
+                cells[i] = grid[i / 9, i % 9];
+            return cells;
+        }
 
         private static int[,] Grid9(int[] cells)
         {
@@ -246,7 +346,8 @@ namespace Smart_Sudoku.Pages
         /// <summary>Saves the board after each move (levels and the daily challenge, not duels).</summary>
         private void SaveCurrentGame()
         {
-            if (IsDuel || !hasGame || finished)
+            // Duels, zen and adventure stages are short and aren't saved to continue later
+            if (IsDuel || isZen || adventure != null || !hasGame || finished)
                 return;
 
             GameData.SavedGame = new SavedGame
@@ -257,7 +358,7 @@ namespace Smart_Sudoku.Pages
                 Solution = Flat(solution),
                 Board = Flat(board),
                 Notes = Flat(notes),
-                Hinted = Enumerable.Range(0, 81).Select(i => hinted[i / 9, i % 9]).ToArray(),
+                Hinted = Flat(hinted),
                 Lives = lives,
                 Mistakes = mistakes,
                 HintsUsed = hintsUsed,
@@ -275,6 +376,8 @@ namespace Smart_Sudoku.Pages
         {
             level = saved.LevelId;
             isDaily = saved.Daily;
+            isZen = false;
+            adventure = null;
             puzzle = Grid9(saved.Puzzle);
             solution = Grid9(saved.Solution);
             StartBoard();
@@ -297,6 +400,8 @@ namespace Smart_Sudoku.Pages
         private void StartDaily()
         {
             isDaily = true;
+            isZen = false;
+            adventure = null;
             level = DailyChallenge.LevelId;
             (puzzle, solution) = DailyChallenge.TodaysBoard();
             StartBoard();
@@ -305,6 +410,30 @@ namespace Smart_Sudoku.Pages
 
         private void SetTitle()
         {
+            // Zen hides the clock, the hearts and the records: just the board
+            var zenHidden = isZen ? Visibility.Collapsed : Visibility.Visible;
+            TimerText.Visibility = zenHidden;
+            LivesText.Visibility = zenHidden;
+            if (!IsDuel)
+            {
+                SpeedText.Visibility = isZen || adventure != null || isDaily ? Visibility.Collapsed : Visibility.Visible;
+                BestText.Visibility = SpeedText.Visibility;
+            }
+
+            if (isZen)
+            {
+                LevelText.Text = "🧘 מצב זן";
+                return;
+            }
+            if (adventure != null)
+            {
+                var world = Adventure.Worlds[adventure.World];
+                if (Adventure.IsBoss(adventure.Stage))
+                    LevelText.Text = $"{world.Emoji} {world.Name} · בוס {world.Boss}";
+                else
+                    LevelText.Text = $"{world.Emoji} {world.Name} · שלב {adventure.Stage}";
+                return;
+            }
             if (isDaily)
             {
                 LevelText.Text = $"📅 אתגר יומי · {DateTime.Now:dd/MM}";
@@ -318,13 +447,94 @@ namespace Smart_Sudoku.Pages
         {
             bool already = DailyChallenge.DoneToday;
             var (coins, streak) = DailyChallenge.Complete(stars, seconds);
+            if (!already)
+                Progression.DailySolved(seconds, mistakes);
 
-            WinStarsText.Text = new string('★', stars) + new string('☆', 3 - stars);
-            WinText.Text = already ? "פתרת שוב את האתגר של היום 🎉" : $"פתרת את האתגר היומי! 🔥 רצף: {streak} ימים";
-            WinDetailsText.Text = already
-                ? "המטבעות על האתגר כבר התקבלו היום. נתראה מחר! 💖"
-                : $"⏱ {FormatTime(seconds)}\n\nפתרון: +{coins - DailyChallenge.StreakBonus(streak)}\nבונוס רצף: +{DailyChallenge.StreakBonus(streak)}\n🪙 סה\"כ: {coins}+ מטבעות";
+            WinStarsText.Text = StarsText(stars);
+            if (already)
+            {
+                WinText.Text = "פתרת שוב את האתגר של היום 🎉";
+                WinDetailsText.Text = "המטבעות על האתגר כבר התקבלו היום. נתראה מחר! 💖";
+            }
+            else
+            {
+                int bonus = DailyChallenge.StreakBonus(streak);
+                WinText.Text = $"פתרת את האתגר היומי! 🔥 רצף: {streak} ימים";
+                WinDetailsText.Text = $"⏱ {FormatTime(seconds)}\n\nפתרון: +{coins - bonus}\nבונוס רצף: +{bonus}\n🪙 סה\"כ: {coins}+ מטבעות";
+            }
             NextLevelButton.Content = "לתפריט";
+            BackToLevelsButton.Visibility = Visibility.Collapsed;
+        }
+
+        // ---------- Zen mode ----------
+
+        private void StartZen()
+        {
+            isZen = true;
+            isDaily = false;
+            adventure = null;
+            level = Levels.Id(1, 5);
+            (puzzle, solution) = SudokuGenerator.Create(Levels.EmptyCells(level));
+            StartBoard();
+            StatusText.Text = "נושמים עמוק... אין שעון, אין לבבות, רק סודוקו 🌿";
+            Sounds.Music(GameData.SoundOn ? "zen" : null);
+        }
+
+        private void WinZen()
+        {
+            Progression.ZenSolved(seconds);
+            Achievements.Unlock("zen");
+            GameData.AddCoins(10);
+            WinStarsText.Text = "🌸 🌿 🌸";
+            WinText.Text = "פתרת בשלווה 🧘";
+            WinDetailsText.Text = "🪙 +10 מטבעות";
+            NextLevelButton.Content = "לוח זן נוסף  🌿";
+            BackToLevelsButton.Visibility = Visibility.Visible;
+        }
+
+        // ---------- Adventure ----------
+
+        private void StartAdventure(AdventureStart stage)
+        {
+            adventure = stage;
+            isZen = false;
+            isDaily = false;
+            level = Adventure.LevelIdFor(stage.World, stage.Stage);
+            (puzzle, solution) = SudokuGenerator.Create(Adventure.EmptyCells(stage.World, stage.Stage));
+            StartBoard();
+            if (Adventure.IsBoss(stage.Stage))
+                StatusText.Text = $"זה הבוס של העולם! {Adventure.Worlds[stage.World].Boss} בהצלחה!";
+        }
+
+        private void WinAdventure(int stars)
+        {
+            if (adventure == null)
+                return;
+            AdventureStart stage = adventure;
+            bool boss = Adventure.IsBoss(stage.Stage);
+            Adventure.Record(stage.World, stage.Stage, stars);
+            int coins = GameData.RewardCoins(level, stars, seconds) + (boss ? Adventure.BossBonus : 0);
+            GameData.AddCoins(coins);
+            Progression.AdventureSolved(seconds, mistakes, boss);
+            if (boss)
+            {
+                Achievements.Unlock("boss");
+                Fireworks();
+                if (stage.World == Adventure.Worlds.Count - 1)
+                    Achievements.Unlock("adventure-all");
+            }
+
+            var world = Adventure.Worlds[stage.World];
+            bool lastWorld = stage.World == Adventure.Worlds.Count - 1;
+            WinStarsText.Text = StarsText(stars);
+            if (!boss)
+                WinText.Text = $"עברת את שלב {stage.Stage} ב{world.Name}!";
+            else if (!lastWorld)
+                WinText.Text = $"ניצחת את הבוס {world.Boss}! עולם חדש נפתח 🗺️";
+            else
+                WinText.Text = "סיימת את כל המסע! איזו הרפתקנית 👑";
+            WinDetailsText.Text = $"⏱ {FormatTime(seconds)}\n🪙 +{coins} מטבעות" + (boss ? $" (כולל בונוס בוס {Adventure.BossBonus})" : "");
+            NextLevelButton.Content = "חזרה למפה 🗺️";
             BackToLevelsButton.Visibility = Visibility.Collapsed;
         }
 
@@ -340,7 +550,14 @@ namespace Smart_Sudoku.Pages
                 Achievements.Unlock("perfect10");
             if (Levels.DifficultyOf(level) == 3)
                 Achievements.Unlock("expert");
-            if (Enumerable.Range(1, Levels.PerDifficulty).All(n => GameData.GetStars(Levels.Id(0, n)) > 0))
+            // Every easy level (difficulty 0) has at least one star
+            bool allEasySolved = true;
+            for (int n = 1; n <= Levels.PerDifficulty; n++)
+            {
+                if (GameData.GetStars(Levels.Id(0, n)) == 0)
+                    allEasySolved = false;
+            }
+            if (allEasySolved)
                 Achievements.Unlock("easy-done");
         }
     }

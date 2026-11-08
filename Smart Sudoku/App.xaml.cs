@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.Foundation;
@@ -7,6 +7,7 @@ using Windows.UI.ViewManagement;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media;
+using Windows.UI.Xaml.Media.Animation;
 using Windows.UI.Xaml.Media.Imaging;
 using Windows.UI.Xaml.Navigation;
 
@@ -61,16 +62,16 @@ namespace Smart_Sudoku
 
             ((TextBlock)toast.Child).Text = message;
             toast.Visibility = Visibility.Visible;
-            var slide = new Windows.UI.Xaml.Media.Animation.Storyboard();
-            var move = new Windows.UI.Xaml.Media.Animation.DoubleAnimation
+            var slide = new Storyboard();
+            var move = new DoubleAnimation
             {
                 From = -80,
                 To = 0,
                 Duration = TimeSpan.FromMilliseconds(350),
-                EasingFunction = new Windows.UI.Xaml.Media.Animation.BackEase { EasingMode = Windows.UI.Xaml.Media.Animation.EasingMode.EaseOut },
+                EasingFunction = new BackEase { EasingMode = EasingMode.EaseOut },
             };
-            Windows.UI.Xaml.Media.Animation.Storyboard.SetTarget(move, toast.RenderTransform);
-            Windows.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(move, "Y");
+            Storyboard.SetTarget(move, toast.RenderTransform);
+            Storyboard.SetTargetProperty(move, "Y");
             slide.Children.Add(move);
             slide.Begin();
 
@@ -156,53 +157,53 @@ namespace Smart_Sudoku
         /// <summary>Gives a background decoration its theme's motion, forever.</summary>
         private static void Move(TextBlock piece, CompositeTransform transform, double opacity, string motion, Random random)
         {
-            var storyboard = new Windows.UI.Xaml.Media.Animation.Storyboard
+            var storyboard = new Storyboard
             {
-                RepeatBehavior = Windows.UI.Xaml.Media.Animation.RepeatBehavior.Forever,
+                RepeatBehavior = RepeatBehavior.Forever,
                 BeginTime = TimeSpan.FromSeconds(random.NextDouble() * 4),
             };
 
-            Windows.UI.Xaml.Media.Animation.DoubleAnimation animation;
-            switch (motion)
+            DoubleAnimation animation;
+            if (motion == "snow" || motion == "bubbles")
             {
-                case "snow":
-                case "bubbles":
-                    // Drift all the way down (snow) or up (bubbles), then start again
-                    double top = Canvas.GetTop(piece);
-                    double distance = motion == "snow" ? DecorHeight + 80 - top : -(top + 80);
-                    animation = new Windows.UI.Xaml.Media.Animation.DoubleAnimation
-                    {
-                        From = 0,
-                        To = distance,
-                        Duration = TimeSpan.FromSeconds(Math.Abs(distance) / (25 + random.NextDouble() * 25)),
-                    };
-                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, transform);
-                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, "TranslateY");
-                    break;
-                case "twinkle":
-                    animation = new Windows.UI.Xaml.Media.Animation.DoubleAnimation
-                    {
-                        From = opacity,
-                        To = 0.05,
-                        Duration = TimeSpan.FromSeconds(1.5 + random.NextDouble() * 2),
-                        AutoReverse = true,
-                    };
-                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, piece);
-                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, "Opacity");
-                    break;
-                default:
-                    // A gentle float up and down
-                    animation = new Windows.UI.Xaml.Media.Animation.DoubleAnimation
-                    {
-                        From = 0,
-                        To = -14,
-                        Duration = TimeSpan.FromSeconds(2 + random.NextDouble() * 2),
-                        AutoReverse = true,
-                        EasingFunction = new Windows.UI.Xaml.Media.Animation.SineEase { EasingMode = Windows.UI.Xaml.Media.Animation.EasingMode.EaseInOut },
-                    };
-                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTarget(animation, transform);
-                    Windows.UI.Xaml.Media.Animation.Storyboard.SetTargetProperty(animation, "TranslateY");
-                    break;
+                // Drift all the way down (snow) or up (bubbles), then start again
+                double top = Canvas.GetTop(piece);
+                double distance = motion == "snow" ? DecorHeight + 80 - top : -(top + 80);
+                animation = new DoubleAnimation
+                {
+                    From = 0,
+                    To = distance,
+                    Duration = TimeSpan.FromSeconds(Math.Abs(distance) / (25 + random.NextDouble() * 25)),
+                };
+                Storyboard.SetTarget(animation, transform);
+                Storyboard.SetTargetProperty(animation, "TranslateY");
+            }
+            else if (motion == "twinkle")
+            {
+                // Fade almost away and back, like a star
+                animation = new DoubleAnimation
+                {
+                    From = opacity,
+                    To = 0.05,
+                    Duration = TimeSpan.FromSeconds(1.5 + random.NextDouble() * 2),
+                    AutoReverse = true,
+                };
+                Storyboard.SetTarget(animation, piece);
+                Storyboard.SetTargetProperty(animation, "Opacity");
+            }
+            else
+            {
+                // A gentle float up and down
+                animation = new DoubleAnimation
+                {
+                    From = 0,
+                    To = -14,
+                    Duration = TimeSpan.FromSeconds(2 + random.NextDouble() * 2),
+                    AutoReverse = true,
+                    EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+                };
+                Storyboard.SetTarget(animation, transform);
+                Storyboard.SetTargetProperty(animation, "TranslateY");
             }
 
             storyboard.Children.Add(animation);
@@ -220,11 +221,6 @@ namespace Smart_Sudoku
                 rootFrame = new Frame();
                 rootFrame.NavigationFailed += OnNavigationFailed;
 
-                if (e.PreviousExecutionState == ApplicationExecutionState.Terminated)
-                {
-                    // TODO: Load state from previously suspended application
-                }
-
                 // The theme background and picture sit behind the frame, so every page shares them
                 patternImage = new Image { Stretch = Stretch.UniformToFill, IsHitTestVisible = false };
                 decorCanvas = new Canvas { Width = DecorWidth, Height = DecorHeight };
@@ -235,9 +231,9 @@ namespace Smart_Sudoku
                 root.Children.Add(rootFrame);
 
                 // Smooth transitions between pages
-                rootFrame.ContentTransitions = new Windows.UI.Xaml.Media.Animation.TransitionCollection
+                rootFrame.ContentTransitions = new TransitionCollection
                 {
-                    new Windows.UI.Xaml.Media.Animation.NavigationThemeTransition(),
+                    new NavigationThemeTransition(),
                 };
 
                 toast = new Border
@@ -264,6 +260,7 @@ namespace Smart_Sudoku
                 root.Children.Add(toast);
 
                 Database.Init();
+                _ = Backup.RunDailyAsync();
 
                 // Place the frame in the current Window
                 Window.Current.Content = root;
@@ -294,17 +291,11 @@ namespace Smart_Sudoku
         }
 
         /// <summary>
-        /// Invoked when application execution is being suspended. Application state is saved
-        /// without knowing whether the application will be terminated or resumed with the contents
-        /// of memory still intact.
+        /// Windows is pausing the app. Nothing to do here: the game already saves after every move.
         /// </summary>
-        /// <param name="sender">The source of the suspend request.</param>
-        /// <param name="e">Details about the suspend request.</param>
         private void OnSuspending(object sender, SuspendingEventArgs e)
         {
             SuspendingDeferral deferral = e.SuspendingOperation.GetDeferral();
-
-            // TODO: Save application state and stop any background activity
             deferral.Complete();
         }
     }

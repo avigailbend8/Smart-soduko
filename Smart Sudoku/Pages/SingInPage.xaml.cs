@@ -9,17 +9,11 @@ namespace Smart_Sudoku.Pages
     /// <summary>
     /// Signs in a registered user with their user name and password.
     /// </summary>
-    public sealed partial class SingInPage : Page
+    public sealed partial class SingInPage : BasePage
     {
         public SingInPage()
         {
             this.InitializeComponent();
-        }
-
-        private void BackButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (Frame.CanGoBack)
-                Frame.GoBack();
         }
 
         private void Field_KeyDown(object sender, KeyRoutedEventArgs e)
@@ -65,6 +59,34 @@ namespace Smart_Sudoku.Pages
         private void RegisterLink_Click(object sender, RoutedEventArgs e)
         {
             Frame.Navigate(typeof(RegisterPage));
+        }
+
+        private void ForgotLink_Click(object sender, RoutedEventArgs e)
+        {
+            ForgotPanel.Visibility = ForgotPanel.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
+            ForgotNameBox.Text = UserNameBox.Text;
+        }
+
+        private void ResetPassword_Click(object sender, RoutedEventArgs e)
+        {
+            if (ForgotNameBox.Text.Trim().Length == 0 || SecretWordBox.Password.Length == 0 || NewPasswordBox.Password.Length < 4)
+            {
+                ForgotResultText.Text = "צריך שם משתמש, מילת סוד וסיסמה חדשה (לפחות 4 תווים)";
+                return;
+            }
+
+            if (Database.ResetPassword(ForgotNameBox.Text, SecretWordBox.Password, NewPasswordBox.Password))
+            {
+                ForgotResultText.Text = "✅ הסיסמה שונתה! אפשר להתחבר עם הסיסמה החדשה.";
+                UserNameBox.Text = ForgotNameBox.Text.Trim();
+                PasswordBox.Password = "";
+            }
+            else
+            {
+                ForgotResultText.Text = "שם המשתמש או מילת הסוד לא נכונים (אולי עוד לא נבחרה מילת סוד בהגדרות)";
+            }
+            SecretWordBox.Password = "";
+            NewPasswordBox.Password = "";
         }
 
         private void ShowError(string message)

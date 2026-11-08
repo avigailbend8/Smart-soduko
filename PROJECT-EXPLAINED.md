@@ -1,0 +1,344 @@
+# Smart Sudoku – הסבר מלא על הפרויקט
+
+המסמך מסביר את כל הפרויקט: איך הוא בנוי, מה כל דף עושה, מה כל מחלקה עושה, הירושה והקשרים בין המחלקות, ובסוף – מה פושט בקוד ולמה.
+
+---
+
+## 1. התמונה הגדולה
+
+בפתרון (`Smart Sudoku.sln`) יש **שני פרויקטים**:
+
+| פרויקט | סוג | תפקיד |
+|---|---|---|
+| **Smart Sudoku** | אפליקציית Windows ‏(UWP, ‏XAML + C#) | המשחק עצמו: דפים, לוח, חנות, משתמשים |
+| **Server** | תוכנת קונסול | שרת לדו-קרב ברשת: מחבר כמה שחקנים ושולח לכולם את אותו לוח |
+
+שני הפרויקטים **חולקים** שני קבצים: `Server/Player.cs` ו-`Server/Protocol.cs`. הם "מקושרים" לפרויקט המשחק (ב-`Smart Sudoku.csproj` יש `<Compile Include="..\Server\Player.cs" .../>`), כך ששני הצדדים משתמשים באותן מחלקות הודעה ואין סיכוי שלא יסכימו על צורת ההודעות.
+
+### שכבות במשחק
+
+```
+דפים (Pages/*.xaml + *.xaml.cs)       ← מה שרואים ולוחצים
+        │  קוראים ל-
+        ▼
+לוגיקה (GameData, Progression, Levels, SudokuGenerator, Adventure, DailyChallenge ...)
+        │  שומרים דרך
+        ▼
+שמירה (Database = SQLite למשתמשים רשומים, GuestStore = הגדרות מקומיות לאורח)
+```
+
+הדפים **לא** כותבים ישר למסד הנתונים. הם קוראים ל-`GameData` (למשל `GameData.Buy(...)`), ו-`GameData` מחליט לבד אם לשמור במסד הנתונים (משתמש רשום) או בהגדרות המחשב (אורח).
+
+---
+
+## 2. ירושה (Inheritance)
+
+### 2.1 כל הדפים יורשים מ-`BasePage`
+
+```
+Windows.UI.Xaml.Controls.Page      ← מחלקה של Windows
+        ▲
+        │ יורשת
+BasePage  (Pages/BasePage.cs)      ← המחלקה שלנו
+        ▲
+        │ יורשים
+MenuPage, GamePage, StorePage, LevelsPage, ... (17 דפים)
+```
+
+**למה?** לפני השינוי, כל אחד מ-17 הדפים הכיל עותק של אותה פעולת "חזרה" ושל אותה פעולה לקבלת צבע. עכשיו הן כתובות פעם אחת ב-`BasePage`:
+
+| פעולה ב-BasePage | מה היא עושה |
+|---|---|
+| `Res(string key)` | מחזירה צבע (Brush) מ-`App.xaml`. הצבעים משתנים לפי ערכת הנושא. |
+| `StarsText(int stars)` | מחזירה כוכבים כטקסט, למשל 2 → `★★☆` |
+| `Medal(int place)` | 🥇🥈🥉 למקומות 1–3, ואחר כך `"4."`, `"5."` |
+| `BackButton_Click(...)` | כפתור "חזרה": חוזר לדף הקודם. הפעולה **`virtual`** |
+
+**דריסה (override):** שני דפים צריכים לעשות משהו לפני שחוזרים, אז הם **דורסים** את `BackButton_Click`:
+- `GamePage` – אם יש דו-קרב, מודיע לשרת שהשחקן עזב (`LeaveDuel()`), ואז קורא ל-`base.BackButton_Click(...)`.
+- `DuelLobbyPage` – יוצא מהחדר (`Leave_Click`) ואז קורא ל-`base`.
+
+בקובץ ה-XAML של כל דף, התגית הראשית היא `<local:BasePage ...>` במקום `<Page ...>`, כי ה-XAML וקוד ה-C# של דף הם שני חלקים (`partial`) של אותה מחלקה, ושניהם צריכים להסכים מי מחלקת הבסיס.
+
+### 2.2 ירושות נוספות בפרויקט
+
+| מחלקה | יורשת מ- | למה |
+|---|---|---|
+| `App` | `Application` | נקודת הכניסה של האפליקציה (`OnLaunched`) |
+| `AppJson`, `DuelJson` | `JsonSerializerContext` | ממירים מחלקות ל-JSON ובחזרה (ראו סעיף 7) |
+
+### 2.3 `partial` – מחלקה אחת בכמה קבצים
+
+`GamePage` גדולה, ולכן היא מחולקת ל-3 קבצים. כולם **אותה מחלקה** (`public sealed partial class GamePage`):
+- `GamePage.xaml.cs` – הלוח, הזנת מספרים, רמזים, ביטול, ניצחון והפסד.
+- `GamePage.Extras.cs` – אנימציות, הקמע, מקלדת, שמירת משחק, אתגר יומי, מצב זן, הרפתקה, הישגים.
+- `GamePage.Duel.cs` – כל מה ששייך לדו-קרב ברשת.
+
+---
+
+## 3. הקשרים בין המחלקות
+
+### 3.1 מחלקות סטטיות ("מנהלים")
+
+רוב הלוגיקה נמצאת במחלקות `static`. יש מהן עותק אחד לכל האפליקציה, ולא יוצרים מהן אובייקטים (`new`):
+
+| מחלקה | אחראית על | משתמשת ב- |
+|---|---|---|
+| `Session` | מי משחק עכשיו (מספר משתמש, שם, אורח?) | – |
+| `GameData` | ההתקדמות של השחקן הנוכחי: מטבעות, כוכבים, קניות, הגדרות | `PlayerProgress`, `Database`, `GuestStore` |
+| `GuestStore` | שמירה וטעינה של האורח בהגדרות המקומיות של Windows | `PlayerProgress` |
+| `Database` | מסד הנתונים SQLite ‏(`smartsudoku.db`) | `PlayerProgress`, `LeaderboardRow` |
+| `Progression` | נקודות ניסיון (XP), רמת שחקן, ליגות שבועיות, משימות יומיות, סטטיסטיקה | `GameData` |
+| `Achievements` | רשימת ההישגים ופתיחת הישג (מטבעות + הודעה) | `GameData`, `Sounds`, `App` |
+| `Levels` | 4 דרגות × 20 שלבים, מספר משבצות ריקות לכל שלב | `Difficulty` |
+| `SudokuGenerator` | יצירת לוח 9×9 עם פתרון אחד בלבד | – |
+| `MiniSudoku` | אותו דבר ללוח 4×4 ו-6×6 | – |
+| `DailyChallenge` | לוח יומי (זהה לכולם) ורצף ימים | `SudokuGenerator`, `GameData` |
+| `Adventure` | מפת ההרפתקה: 4 עולמות × 6 שלבים, השישי הוא "בוס" | `Levels`, `GameData` |
+| `Themes` | ערכות צבעים, צביעה מחדש של כל האפליקציה, מצב לילה | `ThemePalette`, `App` |
+| `SymbolSets` | מה מופיע בלוח במקום 1–9 (פירות, חיות...) | `SymbolSet` |
+| `BoardFrames` | מסגרות ללוח (חנות) | `BoardFrame` |
+| `Cosmetics` | קמעות (הפרצוף ליד השעון) ומסגרות לתמונת הפרופיל | `MascotSet`, `AvatarFrame` |
+| `Avatars` | בחירת תמונת פרופיל, חיתוך לריבוע 256×256 וציור עיגול | `Database`, `Cosmetics` |
+| `Sounds` | צלילים ומוזיקת רקע | `GameData` (האם הצליל פועל) |
+| `Backup` | גיבוי יומי של הנתונים לתיקייה שבוחרים, ושחזור | `Database`, `GuestStore` |
+
+### 3.2 מחלקות נתונים (מה שנשמר או נשלח)
+
+| מחלקה | מה היא מחזיקה |
+|---|---|
+| `PlayerProgress` | **כל** מה שנשמר על שחקן אחד: מטבעות, רמזים, לבבות, ערכה, פריטים (`Owned`), כוכבים לכל שלב, זמנים, שלבים פתוחים, ו-`Extras` (מילון של הגדרות נוספות) |
+| `SavedGame` | משחק שנעצר באמצע (81 משבצות לכל מערך) |
+| `BoardSnapshot` | עותק של הלוח לפני מהלך, בשביל כפתור "ביטול" |
+| `LeaderboardRow` | שורה בטבלת המובילים |
+| `Player`, `DuelGame`, `GameResult`, `ChatMessage` ... | הודעות הדו-קרב בין המשחק לשרת |
+
+**`record`**: חלק מהמחלקות כתובות כ-`record`, למשל `public sealed record Difficulty(int Index, string Name, ...)`. זו דרך קצרה לכתוב מחלקה שרק מחזיקה ערכים קבועים: המאפיינים והבנאי נוצרים אוטומטית.
+
+### 3.3 למה `Extras` הוא מילון?
+
+ב-`PlayerProgress.Extras` (מטיפוס `Dictionary<string,string>`) נשמרות הרבה הגדרות קטנות לפי שם: `"night"`, `"frame"`, `"xp"`, `"daily.streak"`, `"adv.0.3"`... כך אפשר להוסיף פיצ'ר חדש **בלי להוסיף עמודה חדשה למסד הנתונים**. במסד הנתונים הן נשמרות בטבלה `UserSettings` (מספר משתמש, מפתח, ערך).
+
+---
+
+## 4. כל הדפים
+
+הניווט נעשה עם `Frame.Navigate(typeof(דף), פרמטר)`. כל דף מקבל את הפרמטר ב-`OnNavigatedTo`.
+
+```
+MenuPage ─┬─ SingInPage / RegisterPage   (התחברות / הרשמה → חוזרים לתפריט)
+          ├─ LevelsPage ── GamePage(מספר שלב)
+          │      └─ StorePage
+          ├─ GamePage(SavedGame)          ← "להמשיך"
+          ├─ GamePage(DailyChallengeStart)← אתגר יומי
+          ├─ GamePage(ZenStart)           ← מצב זן
+          ├─ AdventureMapPage ── GamePage(AdventureStart)
+          ├─ DuelLobbyPage ── GamePage(DuelGame)
+          ├─ MiniSudokuPage, LuckyWheelPage, AchievementsPage, MissionsPage,
+          ├─ StatsPage, FriendsPage, SettingsPage, LeaderboardPage
+          └─ GamePage ── HelpPage
+```
+
+### MenuPage – תפריט ראשי
+- כשנכנסים (`UpdateChoice`): אם עוד לא נבחר משתמש, מוצגים כפתורי "התחברות / הרשמה / אורח". אחרת נטענת ההתקדמות (`GameData.LoadUser` או `LoadGuest`), מופעלת ערכת הנושא (`Themes.Apply`) ומופיע כפתור "בואו נשחק".
+- `UpdateFeatureButtons` מעדכנת את הכפתורים: "להמשיך" (אם יש משחק שמור), אתגר יומי עם רצף 🔥, גלגל מזל (✓ אם כבר סובבו היום), רמה וליגה, כמה משימות מחכות לאיסוף.
+- `SwitchUserButton_Click` – החלפת משתמש: מתנתקים וחוזרים לערכה הוורודה.
+- שאר הכפתורים רק מנווטים לדף המתאים.
+
+### SingInPage – התחברות
+- `SignIn_Click`: בודקת שהשדות לא ריקים, קוראת ל-`Database.Login`, ואם הסיסמה נכונה – `Session.SignIn` וחזרה לתפריט (ומחיקת היסטוריית הניווט, כדי ש"חזרה" לא יחזיר למסך ההתחברות).
+- "שכחתי סיסמה": `ResetPassword_Click` משנה סיסמה בעזרת **מילת סוד** (`Database.ResetPassword`).
+- `Field_KeyDown`: לחיצה על Enter = התחברות.
+
+### RegisterPage – הרשמה
+- `Register_Click`: בדיקות (שם 2–20 תווים, סיסמה לפחות 4 תווים, אימות סיסמה), ואז `Database.Register`.
+- אם לאורח כבר יש התקדמות, מופיעה תיבת סימון שמעבירה אותה למשתמש החדש.
+
+### LevelsPage – בחירת שלב
+- לשוניות דרגות קושי (`BuildDifficultyTabs`) ו-20 כפתורי שלבים (`BuildLevelButtons`) עם כוכבים או מנעול 🔒.
+- שלב פתוח אם המספר שלו קטן או שווה ל-`GameData.UnlockedLevel(דרגה)`.
+- לחיצה על שלב → `GamePage` עם **מזהה שלב** (`Levels.Id`: דרגה × 100 + מספר. למשל שלב 7 בבינוני = 107).
+
+### GamePage – לוח הסודוקו (הדף המרכזי)
+**נתונים:** `puzzle` (המספרים הנתונים), `solution` (הפתרון), `board` (מה שעל הלוח עכשיו), `notes` (פתקים), `hinted` (משבצות שקיבלו רמז), `lives`, `mistakes`, `hintsUsed`, `seconds`.
+
+**פתקים כביטים:** `notes[r,c]` הוא מספר אחד, וכל ביט בו מסמן פתק: ביט n דלוק = יש פתק למספר n. למשל `notes ^= 1 << 5` מדליק או מכבה את הפתק של 5.
+
+| פעולה | מה עושה |
+|---|---|
+| `OnNavigatedTo` | לפי הפרמטר מחליט איזה משחק לפתוח: מספר שלב, משחק שמור, אתגר יומי, זן, הרפתקה או דו-קרב |
+| `BuildBoard` / `AddBoxLines` / `BuildNumberPad` | בונות בקוד 81 משבצות, קווים עבים בין הריבועים ו-9 כפתורי מספרים |
+| `NewGame` / `StartBoard` | לוח חדש מ-`SudokuGenerator` / איפוס הלוח הנוכחי להתחלה |
+| `PlaceNumber(n)` | **הלב של המשחק**: במצב פתקים מדליקה או מכבה פתק. אחרת שמה את המספר. מספר שגוי = טעות, מורידה לב ומרעידה את המשבצת. מספר נכון = אנימציה, צליל ובדיקת ניצחון |
+| `PlaceValue` / `RemoveNoteFromPeers` | שמה מספר ומוחקת את אותו פתק מהשורה, מהעמודה ומהריבוע |
+| `HintButton_Click` | 3 רמזים חינם בכל שלב, ואחר כך רמזים שנקנו בחנות. ממלאת את המשבצת הנבחרת או משבצת אקראית |
+| `UndoButton_Click` | מוציאה את ה-`BoardSnapshot` האחרון מהמחסנית (`Stack`) ומחזירה אותו |
+| `EraseButton_Click`, `NotesButton_Click`, `PauseButton_Click`, `RestartButton_Click`, `NewBoardButton_Click` | מחיקה, מצב פתקים, עצירה, התחלה מחדש, לוח חדש |
+| `Refresh` | מציירת מחדש: צבע כל משבצת (נבחרת, אותו מספר, שורה/עמודה/ריבוע קשורים), צבע הטקסט (נתון / שלי / שגוי) |
+| `UpdateNumberPad` | מסתירה כפתור של מספר שכל 9 המופעים שלו כבר במקום |
+| `Win` | חישוב כוכבים (`StarsFor`), מטבעות (`GameData.RecordWin`), שיא זמן, הישגים, XP ומסך ניצחון |
+| `GameOver` / `BuyHeartButton_Click` | נגמרו הלבבות / קניית לב והמשך |
+| `MistakesButton_Click` | מצב אתגר: בלי סימון טעויות באדום |
+
+**Extras:** `OnKeyDown` (משחק במקלדת: 1–9, חיצים, Backspace, ‏N, ‏Ctrl+Z), ‏`PopCell` / `ShakeCell` / `FlashCell` / `Celebrate` / `Fireworks` (אנימציות), ‏`Mascot` (הפרצוף מגיב), ‏`SaveCurrentGame` / `ResumeGame` (שמירה אחרי כל מהלך והמשך), `StartDaily` / `StartZen` / `StartAdventure` ופעולות `Win...` המתאימות, `CheckLevelAchievements`.
+
+**Duel:** `StartDuel` (מקבלת את הלוח מהשרת), `RunCountdown` (5-4-3-2-1), `DuelMove` (10 נקודות למשבצת נכונה, ‎-5 לטעות. כל משבצת נספרת רק פעם אחת), `DuelFinish`, `RefreshScoreboard` (טבלת ניקוד חיה), `OnDuelGameOver` (מנצח + מטבעות), תגובות אימוג'י.
+
+### StorePage – חנות
+- `RefreshStore` בונה 5 רשתות: ערכות נושא, מסגרות ללוח, סמלים, קמעות, מסגרות לתמונה.
+- `AddItem` – משבצת אחת בחנות: תצוגה מקדימה, שם, וכפתור (קנייה / בחירה / "בשימוש").
+- `ThemeCredit` – השורות הקטנות מתחת לערכה (אילו סמלים כלולים ומי צייר).
+- קניית רמזים ולבבות, ו"קוד מתנה" סודי (`GameData.RedeemGiftCode`).
+
+### LuckyWheelPage – גלגל מזל
+- שני גלגלים: רגיל (סיבוב אחד חינם בכל יום) וזהב (פרסים יקרים יותר). אפשר לקנות סיבובים.
+- `NewPrizes` בוחרת 8 פרסים. יש להם **משקל** (`Weight`): משקל גבוה = יוצא יותר הרבה.
+- `Spin_Click` **קודם מגרילה את הפרס** לפי המשקלים, ורק אחר כך מסובבת את הגלגל כך שיעצור עליו.
+- `DrawWheel` מציירת את הפרוסות בגאומטריה (`PathFigure`, `ArcSegment`).
+
+### MiniSudokuPage – סודוקו קטן
+- לוח 4×4 או 6×6, "מצב צבעים" לילדים קטנים, ו"מצב מהירות" (כמה שיותר לוחות ב-3 דקות).
+
+### DuelLobbyPage – חדר הדו-קרב
+- `Connect_Click`: התחברות לשרת (`Client.ConnectAsync`) עם כתובת וקוד חדר.
+- רשימת השחקנים בחדר, בחירת דרגה, קבוצות (אדום/כחול), צ'אט, הזמנות, טבלת אלופים מהשרת.
+- `Start_Click` שולח לשרת `StartGame`. השרת שולח לכולם את הלוח, ו-`OnGameStarted` פותח את `GamePage`.
+- הודעות מהשרת מגיעות ב-thread אחר, ולכן כל אירוע עובר דרך `Dispatcher.RunAsync` אל ה-thread של המסך.
+
+### AdventureMapPage – מסע ההרפתקאות
+- 4 עולמות, בכל אחד שביל של 6 שלבים מתפתלים (`PathOffsets`). השלב השישי הוא בוס.
+- שלב נפתח כשהשלב הקודם נפתר. עולם נפתח כשמנצחים את הבוס של העולם הקודם (`Adventure.IsOpen`).
+
+### MissionsPage – משימות, רמה וליגה
+- פס התקדמות לרמה הבאה, הליגה השבועית, 3 משימות היום (+30 מטבעות לכל אחת), ותיבת הפתעה כשמסיימים את שלושתן.
+
+### StatsPage – סטטיסטיקה
+- 9 כרטיסי מספרים, גרף עמודות של 7 הימים האחרונים (`WeekChart`), והתקדמות בכל דרגה.
+
+### AchievementsPage – הישגים
+- כל ההישגים ברשת של 3 בשורה. הישג פתוח בצבע, הישג נעול שקוף למחצה עם מנעול.
+
+### LeaderboardPage – טבלת מובילים (מקומית)
+- כל המשתמשים במחשב (`Database.GetLeaderboard`, שאילתת SQL עם `LEFT JOIN` ו-`GROUP BY`) + האורח. אפשר למיין לפי כוכבים, שלבים או מטבעות.
+
+### FriendsPage – חברים
+- הוספה והסרה לפי שם, סטטוס מחובר/ת (אם מחוברים לשרת), הזמנה לדו-קרב, ומתנה של 50 מטבעות.
+
+### SettingsPage – הגדרות
+- צלילים, מוזיקה, מצב לילה, הצגת טעויות; תמונת פרופיל; שינוי סיסמה ומילת סוד; גיבוי ושחזור.
+- `Switch(...)` – פעולת עזר שבונה שורה עם מתג.
+
+### HelpPage – עזרה
+- טקסט בלבד, הכל ב-XAML.
+
+### Ui.cs – אבני בניין לדפים
+דפים שבונים את התוכן בקוד (משימות, סטטיסטיקה, חברים, הגדרות, הרפתקה) משתמשים ב-`Ui.Text`, `Ui.Card`, `Ui.Bar` (פס התקדמות), `Ui.Row` ו-`Ui.Time`.
+
+---
+
+## 5. הלוגיקה החשובה
+
+### 5.1 יצירת לוח סודוקו (`SudokuGenerator`)
+1. **`Fill`** – ממלאת לוח ריק במספרים אקראיים עם **backtracking** (רקורסיה): מנסה מספר שמתאים (`CanPlace`). אם בהמשך נתקעת, מוחקת וחוזרת אחורה.
+2. מוחקת משבצות בסדר אקראי. אחרי כל מחיקה **`CountSolutions`** בודקת שעדיין יש **פתרון אחד בלבד**. אם יש יותר, המספר חוזר למקומו.
+3. `CountSolutions` מתחילה תמיד מהמשבצת עם הכי מעט אפשרויות, ועוצרת ברגע שמצאה 2 פתרונות. ככה היא מהירה.
+4. אותו **seed** (מספר התחלה ל-`Random`) נותן תמיד אותו לוח. כך האתגר היומי זהה לכולם: ה-seed הוא התאריך.
+
+### 5.2 קושי לפי שלב (`Levels.EmptyCells`)
+לכל דרגה יש טווח של משבצות ריקות (קל 28→40, ..., מומחה 54→60). שלב 1 מקבל את המספר הראשון, שלב 20 את האחרון, ושלבים באמצע מקבלים ערך ביניהם.
+
+### 5.3 מטבעות (`GameData.RewardCoins`)
+`(שלב + כוכבים + מהירות) × 2`
+- שלב: `10 + מספר×2 + דרגה×20`
+- כוכבים: `כוכבים × 5`
+- מהירות: מטבע אחד על כל 5 שניות מתחת לזמן היעד
+
+### 5.4 כוכבים (`GamePage.StarsFor`)
+0 טעויות ורמזים → 3 כוכבים, עד 2 → 2 כוכבים, יותר → כוכב אחד.
+
+### 5.5 רמת שחקן (`Progression.LevelFor`)
+`רמה = 1 + √(XP / 40)`. כל רמה דורשת קצת יותר XP מהקודמת. עלייה לרמה נותנת `רמה × 50` מטבעות.
+
+### 5.6 סיסמאות (`Database`)
+- **לא שומרים סיסמה.** שומרים **hash** (קוד שאי אפשר להחזיר ממנו את הסיסמה) שנוצר ב-PBKDF2 עם 100,000 חזרות.
+- **salt** – ערך אקראי שונה לכל משתמש. כך לשני משתמשים עם אותה סיסמה יש hash שונה.
+- `PasswordMatches` מחשבת את ה-hash של מה שהוקלד ומשווה. משמשת להתחברות, לשינוי סיסמה ולמילת הסוד.
+- כל השאילתות משתמשות בפרמטרים (`$name`), ולכן הן מוגנות מ-SQL Injection.
+
+### 5.7 ערכות נושא ומצב לילה (`Themes.Apply`)
+ב-`App.xaml` מוגדרים צבעים משותפים (`BerryBrush`, `RoseBrush`...). `Apply` **משנה את הצבע בתוך אותם אובייקטים**, וכל הדפים מתעדכנים מיד. מצב לילה (`Night`) מייצר גרסה כהה מכל ערכה בעזרת `Blend`, שמערבבת שני צבעים.
+
+### 5.8 דו-קרב ברשת (Client ↔ Server)
+בראש הקובץ `Server/Server.cs` יש טבלה שמתארת את כל הפרוטוקול. בקיצור:
+1. הלקוח שולח `Connected` ואז `Register(שם, חדר)`.
+2. השרת שולח לכל מי שבחדר `UpdatePlayers`.
+3. מישהו לוחץ Start → `StartGame`. השרת מייצר לוח ושולח את **אותו** לוח לכולם.
+4. כל מהלך → `ChangePlayer` (ניקוד חדש). השרת מעדכן את כולם.
+5. כשכולם סיימו → `GameOver` עם המנצח, והשרת שומר את המשחק ב-`database.db` שלו.
+
+כל הודעה היא `Message { Command, Data }` ב-JSON. `DuelJson.Pack` אורזת את ההודעה ו-`Unpack` פותחת אותה. השרת משתמש ב-`lock` כי הודעות מכמה שחקנים יכולות להגיע באותו רגע.
+
+---
+
+## 6. מסד הנתונים
+
+**במשחק** (`smartsudoku.db`):
+
+| טבלה | מה יש בה |
+|---|---|
+| `Users` | שם משתמש, hash, ‏salt, מטבעות, רמזים, לבבות, ערכה, סמלים, צליל |
+| `LevelResults` | (משתמש, שלב) → כוכבים, זמן הכי טוב |
+| `UnlockedLevels` | (משתמש, דרגה) → שלב פתוח הכי גבוה |
+| `Purchases` | (משתמש, פריט) |
+| `UserSettings` | (משתמש, מפתח) → ערך (ה-`Extras`) |
+| `Avatars` | תמונת פרופיל (BLOB) |
+| `Friends` | (משתמש, שם חבר) |
+| `Recovery` | hash של מילת הסוד |
+
+כל הטבלאות מחוברות ל-`Users` עם `REFERENCES Users(Id) ON DELETE CASCADE`: אם מוחקים משתמש, כל השורות שלו נמחקות איתו.
+
+**בשרת** (`database.db`): `Players` (ניצחונות, משחקים, שיא) ו-`Games` (היסטוריית משחקים).
+
+---
+
+## 7. דברים שנראים "מתקדמים" אבל חייבים להישאר
+
+| מה | למה לא פושט |
+|---|---|
+| `[JsonSerializable(...)]` + `partial class AppJson / DuelJson : JsonSerializerContext` | האפליקציה נבנית ב-**AOT** (`PublishAot` ב-csproj), ושם JSON רגיל (שמבוסס על reflection) לא עובד. זה "מחולל קוד" שכותב בזמן הבנייה את הקוד שממיר כל מחלקה ל-JSON. |
+| `async` / `await`, ‏`Dispatcher.RunAsync` | פעולות שלוקחות זמן (רשת, קבצים, בחירת תמונה) לא יכולות לעצור את המסך. ושינויים במסך מותרים רק מה-thread של המסך. |
+| `lock (_lock)` בשרת | כמה שחקנים שולחים הודעות באותו זמן, וצריך להגן על הרשימות המשותפות. |
+| `using var connection = Open();` | סוגר את החיבור למסד הנתונים אוטומטית בסוף הפעולה. |
+| `CryptographicOperations.FixedTimeEquals` | השוואת hash בזמן קבוע, כדי שמשך הבדיקה לא ירמוז כמה תווים נכונים. |
+| `string?`, ‏`int?` | `?` אומר "יכול להיות `null`" (למשל `Session.UserId` הוא `null` לאורח). |
+
+---
+
+## 8. מה פושט בקוד
+
+השינויים לא משנים שום דבר במה שרואים במשחק. הם רק הופכים את הקוד לפשוט וקריא יותר.
+
+| איפה | לפני | אחרי |
+|---|---|---|
+| **כל 17 הדפים** | בכל דף עותק של `BackButton_Click` ושל `Res`, ובכמה דפים גם של חישוב הכוכבים והמדליות | מחלקת בסיס **`BasePage`**. הדפים יורשים ממנה. `GamePage` ו-`DuelLobbyPage` **דורסות** את `BackButton_Click` |
+| `GamePage` – היסטוריה | `Stack<(int[,] Board, int[,] Notes, bool[,] Hinted)>` (tuple) | מחלקה רגילה **`BoardSnapshot`** עם 3 מאפיינים |
+| `GamePage` – כוכבים | `switch` expression עם `<= 2 =>` (ועותק נוסף עם ternary כפול בדו-קרב) | פעולה **`StarsFor`** עם `if` רגיל, בשימוש בשני המקומות |
+| `GamePage` – טקסטים בניצחון | `?:` בתוך `?:` (ternary מקונן) | `if / else if / else` |
+| `CelebrateCompletedUnits` | LINQ עם tuples, ‏`SelectMany` ו-`Distinct` | לולאות `for` ופעולת עזר `IsUnitCorrect` |
+| `Fireworks` | `foreach` על מערך של tuples | פעולת עזר `SparkFlight` שנקראת פעמיים |
+| `Flat`, ‏`CheckLevelAchievements` | `Enumerable.Range(...).Select(...).ToArray()` / `.All(...)` | לולאות `for` פשוטות |
+| `is not int next`, ‏`is not ScaleTransform scale` | pattern matching | `int? next = ...; if (next == null)` / `as` + בדיקת `null` |
+| `GamePage.Duel` – לוח ניקוד | שורת LINQ ארוכה עם ternary, ושמות מלאים כמו `Windows.UI.Xaml.Media.SolidColorBrush` | פעולות `AddTeamTotal` ו-`ShownScore`, ו-`using` בראש הקובץ |
+| `StorePage` – שורת קרדיט | `string.Join(...new[]{...}.Where(...)) is string text && text.Length > 0 ? text : null` | פעולה **`ThemeCredit`** עם רשימה ו-`if` |
+| `StorePage` – טקסט הכפתור | ternary משולש | `if / else if` |
+| `FriendsPage` | `GroupBy(...).ToDictionary(...)`, ternary בשלוש רמות | לולאה רגילה ופעולה **`FriendStatus`** |
+| `LeaderboardPage` | מערך רוחבים עם `-1` "קסום", `switch` expression | 7 שורות ברורות עם הערה, `if / else` |
+| `DuelLobbyPage` | `switch` expression, ternary מקונן | `if` רגיל |
+| `MiniSudokuPage` | ternary מקונן לצבעים | `if / else` עם הערות, ופעולה `RulesText` במקום טקסט כפול |
+| `AdventureMapPage` | פעולת עטיפה בשם `AutomationProperties` (מבלבלת, כי זה גם שם של מחלקה) | קריאה ישירה, ופעולה `NodeText` במקום ternary |
+| `App.xaml.cs` | שמות מלאים (`Windows.UI.Xaml.Media.Animation.Storyboard`) עשרות פעמים, ‏`switch` עם `case`-ים, הערות `TODO` מתבנית Visual Studio | `using` אחד, `if / else if`, והסרת ה-TODO |
+| `Database` | אותה בדיקת סיסמה כתובה 3 פעמים | פעולה אחת **`PasswordMatches`** |
+| `GameData` / `GuestStore` | שרשרת LINQ ב-`ParseMap`, ‏`FormatMap`, ‏`Owns` | לולאות `foreach` |
+| `Server` | `System.Text.RegularExpressions.Regex` מלא | `using System.Text.RegularExpressions;` |
+
+**נבדק:** כל הפתרון (המשחק והשרת) נבנה ב-Visual Studio MSBuild בלי שגיאות ובלי אזהרות קוד. לא הרצתי את המשחק עצמו אחרי השינויים, אז כדאי לפתוח אותו פעם אחת ולעבור על כמה דפים.
