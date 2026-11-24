@@ -61,6 +61,15 @@ const CFG = {
     { id: "peek6", consumable: true, stockId: "peek", amount: 6, name: "6 הצצות", desc: "חבילה משתלמת", price: 90 },
   ],
   storeGroups: [{ slot: "theme", title: "ערכות צבע" }, { slot: "deck", title: "חפיסות קלפים" }, { slot: "back", title: "גב הקלפים" }, { consumable: true, title: "עזרים" }],
+  boards: [{ id: "stars", title: "כוכבים", bots: [["קוואזר", "🛸", 42], ["אוריון", "👾", 22], ["ניצוץ", "🤖", 8]] }],
+  duel: {
+    mode: "race",
+    start: r => { stopTimer(); newGame([3, 6, 11][r.level]); view = "game"; nav = ["menu"]; render(); },
+    seconds: r => G.pairs * [5.5, 5, 4.6][r.level],
+    progress: () => !G ? 0 : G.lost ? 0 : G.found / G.pairs,
+    over: () => !!G?.lost, lose: () => { G.done = true; G.lost = true; stopTimer(); },
+    active: () => view === "game", menu: () => { stopTimer(); view = "menu"; nav = []; render(); },
+  },
   preview: it => it.slot === "deck"
     ? `<div class="pv-cards">${it.s.slice(0, 3).map(e => `<div class="mcard up"><div class="in"><div class="face"><span>${e}</span></div><div class="back"></div></div></div>`).join("")}</div>`
     : `<div class="pv-cards ${it.id}">${[0, 1, 2].map(() => `<div class="mcard"><div class="in"><div class="face"></div><div class="back"></div></div></div>`).join("")}</div>`,
@@ -150,6 +159,7 @@ function finish() {
   let coins = 8 + G.pairs * 2 + (stars - 1) * 5;
   if (p.stars[G.level] !== undefined) coins = Math.ceil(coins / 2);
   p.stars[G.level] = Math.max(p.stars[G.level] || 0, stars);
+  Hub.submitScore(Object.values(p.stars).reduce((a, b) => a + b, 0), "stars");
   Hub.save(); Hub.earn(coins);
   setTimeout(() => {
     Hub.sound("win"); Hub.confetti();

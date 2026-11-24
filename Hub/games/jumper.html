@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>קפיצה לשמיים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/arcade.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const HEROES = [
+  { id: "hr-frog", name: "צפרדע", price: 0, e: "🐸" },
+  { id: "hr-bunny", name: "ארנבת", price: 80, e: "🐰" },
+  { id: "hr-alien", name: "חייזר", price: 120, e: "👽" },
+  { id: "hr-penguin", name: "פינגווין", price: 120, e: "🐧" },
+  { id: "hr-unicorn", name: "חד־קרן", price: 220, e: "🦄" },
+];
+const PADS = [
+  { id: "pf-cloud", name: "עננים", price: 0, c: "#FFFFFF", e: "#D6E4FF" },
+  { id: "pf-candy", name: "ממתקים", price: 100, c: "#FFB3D1", e: "#FF7EB6" },
+  { id: "pf-crystal", name: "קריסטל", price: 150, c: "#B9F3FF", e: "#6FD3F7", glow: true },
+];
+const CFG = {
+  id: "jumper", title: "קפיצה לשמיים", startCoins: 40, startStock: { rocket: 1 },
+  items: [Hub.theme("sage", 0), Hub.theme("ocean", 100), Hub.theme("coral", 100), Hub.theme("night", 160),
+    ...HEROES.map(x => ({ ...x, slot: "hero" })), ...PADS.map(x => ({ ...x, slot: "pads" })),
+    { id: "rocket3", consumable: true, stockId: "rocket", amount: 3, name: "3 טילים", desc: "זינוק התחלתי גבוה", price: 40 }],
+  storeGroups: [{ slot: "hero", title: "קופצים" }, { slot: "pads", title: "משטחים" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span style="font-size:38px">🚀</span>` : it.slot === "hero" ? `<span style="font-size:44px">${it.e}</span>` : `<i style="width:70px;height:14px;border-radius:9px;background:${it.c};box-shadow:0 3px 0 ${it.e}${it.glow ? `,0 0 12px ${it.e}` : ""}"></i>`,
+};
+const { rr, stars } = Arcade;
+function addPlat(S, w, y) {
+  const r = Math.random(), hard = Math.min(1, S.top / 6000);
+  const kind = r < .1 + hard * .15 ? "move" : r < .18 + hard * .2 ? "break" : r < .23 ? "spring" : "plain";
+  S.plats.push({ x: 30 + Math.random() * (w - 60), y, kind, dir: Math.random() < .5 ? -1 : 1, gone: false });
+}
+// The sky slowly turns into space as you climb
+function skyAt(top) { const k = Math.min(1, top / 5000); const mix = (a, b) => Math.round(a + (b - a) * k); return [`rgb(${mix(140, 10)},${mix(205, 8)},${mix(245, 32)})`, `rgb(${mix(230, 40)},${mix(245, 20)},${mix(255, 80)})`]; }
+
+Arcade.run(CFG, {
+  tagline: "קופצים ממשטח למשטח ועולים גבוה יותר ויותר — מהעננים ועד הגלקסיה. אל תיפלו!",
+  play: "לקפוץ", ratio: 1.5, unit: "מ׳", stageBg: "#8CCDF5", targets: [150, 400, 800],
+  bots: [["קוואזר", "🛸", 1100], ["אוריון", "👾", 520], ["ניצוץ", "🤖", 180]],
+  powers: [{ id: "rocket", label: "🚀 טיל התחלתי" }], pointerMove: true,
+  pad: [["left", "◀", "שמאלה"], ["right", "▶", "ימינה"]],
+  keysText: "חצים או A/D · בטלפון: גוררים את האצבע ימינה ושמאלה",
+  readyText: "הקפיצה אוטומטית — אתם רק מכוונים. יוצאים מצד אחד, חוזרים מהשני.",
+  help: `<h2>המטרה</h2><p>לטפס כמה שיותר גבוה. נפילה מתחת למסך מסיימת את המשחק.</p><h2>משטחים</h2><ul><li>לבן: רגיל · כחול: זז · סדוק: נשבר אחרי קפיצה אחת · 🌀 קפיץ: זינוק ענק.</li><li>🚀 טיל מהחנות מזניק אתכם בהתחלה.</li></ul>`,
+  init(S, w, h) {
+    S.x = w / 2; S.y = h - 80; S.vy = -620; S.top = 0; S.cam = 0; S.plats = []; S.sky = stars(90, w, h * 3); S.face = 1;
+    S.plats.push({ x: w / 2, y: h - 30, kind: "plain" });
+    for (let y = h - 110; y > -h; y -= 70) addPlat(S, w, y);
+    if (S.power.rocket) { S.vy = -1700; S.rocket = 1.2; }
+  },
+  update(S, dt, w, h) {
+    let vx = 0; if (S.left) vx -= 300; if (S.right) vx += 300;
+    if (S.pointer) vx = Math.max(-340, Math.min(340, (S.tapX - S.x) * 6));
+    if (vx) S.face = vx > 0 ? 1 : -1;
+    S.x += vx * dt; if (S.x < -15) S.x = w + 15; if (S.x > w + 15) S.x = -15;
+    S.rocket = Math.max(0, (S.rocket || 0) - dt);
+    S.vy += (S.rocket > 0 ? 200 : 1300) * dt; S.y += S.vy * dt;
+    for (const p of S.plats) { if (p.kind === "move") { p.x += p.dir * 70 * dt; if (p.x < 30 || p.x > w - 30) p.dir *= -1; } }
+    if (S.vy > 0) for (const p of S.plats) {
+      if (p.gone) continue;
+      if (S.y + 18 >= p.y - 6 && S.y + 18 <= p.y + 10 && Math.abs(S.x - p.x) < 40) {
+        if (p.kind === "break") { p.gone = true; Hub.sound("flip"); }
+        S.vy = p.kind === "spring" ? -1150 : -640; Hub.sound(p.kind === "spring" ? "hint" : "jump");
+        break;
+      }
+    }
+    const line = h * .42; // the camera follows you up
+    if (S.y < line) { const d = line - S.y; S.y = line; S.cam += d; for (const p of S.plats) p.y += d; }
+    S.top = Math.max(S.top, S.cam);
+    S.plats = S.plats.filter(p => p.y < h + 30);
+    let highest = Math.min(...S.plats.map(p => p.y));
+    while (highest > -40) { highest -= 62 + Math.min(40, S.top / 120) * Math.random(); addPlat(S, w, highest); }
+    if (S.y > h + 40) S.over = true;
+  },
+  draw(c, S, w, h, t) {
+    const pd = Hub.equipped("pads"), hero = Hub.equipped("hero"), [top, bot] = skyAt(S.top);
+    const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, top); g.addColorStop(1, bot); c.fillStyle = g; c.fillRect(0, 0, w, h);
+    const k = Math.min(1, S.top / 3500);
+    if (k > 0) { c.globalAlpha = k; for (const s of S.sky) { const y = (s.y + S.cam * .2) % (h * 3) - h; if (y > 0 && y < h) { c.fillStyle = "#fff"; c.fillRect(s.x, y, s.r * 1.5, s.r * 1.5); } } c.globalAlpha = 1; }
+    for (const p of S.plats) {
+      if (p.gone) continue;
+      const col = p.kind === "move" ? "#9CC9FF" : p.kind === "break" ? "#D9B38C" : pd.c, edge = p.kind === "move" ? "#5E9BFF" : p.kind === "break" ? "#A87A4F" : pd.e;
+      if (pd.glow) { c.shadowColor = edge; c.shadowBlur = 12; }
+      c.fillStyle = edge; rr(c, p.x - 36, p.y - 3, 72, 14, 8); c.fill();
+      c.fillStyle = col; rr(c, p.x - 36, p.y - 6, 72, 12, 7); c.fill(); c.shadowBlur = 0;
+      if (p.kind === "break") { c.strokeStyle = "#8A5E36"; c.beginPath(); c.moveTo(p.x - 8, p.y - 6); c.lineTo(p.x, p.y + 2); c.lineTo(p.x + 6, p.y - 5); c.stroke(); }
+      if (p.kind === "spring") { c.font = "20px 'Segoe UI Emoji', sans-serif"; c.textAlign = "center"; c.textBaseline = "bottom"; c.fillText("🌀", p.x, p.y - 4); }
+    }
+    c.save(); c.translate(S.x, S.y); c.scale(-S.face, 1 + Math.max(-.12, Math.min(.12, -S.vy / 6000)));
+    c.font = `38px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(hero.e, 0, 0);
+    c.restore();
+    if (S.rocket > 0) { c.font = "26px 'Segoe UI Emoji', sans-serif"; c.textAlign = "center"; c.fillText("🔥", S.x, S.y + 36); }
+    c.fillStyle = S.top > 2500 ? "rgba(255,255,255,.85)" : "rgba(30,40,70,.6)"; c.font = `700 ${Math.round(w * .1)}px "Frank Ruhl Libre", serif`; c.textAlign = "center"; c.textBaseline = "top";
+    c.fillText(Math.floor(S.top / 10), w / 2, 56);
+  },
+  input(S, name, down) { if (name === "left") S.left = down; if (name === "right") S.right = down; },
+  hud: S => [["⬆", Math.floor(S.top / 10)], [Hub.equipped("hero").e, ""]],
+  score: S => S.top / 10, coins: S => S.top / 60,
+  resultTitle: () => "נפלת! 🪂",
+});
+</script>
+</body>
+</html>

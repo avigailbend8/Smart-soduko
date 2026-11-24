@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>מגיני הגלקסיה · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/arcade.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SHIPS = [
+  { id: "ship-star", name: "חץ כוכב", price: 0, body: "#E8ECFF", wing: "#7C8CFF", laser: "#7DF9FF" },
+  { id: "ship-ruby", name: "אודם", price: 110, body: "#FFE3E3", wing: "#E0245E", laser: "#FF6B9A" },
+  { id: "ship-emerald", name: "ברקת", price: 110, body: "#E3FFF1", wing: "#10B981", laser: "#7CFFB2" },
+  { id: "ship-sun", name: "שמש", price: 160, body: "#FFF6D6", wing: "#F59E0B", laser: "#FFD86B" },
+  { id: "ship-void", name: "חור שחור", price: 240, body: "#2A2340", wing: "#B48CFF", laser: "#E0B3FF" },
+];
+const SECTORS = [
+  { id: "sec-violet", name: "ערפילית סגולה", price: 0, hue: 265 },
+  { id: "sec-teal", name: "מערבולת טורקיז", price: 100, hue: 190 },
+  { id: "sec-red", name: "ענק אדום", price: 120, hue: 350 },
+];
+const CFG = {
+  id: "shooter", title: "מגיני הגלקסיה", startCoins: 40, startStock: { shield: 2 },
+  items: [
+    Hub.theme("indigo", 0), Hub.theme("night", 120), Hub.theme("plum", 100), Hub.theme("ocean", 100),
+    ...SHIPS.map(s => ({ ...s, slot: "ship" })), ...SECTORS.map(s => ({ ...s, slot: "sector" })),
+    { id: "shield3", consumable: true, stockId: "shield", amount: 3, name: "3 מגנים", desc: "מגן סופג פגיעה אחת", price: 40 },
+  ],
+  storeGroups: [{ slot: "ship", title: "חלליות" }, { slot: "sector", title: "גזרות בחלל" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span style="font-size:38px">🛡</span>` : it.slot === "ship" ? `<img alt="" src="${shipImg(it)}" style="height:70px">`
+    : `<div style="width:100%;height:100%;background:radial-gradient(circle at 60% 40%, hsla(${it.hue + 40},80%,55%,.55), transparent 60%), hsl(${it.hue},55%,9%)"></div>`,
+};
+const { rr, spaceBg, stars, drawStars } = Arcade;
+function drawShip(c, x, y, s, sh, t = 0) {
+  c.save(); c.translate(x, y);
+  const fl = 8 + Math.sin(t / 50) * 3; // engine flame
+  const g = c.createLinearGradient(0, s * .6, 0, s * .6 + fl * 2); g.addColorStop(0, "#FFF2B3"); g.addColorStop(1, "rgba(255,120,60,0)");
+  c.fillStyle = g; c.beginPath(); c.moveTo(-s * .18, s * .55); c.lineTo(0, s * .6 + fl * 2.2); c.lineTo(s * .18, s * .55); c.fill();
+  c.fillStyle = sh.wing; c.beginPath(); c.moveTo(0, -s * .2); c.lineTo(s * .75, s * .5); c.lineTo(s * .2, s * .42); c.lineTo(-s * .2, s * .42); c.lineTo(-s * .75, s * .5); c.closePath(); c.fill();
+  c.fillStyle = sh.body; c.beginPath(); c.moveTo(0, -s * .75); c.quadraticCurveTo(s * .3, 0, s * .22, s * .58); c.lineTo(-s * .22, s * .58); c.quadraticCurveTo(-s * .3, 0, 0, -s * .75); c.fill();
+  c.fillStyle = "rgba(90,200,255,.85)"; c.beginPath(); c.ellipse(0, -s * .18, s * .1, s * .2, 0, 0, 7); c.fill();
+  c.restore();
+}
+const imgs = {};
+function shipImg(sh) { if (imgs[sh.id]) return imgs[sh.id]; const cv = document.createElement("canvas"); cv.width = 140; cv.height = 140; drawShip(cv.getContext("2d"), 70, 62, 70, sh); return imgs[sh.id] = cv.toDataURL(); }
+const FOES = [ // name, hp, points, color
+  { r: 15, hp: 1, pts: 10, c: "#FF6B9A", shoot: 0 },
+  { r: 18, hp: 2, pts: 25, c: "#FFB347", shoot: .25 },
+  { r: 22, hp: 4, pts: 50, c: "#9B7BFF", shoot: .5 },
+];
+function drawFoe(c, f, t) {
+  const k = FOES[f.k];
+  c.save(); c.translate(f.x, f.y);
+  c.shadowColor = k.c; c.shadowBlur = 14;
+  c.fillStyle = k.c; c.beginPath(); c.ellipse(0, 0, k.r, k.r * .62, 0, 0, 7); c.fill();
+  c.shadowBlur = 0; c.fillStyle = "rgba(255,255,255,.85)"; c.beginPath(); c.ellipse(0, -k.r * .25, k.r * .45, k.r * .38, 0, Math.PI, 0); c.fill();
+  c.fillStyle = "#1a1030"; for (const s of [-1, 1]) { c.beginPath(); c.arc(s * k.r * .2, -k.r * .32, 2.6, 0, 7); c.fill(); }
+  for (let i = -2; i <= 2; i++) { c.fillStyle = (Math.floor(t / 150) + i) % 2 ? "#fff" : k.c; c.beginPath(); c.arc(i * k.r * .35, k.r * .3, 2, 0, 7); c.fill(); }
+  if (f.hp < k.hp) { c.fillStyle = "rgba(255,255,255,.3)"; c.fillRect(-k.r, -k.r - 6, k.r * 2 * f.hp / k.hp, 3); }
+  c.restore();
+}
+
+Arcade.run(CFG, {
+  tagline: "גלים של חייזרים יורדים מן הכוכבים. החללית יורה לבד — אתם מזיזים, מתחמקים ואוספים חיזוקים.",
+  play: "להמריא", ratio: 1.4, unit: "נק׳", stageBg: "#0b0820", targets: [400, 1100, 2200],
+  bots: [["קוואזר", "🛸", 3200], ["אוריון", "👾", 1400], ["ניצוץ", "🤖", 500]],
+  powers: [{ id: "shield", label: "🛡 מגן" }], pointerMove: true,
+  pad: [["left", "◀", "שמאלה"], ["right", "▶", "ימינה"]],
+  keysText: "חצים או A/D · בטלפון: גוררים את החללית · היריות אוטומטיות",
+  readyText: "שלוש פגיעות ונגמר. אספו ⚡ ליריות כפולות ו-💗 לחיים.",
+  help: `<h2>המטרה</h2><p>להפיל כמה שיותר חייזרים ולשרוד כמה שיותר גלים.</p>
+    <h2>שליטה</h2><ul><li>חצים או גרירת אצבע/עכבר מזיזים את החללית. היא יורה לבד.</li></ul>
+    <h2>חייזרים</h2><ul><li>ורוד = פגיעה אחת · כתום = שתיים ויורה · סגול = ארבע ויורה הרבה.</li><li>⚡ יריות משולשות לזמן קצר · 💗 חיים נוספים · 🛡 מגן מהחנות.</li></ul>`,
+  init(S, w, h) {
+    S.x = w / 2; S.y = h - 60; S.lives = 3; S.score = 0; S.wave = 0; S.shots = []; S.foes = []; S.bullets = []; S.drops = []; S.parts = [];
+    S.fire = 0; S.triple = 0; S.shield = !!S.power.shield; S.inv = 0; S.sky = stars(110, w, h); S.scroll = 0; S.next = 1;
+  },
+  update(S, dt, w, h) {
+    S.scroll += dt * 60;
+    if (S.pointer) { S.x += (S.tapX - S.x) * Math.min(1, dt * 16); }
+    if (S.left) S.x -= 380 * dt; if (S.right) S.x += 380 * dt;
+    S.x = Math.max(24, Math.min(w - 24, S.x));
+    S.inv = Math.max(0, S.inv - dt); S.triple = Math.max(0, S.triple - dt);
+    S.fire -= dt;
+    if (S.fire <= 0) { S.fire = .22; Hub.sound("tap"); for (const a of S.triple > 0 ? [-.18, 0, .18] : [0]) S.shots.push({ x: S.x, y: S.y - 26, vx: Math.sin(a) * 600, vy: -Math.cos(a) * 600 }); }
+    S.next -= dt;
+    if (S.next <= 0 && S.foes.length < 4 + S.wave) { // spawn a new wave in a gentle formation
+      S.wave++; const n = Math.min(9, 3 + S.wave), lvl = Math.min(2, Math.floor(S.wave / 3));
+      for (let i = 0; i < n; i++) { const k = Math.random() < .25 ? Math.min(2, lvl + 1) : Math.floor(Math.random() * (lvl + 1)); S.foes.push({ k, hp: FOES[k].hp, x: w * (i + 1) / (n + 1), y: -30 - (i % 2) * 40, base: w * (i + 1) / (n + 1), ph: Math.random() * 6, cd: 1 + Math.random() * 2 }); }
+      S.next = Math.max(2.5, 6 - S.wave * .15);
+    }
+    for (const f of S.foes) {
+      f.y += (34 + S.wave * 2.2) * dt; f.x = f.base + Math.sin(S.t * 1.4 + f.ph) * 40;
+      f.cd -= dt;
+      if (FOES[f.k].shoot && f.cd <= 0 && f.y > 0) { f.cd = 2.4 - FOES[f.k].shoot * 2 + Math.random(); const a = Math.atan2(S.y - f.y, S.x - f.x); S.bullets.push({ x: f.x, y: f.y, vx: Math.cos(a) * 170, vy: Math.sin(a) * 170 }); }
+    }
+    for (const s of S.shots) { s.x += s.vx * dt; s.y += s.vy * dt; for (const f of S.foes) if (!f.dead && Math.hypot(f.x - s.x, f.y - s.y) < FOES[f.k].r + 3) { s.dead = true; f.hp--; if (f.hp <= 0) { f.dead = true; S.score += FOES[f.k].pts; Hub.sound("good"); for (let k = 0; k < 16; k++) S.parts.push({ x: f.x, y: f.y, vx: (Math.random() - .5) * 260, vy: (Math.random() - .5) * 260, life: .6, c: FOES[f.k].c }); if (Math.random() < .1) S.drops.push({ x: f.x, y: f.y, k: Math.random() < .6 ? "triple" : "life" }); } break; } }
+    for (const b of S.bullets) { b.x += b.vx * dt; b.y += b.vy * dt; }
+    const hitMe = () => { if (S.inv > 0) return; if (S.shield) { S.shield = false; S.inv = 1.2; Hub.sound("hint"); return; } S.lives--; S.inv = 1.6; Hub.sound("wrong"); if (S.lives <= 0) S.over = true; };
+    for (const b of S.bullets) if (!b.dead && Math.hypot(b.x - S.x, b.y - S.y) < 16) { b.dead = true; hitMe(); }
+    for (const f of S.foes) { if (!f.dead && Math.hypot(f.x - S.x, f.y - S.y) < FOES[f.k].r + 14) { f.dead = true; hitMe(); } if (!f.dead && f.y > h + 30) { f.dead = true; S.score = Math.max(0, S.score - 5); } }
+    for (const d of S.drops) { d.y += 110 * dt; if (!d.got && Math.hypot(d.x - S.x, d.y - S.y) < 24) { d.got = true; Hub.sound("coin"); if (d.k === "triple") S.triple = 8; else S.lives++; } }
+    for (const p of S.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+    S.shots = S.shots.filter(s => !s.dead && s.y > -20 && s.x > -20 && s.x < w + 20);
+    S.bullets = S.bullets.filter(b => !b.dead && b.y < h + 20 && b.y > -20 && b.x > -20 && b.x < w + 20);
+    S.foes = S.foes.filter(f => !f.dead); S.drops = S.drops.filter(d => !d.got && d.y < h + 20); S.parts = S.parts.filter(p => p.life > 0);
+  },
+  draw(c, S, w, h, t) {
+    const sec = Hub.equipped("sector"), sh = Hub.equipped("ship");
+    spaceBg(c, w, h, sec.hue); drawStars(c, S.sky, w, h, S.scroll, t);
+    for (const f of S.foes) drawFoe(c, f, t);
+    c.shadowColor = sh.laser; c.shadowBlur = 10; c.fillStyle = sh.laser;
+    for (const s of S.shots) rr(c, s.x - 2, s.y - 9, 4, 14, 2), c.fill();
+    c.shadowColor = "#FF5577"; c.fillStyle = "#FFB3C6";
+    for (const b of S.bullets) { c.beginPath(); c.arc(b.x, b.y, 4.5, 0, 7); c.fill(); }
+    c.shadowBlur = 0;
+    for (const d of S.drops) { c.font = "22px 'Segoe UI Emoji', sans-serif"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(d.k === "triple" ? "⚡" : "💗", d.x, d.y); }
+    if (!(S.inv > 0 && Math.floor(t / 90) % 2)) drawShip(c, S.x, S.y, 30, sh, t);
+    if (S.shield) { c.strokeStyle = "rgba(120,200,255,.8)"; c.lineWidth = 2; c.beginPath(); c.arc(S.x, S.y, 30, 0, 7); c.stroke(); }
+    for (const p of S.parts) { c.globalAlpha = p.life / .6; c.fillStyle = p.c; c.fillRect(p.x, p.y, 3, 3); }
+    c.globalAlpha = 1;
+  },
+  input(S, name, down) { if (name === "left") S.left = down; if (name === "right") S.right = down; },
+  hud: S => [["⭐", S.score], ["❤", S.lives]],
+  score: S => S.score, coins: S => S.score / 30,
+  resultTitle: S => `החללית נפגעה · גל ${S.wave}`,
+  onBuy: () => Object.keys(imgs).forEach(k => delete imgs[k]),
+});
+</script>
+</body>
+</html>

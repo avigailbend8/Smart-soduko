@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>חמש בשורה · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/duo.js"></script>
+<style>
+.gm { --n: 13; width: min(100%, 540px, 72vh); margin: 0 auto; aspect-ratio: 1; border-radius: 16px; padding: 0; background: linear-gradient(135deg, color-mix(in srgb, var(--wood) 80%, #fff), var(--wood)); box-shadow: inset 0 2px 0 rgba(255,255,255,.35), 0 24px 40px -20px rgba(0,0,0,.5); position: relative; direction: ltr; }
+.gm .grid { position: absolute; inset: calc(100% / 26); background-image: linear-gradient(var(--lines) 1px, transparent 1px), linear-gradient(90deg, var(--lines) 1px, transparent 1px); background-size: calc(100% / 12) calc(100% / 12); background-position: -.5px -.5px; border-right: 1px solid var(--lines); border-bottom: 1px solid var(--lines); pointer-events: none; }
+.gm .cells { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(13, 1fr); padding: 0; }
+.gm button { border: 0; background: none; padding: 0; cursor: pointer; display: grid; place-items: center; }
+.gm button:hover:not(:has(.st))::after { content: ""; width: 40%; height: 40%; border-radius: 50%; background: color-mix(in srgb, var(--me) 45%, transparent); }
+.gm .st { width: 84%; height: 84%; border-radius: 50%; box-shadow: 0 2px 3px rgba(0,0,0,.4); }
+.gm .st.me { background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--me) 55%, #fff), var(--me)); }
+.gm .st.ai { background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--ai) 60%, #fff), var(--ai)); }
+.gm .st.last { box-shadow: 0 0 0 2px var(--accent), 0 2px 3px rgba(0,0,0,.4); animation: pop .3s cubic-bezier(.3,1.6,.5,1); }
+.gm .st.win { animation: glowS .9s ease-in-out infinite alternate; }
+@keyframes pop { from { transform: scale(.2); } }
+@keyframes glowS { to { box-shadow: 0 0 0 3px #fff, 0 0 16px #fff; } }
+.who { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; }
+.mini { width: 14px; height: 14px; border-radius: 50%; display: inline-block; vertical-align: -2px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const WOODS = [
+  { id: "wd-maple", name: "אדר", price: 0, c: "#E3B778", l: "rgba(70,40,10,.55)" },
+  { id: "wd-bamboo", name: "במבוק", price: 90, c: "#C9C27A", l: "rgba(50,60,10,.5)" },
+  { id: "wd-ink", name: "דיו", price: 140, c: "#2B2D42", l: "rgba(255,255,255,.3)" },
+  { id: "wd-sakura", name: "סאקורה", price: 120, c: "#F2C4CE", l: "rgba(120,40,60,.4)" },
+];
+const STONES = [
+  { id: "gs-classic", name: "שחור ולבן", price: 0, me: "#26232B", ai: "#F7F4EE" },
+  { id: "gs-jade", name: "ירקן ואודם", price: 110, me: "#2E8B6F", ai: "#C0394B" },
+  { id: "gs-galaxy", name: "גלקסיה", price: 150, me: "#6B4FD8", ai: "#FFB86B" },
+];
+const CFG = {
+  id: "gomoku", title: "חמש בשורה", startCoins: 40,
+  items: [Hub.theme("amber", 0), Hub.theme("sage", 100), Hub.theme("rose", 100), Hub.theme("night", 160), ...WOODS.map(x => ({ ...x, slot: "wood" })), ...STONES.map(x => ({ ...x, slot: "stones" }))],
+  storeGroups: [{ slot: "wood", title: "לוחות" }, { slot: "stones", title: "אבנים" }, { slot: "theme", title: "ערכות צבע" }],
+  preview: it => { const w = it.slot === "wood" ? it : Hub.equipped("wood"), s = it.slot === "stones" ? it : Hub.equipped("stones"); return `<div style="display:flex;gap:6px;padding:10px;border-radius:10px;background:${w.c}">${[s.me, s.ai, s.me].map(c => `<i style="width:22px;height:22px;border-radius:50%;background:${c};box-shadow:0 2px 2px rgba(0,0,0,.3)"></i>`).join("")}</div>`; },
+};
+const N = 13, ME = 1, AI = 2, DIRS = [[0, 1], [1, 0], [1, 1], [1, -1]];
+const at = (b, r, c) => r < 0 || r >= N || c < 0 || c >= N ? -1 : b[r * N + c];
+function five(b) {
+  for (let r = 0; r < N; r++) for (let c = 0; c < N; c++) { const v = b[r * N + c]; if (!v) continue; for (const [dr, dc] of DIRS) { const line = [0, 1, 2, 3, 4].map(k => [r + dr * k, c + dc * k]); if (line.every(([rr, cc]) => at(b, rr, cc) === v)) return line.map(([rr, cc]) => rr * N + cc); } }
+  return null;
+}
+// How strong would a stone of colour p be at (r, c)? Count the run it makes in each direction and how open its ends are.
+function strength(b, r, c, p) {
+  let s = 0;
+  for (const [dr, dc] of DIRS) {
+    let n = 1, open = 0;
+    for (const sgn of [1, -1]) { let k = 1; while (at(b, r + dr * k * sgn, c + dc * k * sgn) === p) { n++; k++; } if (at(b, r + dr * k * sgn, c + dc * k * sgn) === 0) open++; }
+    s += n >= 5 ? 1e6 : n === 4 ? (open === 2 ? 5e4 : open ? 6e3 : 0) : n === 3 ? (open === 2 ? 4e3 : open ? 400 : 0) : n === 2 ? (open === 2 ? 200 : open ? 30 : 0) : open;
+  }
+  return s;
+}
+function aiPick(b, d) {
+  let best = -1, bs = -Infinity; const any = b.some(Boolean);
+  for (let i = 0; i < N * N; i++) {
+    if (b[i]) continue; const r = Math.floor(i / N), c = i % N;
+    if (any) { let near = false; for (let dr = -2; dr <= 2 && !near; dr++) for (let dc = -2; dc <= 2; dc++) if (at(b, r + dr, c + dc) > 0) { near = true; break; } if (!near) continue; }
+    const att = strength(b, r, c, AI), def = strength(b, r, c, ME);
+    const s = att * [0.8, 1, 1.1][d] + def * [0.6, 0.95, 1][d] + Math.random() * [600, 40, 5][d] - (Math.abs(r - 6) + Math.abs(c - 6));
+    if (s > bs) { bs = s; best = i; }
+  }
+  return best < 0 ? 84 : best;
+}
+
+Duo.run(CFG, {
+  tagline: "מניחים אבנים על הצמתים בתורות. הראשון שמסדר חמש ברצף מנצח — אבל צריך גם לחסום את היריב!",
+  worlds: ["אבנים ראשונות", "איומים כפולים", "גרנד מאסטר"],
+  randomMove(G) { const i = aiPick(G.b, 0); G.b[i] = AI; G.last = i; G.who = ME; Hub.sound("move"); },
+  help: `<h2>המטרה</h2><p>חמש אבנים שלכם ברצף — בשורה, בטור או באלכסון.</p><h2>טיפים</h2><ul><li>שלוש פתוחות משני הצדדים זה איום — היריב חייב לחסום.</li><li>שני איומים בבת אחת = ניצחון כמעט בטוח.</li></ul>`,
+  newGame(G) { G.b = Array(N * N).fill(0); G.who = ME; G.last = -1; },
+  turn: G => G.who === ME ? "me" : "ai",
+  click(G, el) { const i = +el.dataset.i; if (G.b[i]) return false; G.b[i] = ME; G.last = i; G.who = AI; Hub.sound("move"); return true; },
+  ai(G) { const i = aiPick(G.b, G.d); G.b[i] = AI; G.last = i; G.who = ME; Hub.sound("move"); },
+  result(G) { const w = five(G.b); if (w) { G.win = w; return G.b[w[0]] === ME ? "win" : "lose"; } return G.b.every(Boolean) ? "draw" : null; },
+  beforeRender() { const w = Hub.equipped("wood"), s = Hub.equipped("stones"), st = document.documentElement.style; st.setProperty("--wood", w.c); st.setProperty("--lines", w.l); st.setProperty("--me", s.me); st.setProperty("--ai", s.ai); },
+  board: G => `<div class="who"><span class="chip"><i class="mini" style="background:var(--me)"></i> ${Hub.user.avatar} את/ה</span><span class="chip"><i class="mini" style="background:var(--ai)"></i> 🤖 מחשב</span></div>
+    <div class="gm"><div class="grid"></div><div class="cells">${G.b.map((v, i) => `<button data-act="cell" data-i="${i}" aria-label="צומת ${i + 1}">${v ? `<span class="st ${v === ME ? "me" : "ai"} ${i === G.last ? "last" : ""} ${G.win?.includes(i) ? "win" : ""}"></span>` : ""}</button>`).join("")}</div></div>`,
+});
+</script>
+</body>
+</html>

@@ -21,6 +21,7 @@
   const inGame = /\/games\//.test(location.pathname);
   const HUB_URL = inGame ? "../index.html" : "index.html";
   const fromHub = path => (inGame ? "../" : "") + path;
+  { const l = document.createElement("link"); l.rel = "stylesheet"; l.href = fromHub("shared/neon.css"); document.head.append(l); }
 
   // ---------- Palettes (each game has its own signature one, and sells the others in its store) ----------
   const PALETTES = {
@@ -65,7 +66,80 @@
     { id: "colors", cat: "board", title: "ארבעה צבעים", tag: "קלפים · התאמה", desc: "משחק קלפים מול 1–3 יריבים: התאימו צבע או מספר, ושחקו +2, עצור, שנה כיוון ופלוס.", url: "games/colors.html", color: PALETTES.rose.accent },
     { id: "racer", cat: "action", title: "כביש מהיר", tag: "מהירות · התחמקות", desc: "דהרו בכביש, התחמקו ממכוניות וממכשולים ואספו מטבעות. כמה רחוק תגיעו?", url: "games/racer.html", color: PALETTES.indigo.accent },
     { id: "runner", cat: "action", title: "ריצת הנתיבים", tag: "קפיצה · החלקה", desc: "שלושה נתיבים ודמות שלא עוצרת: קפצו, החליקו והחליפו נתיב כדי לעבור מכשולים.", url: "games/runner.html", color: PALETTES.coral.accent },
+    // thinking
+    { id: "merge", cat: "think", emo: "🔢", title: "מיזוג", tag: "מספרים · מיזוג", desc: "מחליקים אריחים ומאחדים זוגות זהים עד שמגיעים לאריח היעד.", url: "games/merge.html", color: "#E0913A" },
+    { id: "mines", cat: "think", emo: "💣", title: "שדה מוקשים", tag: "הסקה · זהירות", desc: "המספרים מגלים כמה מוקשים מסביב. פתחו את כל המשבצות הבטוחות.", url: "games/mines.html", color: "#4E9A6A" },
+    { id: "sort", cat: "think", emo: "🧪", title: "מיון צבעים", tag: "מיון · תכנון", desc: "שופכים צבעים ממבחנה למבחנה עד שכל מבחנה בצבע אחד.", url: "games/sort.html", color: "#D0567A" },
+    { id: "slide", cat: "think", emo: "🖼️", title: "פאזל הזזה", tag: "סידור · מרחב", desc: "הזיזו חתיכות אל המשבצת הריקה והחזירו את התמונה לשלמותה.", url: "games/slide.html", color: "#4F6D9A" },
+    { id: "towers", cat: "think", emo: "🗼", title: "מגדלים", tag: "רקורסיה · סבלנות", desc: "העבירו מגדל שלם, דיסק אחרי דיסק, בלי להניח גדול על קטן.", url: "games/towers.html", color: "#B4664B" },
+    // board and cards
+    { id: "connect4", cat: "board", emo: "🔴", title: "ארבע בשורה", tag: "דיסקיות · מול AI", desc: "מפילים דיסקיות לטורים. ארבע ברצף מנצחות.", url: "games/connect4.html", color: "#2F5FD0" },
+    { id: "reversi", cat: "board", emo: "⚫", title: "רברסי", tag: "הפיכות · מול AI", desc: "לוכדים את אבני היריב ביניכם והופכים אותן לצבע שלכם.", url: "games/reversi.html", color: "#2E7D5B" },
+    { id: "gomoku", cat: "board", emo: "⚪", title: "חמש בשורה", tag: "איומים · מול AI", desc: "חמש אבנים ברצף על לוח 13×13 — תקפו וגם חסמו.", url: "games/gomoku.html", color: "#B07A22" },
+    { id: "mancala", cat: "board", emo: "🪨", title: "מנקלה", tag: "גומות · מול AI", desc: "משחק אבנים עתיק: מפזרים, לוכדים וצוברים במחסן.", url: "games/mancala.html", color: "#8B5A3C" },
+    { id: "battleship", cat: "board", emo: "🚢", title: "צוללות", tag: "ציים · מול AI", desc: "יורים בתורות על הים של היריב ומטביעים את כל הצי שלו.", url: "games/battleship.html", color: "#1F6F9B" },
+    { id: "ultimate", cat: "board", emo: "❌", title: "איקס עיגול על", tag: "9 לוחות · מול AI", desc: "איקס-עיגול בתוך איקס-עיגול. כל מהלך שולח את היריב ללוח אחר.", url: "games/ultimate.html", color: "#5463B0" },
+    { id: "blackjack", cat: "board", emo: "🃏", title: "21", tag: "קלפים · מול הדילר", desc: "מתקרבים ל-21 בלי לעבור. ההימור מהארנק, והניצחון כפול.", url: "games/blackjack.html", color: "#BF6677" },
+    // action
+    { id: "snake", cat: "action", emo: "🐍", title: "נחש הכוכבים", tag: "זחילה · גדילה", desc: "הנחש אוכל כוכבים וגדל. אל תיתקעו בקיר או בזנב.", url: "games/snake.html", color: "#1FA383" },
+    { id: "breakout", cat: "action", emo: "🧱", title: "שובר הלבנים", tag: "כדור · מחבט", desc: "מחזירים את הכדור ושוברים קירות של לבנים צבעוניות.", url: "games/breakout.html", color: "#C25C9A" },
+    { id: "shooter", cat: "action", emo: "🚀", title: "מגיני הגלקסיה", tag: "חלל · יריות", desc: "גלים של חייזרים יורדים מהכוכבים. החללית יורה, אתם מתחמקים.", url: "games/shooter.html", color: "#6B4FD8" },
+    { id: "wings", cat: "action", emo: "🐦", title: "כנפיים", tag: "מעוף · תזמון", desc: "לחיצה = משק כנפיים. עברו בין העמודים בלי לגעת.", url: "games/wings.html", color: "#2F9BD8" },
+    { id: "blocks", cat: "action", emo: "🟪", title: "מגדל הבלוקים", tag: "צורות · שורות", desc: "צורות נופלות — סובבו, הזיזו ומלאו שורות שלמות.", url: "games/blocks.html", color: "#8E5CF5" },
+    { id: "pong", cat: "action", emo: "🏓", title: "פונג גלקטי", tag: "מחבטים · מול AI", desc: "פינג-פונג ניאון מול ה-AI. הראשון ל-7 מנצח.", url: "games/pong.html", color: "#E0569A" },
+    { id: "jumper", cat: "action", emo: "🐸", title: "קפיצה לשמיים", tag: "קפיצות · גובה", desc: "קופצים ממשטח למשטח, מהעננים ועד הגלקסיה.", url: "games/jumper.html", color: "#4CB86B" },
+    { id: "catcher", cat: "action", emo: "⭐", title: "גשם כוכבים", tag: "תפיסה · רצפים", desc: "תופסים כוכבים נופלים ומתחמקים משביטים.", url: "games/catcher.html", color: "#D9A03A" },
   ];
+
+  // ---------- Each game's own neon identity ----------
+  // n1/n2: two glowing colours · font: a decorative Hebrew display font · btn: the shape of its buttons
+  // shop: the name of its store · icon: the store's sign
+  const LOOKS = {
+    nonogram: { n1: "#4FD1FF", n2: "#7B61FF", font: "Rubik Iso", btn: "cut", shop: "סטודיו הציור", icon: "🖌️" },
+    codebreaker: { n1: "#FF4FD8", n2: "#7B2FFF", font: "Rubik Glitch", btn: "glass", shop: "כספת הצפנים", icon: "🔐" },
+    lights: { n1: "#FFC94F", n2: "#FF7A2F", font: "Secular One", btn: "pill", shop: "שוק הפנסים", icon: "🏮" },
+    memory: { n1: "#4FFFB0", n2: "#2FB4FF", font: "Varela Round", btn: "soft", shop: "ארון הקלפים", icon: "🗄️" },
+    chess: { n1: "#FFB347", n2: "#FF4F6D", font: "Suez One", btn: "cut", shop: "אולם המלכים", icon: "♛" },
+    checkers: { n1: "#2FE6FF", n2: "#2F7BFF", font: "Rubik Doodle Shadow", btn: "arcade", shop: "נמל הדמקה", icon: "⚓" },
+    colors: { n1: "#FF4F81", n2: "#FFD24F", font: "Rubik Bubbles", btn: "arcade", shop: "דוכן הקלפים", icon: "🎴" },
+    racer: { n1: "#00F0FF", n2: "#FF2CDF", font: "Karantina", btn: "cut", shop: "מוסך הניאון", icon: "🏎️" },
+    runner: { n1: "#FF7A2F", n2: "#FFE14F", font: "Rubik Spray Paint", btn: "arcade", shop: "חנות הספורט", icon: "👟" },
+    merge: { n1: "#FFB02F", n2: "#FF4F9B", font: "Fredoka", btn: "soft", shop: "בית המספרים", icon: "🔢" },
+    mines: { n1: "#7CFF4F", n2: "#00E0A0", font: "Rubik Maze", btn: "outline", shop: "מחסן הציוד", icon: "🧰" },
+    sort: { n1: "#FF5FB0", n2: "#5FD4FF", font: "Rubik Puddles", btn: "pill", shop: "המעבדה", icon: "⚗️" },
+    slide: { n1: "#5F9BFF", n2: "#B05FFF", font: "Bellefair", btn: "glass", shop: "הגלריה", icon: "🖼️" },
+    towers: { n1: "#FF8A3D", n2: "#FFD23D", font: "Rubik Lines", btn: "cut", shop: "בית המלאכה", icon: "🛠️" },
+    connect4: { n1: "#FF3D5A", n2: "#FFD23D", font: "Rubik Moonrocks", btn: "arcade", shop: "חנות הדיסקיות", icon: "🔴" },
+    reversi: { n1: "#3DFFB4", n2: "#3D8BFF", font: "Rubik Marker Hatch", btn: "outline", shop: "סלון הרברסי", icon: "♟️" },
+    gomoku: { n1: "#FFD23D", n2: "#FF6B3D", font: "Amatic SC", btn: "soft", shop: "בית התה", icon: "🍵" },
+    mancala: { n1: "#FF9F43", n2: "#E84393", font: "Rubik Wet Paint", btn: "pill", shop: "שוק האבנים", icon: "🪨" },
+    battleship: { n1: "#00D2FF", n2: "#3A7BD5", font: "Rubik Burned", btn: "cut", shop: "הנמל הצבאי", icon: "⚓" },
+    ultimate: { n1: "#FF4D6D", n2: "#4D7CFF", font: "Rubik Vinyl", btn: "outline", shop: "מרתף המשחקים", icon: "🎲" },
+    blackjack: { n1: "#FFD700", n2: "#FF4757", font: "Noto Serif Hebrew", btn: "glass", shop: "הקזינו", icon: "🎰" },
+    snake: { n1: "#39FF14", n2: "#00F0FF", font: "Rubik Glitch", btn: "arcade", shop: "קן הנחשים", icon: "🐍" },
+    breakout: { n1: "#FF2CDF", n2: "#FFF01F", font: "Rubik Beastly", btn: "cut", shop: "מפעל הלבנים", icon: "🏭" },
+    shooter: { n1: "#7B61FF", n2: "#00F0FF", font: "Rubik Microbe", btn: "glass", shop: "תחנת החלל", icon: "🛰️" },
+    wings: { n1: "#4FC3FF", n2: "#FFE14F", font: "Fredoka", btn: "soft", shop: "קן הציפורים", icon: "🪺" },
+    blocks: { n1: "#B05FFF", n2: "#FF4FD8", font: "Rubik Iso", btn: "arcade", shop: "מחסן הצורות", icon: "🧩" },
+    pong: { n1: "#FF2CDF", n2: "#00F0FF", font: "Karantina", btn: "outline", shop: "מועדון הפונג", icon: "🏓" },
+    jumper: { n1: "#4CFF8F", n2: "#4FC3FF", font: "Rubik Bubbles", btn: "pill", shop: "חנות הקופצים", icon: "🌀" },
+    catcher: { n1: "#FFD23D", n2: "#B05FFF", font: "Amatic SC", btn: "glass", shop: "חנות הכוכבים", icon: "🌟" },
+  };
+  const loadedFonts = new Set();
+  function loadFont(family) {
+    if (!family || loadedFonts.has(family)) return; loadedFonts.add(family);
+    const l = document.createElement("link"); l.rel = "stylesheet";
+    l.href = `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, "+")}:wght@400;700&display=swap`;
+    document.head.append(l);
+  }
+  function applyLook(id) {
+    const lk = LOOKS[id]; if (!lk) return;
+    loadFont(lk.font);
+    const r = document.documentElement;
+    r.style.setProperty("--n1", lk.n1); r.style.setProperty("--n2", lk.n2);
+    r.style.setProperty("--gfont", `"${lk.font}", var(--display)`);
+    r.dataset.look = lk.btn; r.classList.add("neon");
+  }
 
   // Cover art for the hub cards and the game menus. c = the game's color.
   function art(id, c = "var(--accent)") {
@@ -124,6 +198,19 @@
         ${[[100, 34, 3], [100, 50, 4], [100, 70, 5.5]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#D9B154" stroke="#B48A2C"/>`).join("")}
         <rect x="58" y="66" width="24" height="16" rx="3" fill="${c}" opacity=".8"/><rect x="124" y="50" width="16" height="11" rx="2" fill="${c}" opacity=".6"/>
         <ellipse cx="100" cy="128" rx="17" ry="4" fill="${c}" opacity=".25"/><circle cx="100" cy="106" r="15" fill="${c}"/><circle cx="95" cy="102" r="2.4" fill="#fff"/><circle cx="105" cy="102" r="2.4" fill="#fff"/></svg>`;
+    }
+    const g = GAMES.find(x => x.id === id), lk = LOOKS[id];
+    if (g?.emo) { // the newer games: their emoji inside a neon ring in the game's two colours, with orbit and sparkles
+      const a = lk?.n1 || c, b = lk?.n2 || c, sp = [[42, 30, 5], [160, 38, 4], [150, 112, 6], [52, 106, 3.5], [100, 14, 3]];
+      return `<svg ${s}><defs><radialGradient id="glow-${id}"><stop offset="0" stop-color="${a}" stop-opacity=".6"/><stop offset=".7" stop-color="${b}" stop-opacity=".15"/><stop offset="1" stop-color="${b}" stop-opacity="0"/></radialGradient>
+        <linearGradient id="ring-${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient>
+        <filter id="neon-${id}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+        <circle cx="100" cy="70" r="66" fill="url(#glow-${id})"/>
+        <ellipse cx="100" cy="70" rx="76" ry="24" fill="none" stroke="url(#ring-${id})" stroke-width="2" transform="rotate(-14 100 70)" filter="url(#neon-${id})"/>
+        <circle cx="100" cy="70" r="40" fill="#0d0a22" fill-opacity=".72" stroke="url(#ring-${id})" stroke-width="3" filter="url(#neon-${id})"/>
+        ${sp.map(([x, y, r], k) => `<path d="M${x} ${y - r}L${x + r * .3} ${y - r * .3}L${x + r} ${y}L${x + r * .3} ${y + r * .3}L${x} ${y + r}L${x - r * .3} ${y + r * .3}L${x - r} ${y}L${x - r * .3} ${y - r * .3}Z" fill="${k % 2 ? b : a}" filter="url(#neon-${id})"/>`).join("")}
+        <circle cx="170" cy="58" r="5" fill="${b}" filter="url(#neon-${id})"/>
+        <text x="100" y="88" text-anchor="middle" font-size="48" font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji, sans-serif">${g.emo}</text></svg>`;
     }
     return "";
   }
@@ -246,11 +333,27 @@
   function useStock(id) { if (!W.stock[id]) return false; W.stock[id]--; save(); return true; }
   const equipped = slot => game.items.find(i => i.id === W.equipped[slot]);
   const owns = id => W.owned.includes(id);
-  function applyTheme() { const t = equipped("theme"); applyPalette(t?.palette || PALETTES.terracotta); }
+  // A dark background (galaxy, aurora…) turns the page into glass cards over space, keeping the game's accent colour
+  const GLASS = { paper: "#0A0918", paper2: "#17122E", card: "rgba(30,25,56,.72)", ink: "#F3EEFF", muted: "#B9AEDB", soft: "rgba(255,255,255,.09)", line: "rgba(255,255,255,.15)", dark: true };
+  function applyTheme() {
+    const t = equipped("theme"), bg = equipped("bg");
+    let p = t?.palette || PALETTES.terracotta;
+    if (bg?.dark) p = { ...GLASS, accent: p.dark ? p.accent : `color-mix(in srgb, ${p.accent} 72%, #fff)` };
+    applyPalette(p);
+    setBackground(bg?.kind || "paper", p);
+  }
 
   // Starts a game page: shows the login card when nobody is logged in, then calls ready(user, wallet)
   function start(cfg, ready) {
     game = cfg;
+    applyLook(cfg.id);
+    // Every game also sells the shared animated backgrounds
+    if (!cfg.items.some(i => i.slot === "bg")) {
+      cfg.items.push(...BGS.map(b => ({ ...b, slot: "bg" })));
+      cfg.storeGroups.splice(1, 0, { slot: "bg", title: "רקעים חיים" });
+    }
+    const hasStars = (cfg.boards || []).some(b => b.id === "stars");
+    cfg.boards = [...(cfg.boards || []), ...(hasStars ? [] : [{ id: "stars", title: "כוכבים בשלבים", bots: [["קוואזר", "🛸", 84], ["אוריון", "👾", 45], ["ניצוץ", "🤖", 15]] }]), { id: "duels", title: "ניצחונות בדו-קרב", unit: "", bots: [["קוואזר", "🛸", 14], ["אוריון", "👾", 8], ["ניצוץ", "🤖", 3]] }];
     document.title = cfg.title + " · Mind Studio";
     applyPalette(cfg.items.find(i => i.slot === "theme")?.palette || PALETTES.terracotta);
     const go = u => { user = u; W = loadWallet(u, cfg); save(); applyTheme(); ready(u, W); };
@@ -274,12 +377,18 @@
     const g = GAMES.find(x => x.id === game.id);
     return `<main class="menu rise">
       <div class="menu-top"><a class="pill-link" href="${HUB_URL}">⌂ לסטודיו</a><span class="chip">${coinSvg}<b data-coins>${W.coins}</b></span></div>
-      <div class="menu-art">${art(game.id, "var(--accent)")}</div>
-      <p class="eyebrow">${esc(g?.tag || "")}</p>
-      <h1 class="display">${esc(game.title)}</h1>
+      <section class="hero-neon">
+        <i class="hn-orb a"></i><i class="hn-orb b"></i>
+        <div class="menu-art">${art(game.id, LOOKS[game.id] ? "var(--n1)" : "var(--accent)")}</div>
+        <p class="eyebrow">${esc(g?.tag || "")}</p>
+        <h1 class="display">${esc(game.title)}</h1>
+        ${Object.keys(W.progress.lv || {}).length ? `<p class="hn-stars">⭐ ${Object.values(W.progress.lv).reduce((a, b) => a + b, 0)} כוכבים · ${Object.keys(W.progress.lv).length} שלבים</p>` : ""}
+      </section>
       <p class="lede">${tagline}</p>
       <p class="hello">${user.avatar} שלום, ${esc(user.name)}</p>
-      <div class="menu-buttons">${buttons.map(([act, label, primary]) => `<button class="btn ${primary ? "primary big" : ""}" data-act="${act}">${label}</button>`).join("")}</div>
+      <div class="menu-buttons">${buttons.map(([act, label, primary]) => `<button class="btn ${primary ? "primary big" : ""}" data-act="${act}">${label}</button>`).join("")}
+        <div class="menu-duo">${game.duel ? `<button class="btn duel-btn" data-act="duel">⚔️ דו-קרב מול AI</button>` : ""}<button class="btn" data-act="scores">🏆 טבלת שיאים</button></div>
+      </div>
     </main>`;
   }
 
@@ -289,7 +398,7 @@
       const items = game.items.filter(i => gr.consumable ? i.consumable : i.slot === gr.slot);
       return `<section class="store-group"><h2>${gr.title}</h2><div class="shop">${items.map(it => {
         const own = !it.consumable && owns(it.id), on = !it.consumable && W.equipped[it.slot] === it.id;
-        const pv = it.palette ? swatch(it.palette) : (game.preview ? game.preview(it) : "");
+        const pv = it.palette ? swatch(it.palette) : it.slot === "bg" ? `<div class="bg-sw" style="background:${it.sw}"></div>` : (game.preview ? game.preview(it) : "");
         const label = it.consumable ? `${coinSvg}${it.price}` : on ? "בשימוש ✓" : own ? "לבחור" : it.price ? `${coinSvg}${it.price}` : "חינם";
         return `<article class="item ${on ? "on" : ""}">
           <div class="pv">${pv}</div>
@@ -299,8 +408,9 @@
         </article>`;
       }).join("")}</div></section>`;
     }).join("");
+    const lk = LOOKS[game.id];
     return `${topbar("החנות")}
-      <p class="lede center">כל משחק בסטודיו הוא עולם בפני עצמו — המטבעות והקניות כאן שייכים רק ל${esc(game.title)}.</p>
+      <div class="shop-banner"><span class="sb-icon">${lk?.icon || "🛍️"}</span><div><b>${esc(lk?.shop || "החנות")}</b><small>המטבעות והקניות כאן שייכים רק ל${esc(game.title)}</small></div><span class="chip">${coinSvg}<b data-coins>${W.coins}</b></span></div>
       <p class="store-msg" role="status">${esc(storeMsg)}</p>${groups}`;
   }
   const swatch = p => `<div class="swatch" style="background:${p.paper}"><i style="background:${p.accent}"></i><i style="background:${p.soft}"></i><i style="background:${p.ink}"></i></div>`;
@@ -331,7 +441,8 @@
 
   // The end-of-round card. buttons = [[act, label, primary?]]
   function result({ title, sub = "", stars = null, coins = 0, buttons }) {
-    overlay(`${stars !== null ? `<div class="stars" aria-label="${stars} כוכבים">${[0, 1, 2].map(i => `<span class="${i < stars ? "on" : ""}" style="animation-delay:${.15 + i * .18}s">★</span>`).join("")}</div>` : ""}
+    const duelNote = D.note ? `<p class="duel-note ${D.noteWin ? "win" : ""}">${D.note}</p>` : ""; D.note = "";
+    overlay(`${duelNote}${stars !== null ? `<div class="stars" aria-label="${stars} כוכבים">${[0, 1, 2].map(i => `<span class="${i < stars ? "on" : ""}" style="animation-delay:${.15 + i * .18}s">★</span>`).join("")}</div>` : ""}
       <h2 class="display sm">${title}</h2>
       ${sub ? `<div class="lede">${sub}</div>` : ""}
       ${coins ? `<p class="earned">+${coins} ${coinSvg}</p>` : ""}
@@ -387,6 +498,251 @@
     } catch (e) {}
   }
 
+  // ---------- Animated backgrounds ----------
+  // sw = the little swatch shown in the store. dark backgrounds switch the page to glass cards.
+  const BGS = [
+    { id: "bg-paper", name: "נייר שקט", price: 0, kind: "paper", sw: "linear-gradient(135deg,#F6EEE6,#ECD9C8)" },
+    { id: "bg-bokeh", name: "בועות אור", price: 80, kind: "bokeh", sw: "radial-gradient(circle at 30% 40%,#FFD6E0 0 18%,transparent 19%),radial-gradient(circle at 70% 60%,#D6E4FF 0 22%,transparent 23%),#FBF4EF" },
+    { id: "bg-petals", name: "פריחת דובדבן", price: 110, kind: "petals", sw: "radial-gradient(ellipse at 30% 30%,#F7B6C8 0 10%,transparent 11%),radial-gradient(ellipse at 65% 70%,#F3A1B8 0 9%,transparent 10%),#FDF1F3" },
+    { id: "bg-galaxy", name: "גלקסיה סגולה", price: 150, kind: "galaxy", dark: true, sw: "radial-gradient(circle at 35% 40%,#8B4FD8aa,transparent 45%),radial-gradient(circle at 70% 65%,#D84F9Faa,transparent 40%),#0B0820" },
+    { id: "bg-nebula", name: "ערפילית טורקיז", price: 170, kind: "nebula", dark: true, sw: "radial-gradient(circle at 30% 60%,#2EC4B6aa,transparent 45%),radial-gradient(circle at 70% 35%,#E05C8Aaa,transparent 40%),#06101E" },
+    { id: "bg-aurora", name: "זוהר צפוני", price: 190, kind: "aurora", dark: true, sw: "linear-gradient(170deg,transparent 30%,#3DDC97aa 45%,#4F86F7aa 60%,transparent 75%),#050B1A" },
+    { id: "bg-planets", name: "מערכת שמש", price: 240, kind: "planets", dark: true, sw: "radial-gradient(circle at 30% 70%,#F2A65A 0 16%,transparent 17%),radial-gradient(circle at 75% 30%,#9FB4FF 0 8%,transparent 9%),#07061A" },
+  ];
+  let bg = { kind: null, cv: null, ctx: null, raf: 0, parts: [], neb: null, t0: 0 };
+  const reduced = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function setBackground(kind, pal) {
+    if (kind === bg.kind && bg.cv) return;
+    cancelAnimationFrame(bg.raf); bg.kind = kind;
+    document.documentElement.classList.toggle("fx", kind !== "paper");
+    if (kind === "paper") { bg.cv?.remove(); bg.cv = null; return; }
+    if (!bg.cv) { bg.cv = document.createElement("canvas"); bg.cv.id = "bgfx"; bg.cv.setAttribute("aria-hidden", "true"); document.body.prepend(bg.cv); bg.ctx = bg.cv.getContext("2d"); }
+    sizeBg(); seedBg(pal); bg.t0 = performance.now();
+    const loop = t => { drawBg(t - bg.t0); if (!reduced()) bg.raf = requestAnimationFrame(loop); };
+    bg.raf = requestAnimationFrame(loop);
+  }
+  function sizeBg() { if (!bg.cv) return; const s = Math.min(devicePixelRatio || 1, 1.5); bg.cv.width = innerWidth * s; bg.cv.height = innerHeight * s; bg.ctx.setTransform(s, 0, 0, s, 0, 0); }
+  addEventListener("resize", () => { if (bg.cv) { sizeBg(); seedBg(); } });
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  function seedBg() {
+    const w = innerWidth, h = innerHeight, k = bg.kind;
+    if (k === "bokeh") bg.parts = Array.from({ length: 26 }, () => ({ x: rnd(0, w), y: rnd(0, h), r: rnd(20, 90), v: rnd(6, 22), hue: [345, 210, 40, 160, 280][Math.floor(rnd(0, 5))], ph: rnd(0, 6) }));
+    else if (k === "petals") bg.parts = Array.from({ length: 34 }, () => ({ x: rnd(0, w), y: rnd(-h, h), s: rnd(5, 11), v: rnd(18, 45), sway: rnd(20, 60), ph: rnd(0, 6), rot: rnd(0, 6), vr: rnd(-1, 1) }));
+    else {
+      bg.parts = Array.from({ length: Math.round(w * h / 5200) }, () => ({ x: rnd(0, w), y: rnd(0, h), r: rnd(.3, 1.5), tw: rnd(.5, 3), ph: rnd(0, 6), d: rnd(.2, 1) }));
+      // The nebula is painted once into an off-screen canvas and then drifts slowly
+      const n = document.createElement("canvas"); n.width = w; n.height = h; const c = n.getContext("2d");
+      const hues = k === "nebula" ? [175, 330, 200] : k === "aurora" ? [220, 250] : k === "planets" ? [250, 210] : [270, 320, 230];
+      for (let i = 0; i < 9; i++) {
+        const x = rnd(0, w), y = rnd(0, h), r = rnd(w * .25, w * .6), g = c.createRadialGradient(x, y, 0, x, y, r), hue = hues[i % hues.length];
+        g.addColorStop(0, `hsla(${hue},80%,60%,${k === "planets" || k === "aurora" ? .12 : .22})`); g.addColorStop(1, "hsla(0,0%,0%,0)");
+        c.fillStyle = g; c.fillRect(0, 0, w, h);
+      }
+      if (k === "galaxy") { // a soft spiral band of dust across the middle
+        c.save(); c.translate(w * .55, h * .45); c.rotate(-.5);
+        for (let i = 0; i < 900; i++) { const a = rnd(0, 6.28), rad = rnd(0, 1) ** 1.6 * w * .55, sp = a + rad / (w * .12); c.fillStyle = `hsla(${rnd(260, 330)},90%,${rnd(70, 95)}%,${rnd(.05, .35)})`; c.fillRect(Math.cos(sp) * rad, Math.sin(sp) * rad * .38, 1.4, 1.4); }
+        c.restore();
+      }
+      bg.neb = n;
+    }
+  }
+  function drawBg(t) {
+    const c = bg.ctx, w = innerWidth, h = innerHeight, k = bg.kind, s = t / 1000;
+    if (k === "bokeh" || k === "petals") {
+      const g = c.createLinearGradient(0, 0, w, h);
+      g.addColorStop(0, k === "petals" ? "#FDF1F3" : "#FBF4EF"); g.addColorStop(1, k === "petals" ? "#F5E6F0" : "#EEF0FA");
+      c.fillStyle = g; c.fillRect(0, 0, w, h);
+      for (const p of bg.parts) {
+        if (k === "bokeh") {
+          const y = ((p.y - s * p.v) % (h + 200) + h + 200) % (h + 200) - 100, x = p.x + Math.sin(s * .3 + p.ph) * 30;
+          const gr = c.createRadialGradient(x, y, 0, x, y, p.r); gr.addColorStop(0, `hsla(${p.hue},85%,80%,.55)`); gr.addColorStop(.7, `hsla(${p.hue},85%,82%,.18)`); gr.addColorStop(1, `hsla(${p.hue},85%,85%,0)`);
+          c.fillStyle = gr; c.beginPath(); c.arc(x, y, p.r, 0, 6.3); c.fill();
+        } else {
+          const y = ((p.y + s * p.v) % (h + 40) + h + 40) % (h + 40) - 20, x = p.x + Math.sin(s * .8 + p.ph) * p.sway;
+          c.save(); c.translate(x, y); c.rotate(p.rot + s * p.vr); c.fillStyle = "rgba(242,150,178,.75)";
+          c.beginPath(); c.ellipse(0, 0, p.s, p.s * .55, 0, 0, 6.3); c.fill(); c.fillStyle = "rgba(255,220,230,.8)"; c.beginPath(); c.ellipse(-p.s * .3, 0, p.s * .4, p.s * .2, 0, 0, 6.3); c.fill(); c.restore();
+        }
+      }
+      return;
+    }
+    c.fillStyle = k === "nebula" ? "#050D1A" : k === "aurora" ? "#040916" : "#07061A"; c.fillRect(0, 0, w, h);
+    if (bg.neb) { c.globalAlpha = .9; c.drawImage(bg.neb, Math.sin(s * .05) * 30, Math.cos(s * .04) * 20); c.globalAlpha = 1; }
+    for (const p of bg.parts) { // twinkling stars drifting very slowly
+      const a = .35 + .65 * Math.abs(Math.sin(s * p.tw + p.ph)), x = (p.x - s * 4 * p.d + w) % w;
+      c.fillStyle = `rgba(255,255,255,${a * p.d})`; c.beginPath(); c.arc(x, p.y, p.r, 0, 6.3); c.fill();
+    }
+    if (k === "aurora") {
+      c.save(); c.globalCompositeOperation = "lighter";
+      for (let b = 0; b < 3; b++) {
+        const base = h * (.25 + b * .12), hue = [150, 175, 260][b];
+        const g = c.createLinearGradient(0, base - 120, 0, base + 160); g.addColorStop(0, `hsla(${hue},90%,60%,0)`); g.addColorStop(.5, `hsla(${hue},90%,60%,.22)`); g.addColorStop(1, `hsla(${hue},90%,60%,0)`);
+        c.fillStyle = g; c.beginPath(); c.moveTo(0, h);
+        for (let x = 0; x <= w; x += 16) c.lineTo(x, base + Math.sin(x / 180 + s * .5 + b) * 50 + Math.sin(x / 70 + s * .9) * 14);
+        c.lineTo(w, h); c.fill();
+      }
+      c.restore();
+    }
+    if (k === "planets") {
+      const px = w * .18, py = h * .82, pr = Math.min(w, h) * .2;
+      const g = c.createRadialGradient(px - pr * .35, py - pr * .35, pr * .1, px, py, pr); g.addColorStop(0, "#FFD39A"); g.addColorStop(.6, "#E58A4E"); g.addColorStop(1, "#5A2A3A");
+      c.save(); c.translate(px, py); c.rotate(-.35); c.strokeStyle = "rgba(255,220,180,.35)"; c.lineWidth = pr * .08; c.beginPath(); c.ellipse(0, 0, pr * 1.7, pr * .42, 0, Math.PI, 2 * Math.PI); c.stroke(); c.restore();
+      c.fillStyle = g; c.beginPath(); c.arc(px, py, pr, 0, 6.3); c.fill();
+      c.save(); c.translate(px, py); c.rotate(-.35); c.strokeStyle = "rgba(255,220,180,.45)"; c.lineWidth = pr * .08; c.beginPath(); c.ellipse(0, 0, pr * 1.7, pr * .42, 0, 0, Math.PI); c.stroke(); c.restore();
+      const mx = w * .78 + Math.cos(s * .15) * 40, my = h * .22 + Math.sin(s * .15) * 16, mr = Math.min(w, h) * .05;
+      const mg = c.createRadialGradient(mx - mr * .3, my - mr * .3, 1, mx, my, mr); mg.addColorStop(0, "#E6ECFF"); mg.addColorStop(1, "#5C6AA8");
+      c.fillStyle = mg; c.beginPath(); c.arc(mx, my, mr, 0, 6.3); c.fill();
+    }
+    // a shooting star now and then
+    const cyc = s % 7;
+    if (cyc < .9 && k !== "aurora") {
+      const sx = w * (.2 + ((Math.floor(s / 7) * 37) % 60) / 100), sy = h * .15, p = cyc / .9;
+      const x = sx + p * 260, y = sy + p * 120, g = c.createLinearGradient(x - 90, y - 42, x, y);
+      g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(1, `rgba(255,255,255,${1 - p})`);
+      c.strokeStyle = g; c.lineWidth = 2; c.beginPath(); c.moveTo(x - 90, y - 42); c.lineTo(x, y); c.stroke();
+    }
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (!bg.cv) return;
+    if (document.hidden) cancelAnimationFrame(bg.raf);
+    else if (!reduced()) { const loop = t => { drawBg(t - bg.t0); bg.raf = requestAnimationFrame(loop); }; bg.raf = requestAnimationFrame(loop); }
+  });
+
+  // ---------- Levels (like the Sudoku: worlds of ten, each level opens the next, 1–3 stars) ----------
+  const WORLD_NAMES = ["צעדים ראשונים", "מתחממים", "אתגר אמיתי", "מומחים", "אגדות"];
+  const WORLD_ICONS = ["🌱", "🔥", "💎", "👑", "🌌"];
+  const lvStars = () => { W.progress.lv = W.progress.lv || {}; return W.progress.lv; };
+  const levelOpen = L => L === 1 || lvStars()[L - 1] !== undefined;
+  // Saves the stars of a finished level; returns true the first time the level is passed
+  function levelDone(L, stars) { const s = lvStars(), first = s[L] === undefined; s[L] = Math.max(s[L] || 0, stars); save(); submitScore(Object.values(s).reduce((a, b) => a + b, 0), "stars"); return first; }
+  function levelMap({ count = 30, per = 10, names = [], label = "שלב" } = {}) {
+    const s = lvStars(), total = Object.values(s).reduce((a, b) => a + b, 0);
+    let html = `<p class="lv-total">${coinSvg.replace("coin-ico", "coin-ico hide")}⭐ <b>${total}</b> מתוך ${count * 3} כוכבים</p>`;
+    for (let w = 0; w * per < count; w++) {
+      const from = w * per + 1, to = Math.min(count, from + per - 1), got = Array.from({ length: to - from + 1 }, (_, k) => s[from + k] || 0).reduce((a, b) => a + b, 0);
+      html += `<section class="world ${levelOpen(from) ? "" : "locked"}" style="--wi:${w}"><div class="world-head"><span class="w-ico">${WORLD_ICONS[w] || "✦"}</span><div><small>עולם ${w + 1}</small><h2>${esc(names[w] || WORLD_NAMES[w] || "")}</h2></div><span class="chip">⭐ ${got}/${(to - from + 1) * 3}</span></div>
+        <div class="levels">${Array.from({ length: to - from + 1 }, (_, k) => { const L = from + k, open = levelOpen(L), st = s[L];
+          return `<button class="btn lvl ${st !== undefined ? "done" : ""} ${open && st === undefined ? "next" : ""}" data-act="lvl" data-level="${L}" ${open ? "" : "disabled"} aria-label="${label} ${L}"><small>${label}</small><b>${L}</b><i>${!open ? "🔒" : st !== undefined ? "★".repeat(st) + "☆".repeat(3 - st) : "·"}</i></button>`; }).join("")}</div></section>`;
+    }
+    return html;
+  }
+  // The usual end-of-level card
+  function levelResult({ L, count = 30, won, stars = 0, coins = 0, title, sub = "" }) {
+    result({ title: title || (won ? `שלב ${L} הושלם!` : `שלב ${L} — לא הפעם`), sub, stars: won ? stars : null, coins,
+      buttons: won ? [L < count ? ["lvnext", "לשלב הבא ←", true] : ["lvmap", "סיימת את כל השלבים! 🏆", true], ["lvagain", "לשחק שוב"], ["lvmap", "לכל השלבים"]] : [["lvagain", "לנסות שוב", true], ["lvmap", "לכל השלבים"]] });
+  }
+
+  // ---------- High-score tables ----------
+  // Each game declares boards: [{ id, title, unit, lower?, fmt?, bots: [[name, avatar, score]] }].
+  // Scores of every account on this device are kept (best per account), and the AI rivals sit in the table too.
+  const SKEY = id => `mindstudio.scores.${id}`;
+  function boardOf(id) { return (game.boards || []).find(b => b.id === id) || { id, title: "שיאים", unit: "" }; }
+  function submitScore(score, boardId = (game.boards?.[0]?.id || "main"), { add = false } = {}) {
+    if (!user || !game) return 0;
+    const b = boardOf(boardId), all = read(SKEY(game.id), {}), list = all[boardId] || [];
+    const better = (a, c) => b.lower ? a < c : a > c;
+    let me = list.find(e => e.key === user.key);
+    if (!me) { me = { key: user.key, name: user.name, avatar: user.avatar, score: add ? 0 : score, at: Date.now() }; list.push(me); if (add) me.score += score; }
+    else if (add) me.score += score;
+    else if (better(score, me.score)) { me.score = score; me.at = Date.now(); }
+    me.avatar = user.avatar; me.name = user.name;
+    list.sort((x, y) => b.lower ? x.score - y.score : y.score - x.score);
+    all[boardId] = list.slice(0, 50); write(SKEY(game.id), all);
+    return rankedRows(boardId).findIndex(r => r.key === user.key) + 1;
+  }
+  function rankedRows(boardId) {
+    const b = boardOf(boardId), mine = read(SKEY(game.id), {})[boardId] || [];
+    const bots = (b.bots || []).map(([name, avatar, score]) => ({ key: "bot:" + name, name, avatar, score, bot: true }));
+    return [...mine, ...bots].sort((x, y) => b.lower ? x.score - y.score : y.score - x.score);
+  }
+  let lbTab = null;
+  function showScores(tab) {
+    const boards = game.boards || []; lbTab = tab || lbTab || boards[0]?.id;
+    if (!boards.some(b => b.id === lbTab)) lbTab = boards[0]?.id;
+    const b = boardOf(lbTab), rows = rankedRows(lbTab).slice(0, 15), medal = ["🥇", "🥈", "🥉"];
+    const fmt = v => b.fmt === "time" ? fmtTime(v) : `${v}${b.unit ? " " + b.unit : ""}`;
+    overlay(`<h2 class="display sm">🏆 טבלת שיאים</h2>
+      ${boards.length > 1 ? `<div class="lb-tabs">${boards.map(x => `<button class="toggle ${x.id === lbTab ? "on" : ""}" data-act="lbtab" data-b="${x.id}">${esc(x.title)}</button>`).join("")}</div>` : ""}
+      <ol class="lb">${rows.map((r, i) => `<li class="${r.key === user?.key ? "me" : ""} ${r.bot ? "bot" : ""}"><span class="rk">${medal[i] || i + 1}</span><span class="av">${r.avatar}</span><span class="nm">${esc(r.name)}${r.bot ? ` <small>AI</small>` : ""}</span><b>${fmt(r.score)}</b></li>`).join("") || `<li class="empty">עוד אין שיאים — זה הזמן לקבוע את הראשון!</li>`}</ol>
+      <p class="fine">כל החשבונות במכשיר הזה, יחד עם יריבי ה-AI של הסטודיו.</p>
+      <button class="btn wide primary" data-act="lbclose">סגירה</button>`);
+  }
+
+  // ---------- AI duel ----------
+  // A game opts in with cfg.duel = { mode, start(rival), progress(), over(), lose(), menu(), seconds?(rival), target?(rival), unit? }
+  //  mode "race":  the rival solves the same kind of puzzle in rival.factor × seconds(); you must finish first.
+  //  mode "score": the rival has a target score (target(rival)); beat it before your round ends.
+  //  mode "match": you play against the rival directly (chess, checkers, cards); rival.level sets the difficulty.
+  const RIVALS = [
+    { name: "ניצוץ", avatar: "🤖", level: 0, label: "קל", factor: 1.7, bonus: 15, color: "#4FBFA5", line: "בוא נראה מה יש לך!" },
+    { name: "אוריון", avatar: "👾", level: 1, label: "בינוני", factor: 1.15, bonus: 35, color: "#8B6FD1", line: "אני לא מתכוון להפסיד." },
+    { name: "קוואזר", avatar: "🛸", level: 2, label: "קשה", factor: .8, bonus: 70, color: "#E8735A", line: "אף אחד עוד לא ניצח אותי." },
+  ];
+  const D = { rival: null, t0: 0, aiTime: 0, raf: 0, state: null, note: "", noteWin: false };
+  function duelPicker() {
+    overlay(`<h2 class="display sm">⚔️ דו-קרב מול AI</h2>
+      <p class="lede">${game.duel.mode === "race" ? "שניכם פותרים בו-זמנית. מי שמסיים ראשון — מנצח." : game.duel.mode === "score" ? "ליריב יש שיא. עקפו אותו בסיבוב אחד." : "משחק ישיר מול היריב. כל יריב ברמה אחרת."}</p>
+      <div class="rivals">${RIVALS.map((r, i) => `<button class="rival" data-act="duelgo" data-r="${i}" style="--rc:${r.color}">
+        <span class="rv-av">${r.avatar}</span><span class="rv-tx"><b>${r.name}</b><small>${r.label}${game.duel.mode === "score" ? ` · שיא: ${game.duel.target(r)} ${game.duel.unit || ""}` : ""}</small><i>"${r.line}"</i></span><span class="chip">+${r.bonus} ${coinSvg}</span></button>`).join("")}</div>
+      <button class="btn wide" data-act="lbclose">ביטול</button>`);
+  }
+  function duelBegin(r) {
+    closeOverlay(); stopDuel();
+    D.rival = r; D.state = "on"; D.t0 = performance.now();
+    game.duel.start(r);
+    D.aiTime = game.duel.mode === "race" ? game.duel.seconds(r) * r.factor * (0.92 + Math.random() * .16) : 0;
+    let bar = $("#duelBar");
+    if (!bar) { bar = document.createElement("div"); bar.id = "duelBar"; document.body.append(bar); }
+    bar.style.setProperty("--rc", r.color);
+    bar.innerHTML = `<div class="db-row"><span class="db-av">${user.avatar}</span><div class="db-track"><i id="dbMe"></i></div><b id="dbMeTx">0%</b></div>
+      ${game.duel.mode === "match" ? `<div class="db-vs">⚔️ מול ${r.avatar} ${r.name} · ${r.label}</div>` : `<div class="db-row ai"><span class="db-av">${r.avatar}</span><div class="db-track"><i id="dbAi"></i></div><b id="dbAiTx">${game.duel.mode === "score" ? game.duel.target(r) + " " + (game.duel.unit || "") : "0%"}</b></div>`}`;
+    bar.classList.toggle("match", game.duel.mode === "match");
+    bar.classList.toggle("top", !!game.duel.barTop);
+    if (game.duel.mode === "score") $("#dbAi").style.width = "100%"; // the rival's record is the finish line
+    sound("hint"); toast(`${r.avatar} ${r.name}: "${r.line}"`);
+    const tick = () => {
+      if (D.state !== "on") return;
+      if (!game.duel.active()) return stopDuel();
+      const me = Math.max(0, Math.min(1, game.duel.progress() || 0));
+      const meEl = $("#dbMe"); if (meEl) { meEl.style.width = me * 100 + "%"; $("#dbMeTx").textContent = Math.floor(me * 100) + "%"; }
+      if (me >= 1) return duelWon();
+      if (game.duel.over()) return duelLost(true); // the round ended without a win (out of tries, crashed, lost the match)
+      if (game.duel.mode === "race") {
+        const el = (performance.now() - D.t0) / 1000, ai = Math.min(1, Math.max(0, el / D.aiTime + Math.sin(el * .7) * .015));
+        $("#dbAi").style.width = ai * 100 + "%"; $("#dbAiTx").textContent = Math.floor(ai * 100) + "%";
+        if (ai >= 1) return duelLost();
+      }
+      D.raf = setTimeout(tick, 100);
+    };
+    D.raf = setTimeout(tick, 100);
+  }
+  function duelWon() {
+    const r = D.rival; D.state = "won"; clearTimeout(D.raf);
+    earn(r.bonus); submitScore(1, "duels", { add: true });
+    D.note = `⚔️ ניצחת את ${r.avatar} ${r.name}! בונוס +${r.bonus}`; D.noteWin = true;
+    toast(`⚔️ ניצחת את ${r.name}!`); setTimeout(() => $("#duelBar")?.remove(), 1600);
+  }
+  function duelLost(gameShowsResult) {
+    const r = D.rival; D.state = "lost"; clearTimeout(D.raf);
+    setTimeout(() => $("#duelBar")?.remove(), 1200);
+    if (gameShowsResult) { D.note = `${r.avatar} ${r.name} ניצח/ה בדו-קרב הפעם`; D.noteWin = false; return; }
+    game.duel.lose(); sound("lose");
+    result({ title: `${r.avatar} ${r.name} ניצח/ה`, sub: "היריב סיים לפניך. רוצה הזדמנות נוספת?", buttons: [["duelagain", "דו-קרב חוזר", true], ["duelpick", "יריב אחר"], ["duelmenu", "לתפריט"]] });
+  }
+  function stopDuel() { clearTimeout(D.raf); if (D.state === "on") D.state = null; $("#duelBar")?.remove(); }
+  const inDuel = () => D.state === "on";
+
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-act]"); if (!b || !game) return;
+    const a = b.dataset.act;
+    if (a === "scores") return showScores();
+    if (a === "lbtab") return showScores(b.dataset.b);
+    if (a === "lbclose") return closeOverlay();
+    if (a === "duel" || a === "duelpick") return duelPicker();
+    if (a === "duelgo") return duelBegin(RIVALS[+b.dataset.r]);
+    if (a === "duelagain") return duelBegin(D.rival);
+    if (a === "duelmenu") { closeOverlay(); stopDuel(); return game.duel.menu(); }
+  });
+
   const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   const fmtTime = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
@@ -394,13 +750,16 @@
     // accounts
     currentUser, logout, setAvatar, loginCard, AVATARS,
     // games and art
-    GAMES, CATS, art, fromHub, HUB_URL, PALETTES, applyPalette, theme, coinsOf, coinSvg,
+    GAMES, CATS, LOOKS, loadFont, art, fromHub, HUB_URL, PALETTES, applyPalette, theme, coinsOf, coinSvg,
     // current game
     start, save, earn, spend, stock, useStock, equipped, owns,
     get wallet() { return W; }, get user() { return user; },
     // UI
     topbar, menu, store, buy, clearStoreMsg, overlay, closeOverlay, overlayOpen, result, toast, confetti,
     sound, soundOn, toggleSound,
+    // backgrounds, scores and duels
+    levelMap, levelDone, levelOpen, levelResult, levelStars: () => lvStars(),
+    BGS, setBackground, submitScore, showScores, RIVALS, inDuel, stopDuel, get duelRival() { return D.rival; },
     // helpers
     esc, $, shuffle, fmtTime,
   };

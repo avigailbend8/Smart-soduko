@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Windows.UI.Xaml.Media;
 
@@ -7,11 +7,14 @@ namespace Smart_Sudoku
     /// <param name="Colors">Gradient colors for the border, or null for the theme's accent color.</param>
     /// <param name="Corner">An emoji in each corner of the board, or null.</param>
     public sealed record BoardFrame(string Id, string Name, int Price, double Thickness, uint[]? Colors, string? Corner);
+    // אובייקט: BoardFrame — מסגרת סביב לוח הסודוקו: שם, מחיר, עובי, צבעים, ואימוג'י שמופיע בפינות.
 
     /// <summary>Frames around the Sudoku board, bought in the store.</summary>
     public static class BoardFrames
+    // אובייקט: BoardFrames — כל המסגרות שאפשר לקנות בחנות.
     {
         public static readonly IReadOnlyList<BoardFrame> All = new[]
+        // אובייקט: All — הרשימה של כל המסגרות: קלאסית, זהב, פרחים, לבבות וקשת.
         {
             new BoardFrame("classic", "קלאסית", 0, 3, null, null),
             new BoardFrame("gold", "זהב ✨", 100, 6, new[] { 0xFFF6D365u, 0xFFE0A526u, 0xFFFFE9A8u, 0xFFC98B16u }, "✨"),
@@ -21,10 +24,13 @@ namespace Smart_Sudoku
         };
 
         public static BoardFrame Get(string id) => All.FirstOrDefault(f => f.Id == id) ?? All[0];
+        // פעולה: Get — מחזירה מסגרת לפי השם שלה. אם לא נמצאה — מחזירה את הקלאסית.
 
         public static Brush Gradient(uint[] colors)
+        // פעולה: Gradient — יוצרת "מברשת" צבע שעוברת בהדרגה בין כמה צבעים, כדי לצבוע את המסגרת.
         {
             var brush = new LinearGradientBrush { StartPoint = new Windows.Foundation.Point(0, 0), EndPoint = new Windows.Foundation.Point(1, 1) };
+            // אובייקט: brush — המברשת המדורגת, שהולכת באלכסון מהפינה העליונה לתחתונה.
             foreach (var stop in Themes.MakeStops(colors))
                 brush.GradientStops.Add(stop);
             return brush;

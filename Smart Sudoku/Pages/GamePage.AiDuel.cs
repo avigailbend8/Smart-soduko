@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Smart_Sudoku.Duel;
 using Windows.UI.Text;
 using Windows.UI.Xaml;
@@ -12,18 +12,30 @@ namespace Smart_Sudoku.Pages
     /// Points are counted like in the network duel: +10 for a right cell, -5 for a mistake, +100 for finishing.
     /// </summary>
     public sealed partial class GamePage
+    // אובייקט: GamePage (חלק הדו-קרב נגד המחשב) — השחקן והמחשב מתחרים על אותו לוח. המחשב פותר עותק משלו, ומי שממלא ראשון את כל הלוח מנצח.
+    // הנקודות נספרות כמו בדו-קרב ברשת: +10 על משבצת נכונה, −5 על טעות, +100 על סיום.
     {
         private const int AiLoserCoins = 10;   // a few coins just for playing
+        // אובייקט: AiLoserCoins — כמה מטבעות מקבלים גם בהפסד, רק על ההשתתפות (10).
 
         private AiOpponent? ai;
+        // אובייקט: ai — יריב המחשב (או null כשלא משחקים נגד המחשב).
         private DispatcherTimer? aiTimer;
+        // אובייקט: aiTimer — השעון שקובע מתי המחשב עושה את המהלך הבא.
         private int[,] aiBoard = new int[9, 9];
+        // אובייקט: aiBoard — הלוח של המחשב (העותק שהוא פותר).
         private int aiScore;        // the computer's points
+        // אובייקט: aiScore — הנקודות של המחשב.
         private int myAiScore;      // the player's points
+        // אובייקט: myAiScore — הנקודות של השחקן.
         private int aiCellsLeft;    // empty cells left on the computer's board
+        // אובייקט: aiCellsLeft — כמה משבצות ריקות נשארו ללוח של המחשב.
         private bool IsAiDuel => ai != null;
+        // אובייקט: IsAiDuel — אמת כשמשחקים עכשיו נגד המחשב.
 
         private void StartAiDuel(AiDuelStart start)
+        // פעולה: StartAiDuel — מתחילה דו-קרב נגד המחשב: בוחרת יריב, יוצרת לוח אחד לשניהם (שלב באמצע הרמה של היריב),
+        // מאפסת נקודות, מציגה את לוח התוצאות, ומפעילה ספירה לאחור 5-4-3-2-1.
         {
             EndAiDuel();
             ai = AiOpponent.Get(start.OpponentId);
@@ -48,6 +60,7 @@ namespace Smart_Sudoku.Pages
         }
 
         private void EndAiDuel()
+        // פעולה: EndAiDuel — מסיימת את מצב הדו-קרב נגד המחשב: עוצרת את השעון שלו ומסתירה את החלונות של הדו-קרב.
         {
             aiTimer?.Stop();
             aiTimer = null;
@@ -62,6 +75,7 @@ namespace Smart_Sudoku.Pages
 
         /// <summary>Called when the countdown ends: the computer starts thinking.</summary>
         private void StartAiTimer()
+        // פעולה: StartAiTimer — רצה בסוף הספירה לאחור: המחשב מתחיל "לחשוב".
         {
             if (ai == null)
                 return;
@@ -73,11 +87,14 @@ namespace Smart_Sudoku.Pages
 
         // The computer makes one move, then waits a new random time for the next one
         private void AiTimer_Tick(object? sender, object e)
+        // פעולה: AiTimer_Tick — המחשב עושה מהלך אחד: נכון — מוסיף לו נקודות, שגוי — מוריד. אם הוא סיים את הלוח — הוא ניצח.
+        // אחרי כל מהלך הוא מגריל זמן חדש עד המהלך הבא.
         {
             if (ai == null || aiTimer == null || finished)
                 return;
 
             AiMove? move = ai.ChooseMove(aiBoard, solution);
+            // אובייקט: move — המהלך שהמחשב בחר.
             if (move == null)
                 return;
 
@@ -106,6 +123,7 @@ namespace Smart_Sudoku.Pages
 
         /// <summary>Called after each of the player's moves. A cell scores only the first time it's right.</summary>
         private void AiPlayerMove(bool correct, int row, int col)
+        // פעולה: AiPlayerMove — רצה אחרי כל מהלך של השחקן ומעדכנת את הנקודות שלו. משבצת נותנת נקודות רק בפעם הראשונה שהיא נכונה.
         {
             if (correct)
             {
@@ -123,6 +141,8 @@ namespace Smart_Sudoku.Pages
 
         /// <summary>The duel is over: the player solved first (won), or the computer did / the hearts ran out (lost).</summary>
         private void AiDuelOver(bool playerWon)
+        // פעולה: AiDuelOver — הדו-קרב נגמר: השחקן ניצח (פתר ראשון) או הפסיד (המחשב פתר ראשון, או שנגמרו הלבבות).
+        // נותנת מטבעות, הישגים, ומציגה חלון תוצאות עם המקום של כל אחד.
         {
             if (ai == null)
                 return;
@@ -132,6 +152,7 @@ namespace Smart_Sudoku.Pages
             aiTimer?.Stop();
 
             int coins;
+            // אובייקט: coins — כמה מטבעות השחקן מקבל.
             if (playerWon)
             {
                 myAiScore += DuelScoring.FinishBonus(1);
@@ -155,6 +176,7 @@ namespace Smart_Sudoku.Pages
 
             DuelTitle.Text = playerWon ? "ניצחת את המחשב! 🏆" : $"{ai.Emoji} {ai.Name} ניצח/ה הפעם";
             string text;
+            // אובייקט: text — ההסבר שמופיע בחלון התוצאות.
             if (playerWon)
                 text = $"סיימת את הלוח לפני {ai.Name}! ⏱ {FormatTime(seconds)}\n🪙 +{coins} מטבעות (כולל בונוס ניצחון {ai.WinBonus})";
             else if (lives <= 0)
@@ -165,7 +187,9 @@ namespace Smart_Sudoku.Pages
 
             // The winner is the one who finished first, so they're listed first (even with fewer points)
             string me = $"{Session.PlayerName ?? "אני"} — {myAiScore} נקודות";
+            // אובייקט: me — השורה של השחקן בטבלת התוצאות.
             string computer = $"{ai.Emoji} {ai.Name} — {aiScore} נקודות";
+            // אובייקט: computer — השורה של המחשב בטבלת התוצאות.
             DuelRanking.Children.Clear();
             DuelRanking.Children.Add(RankingLine("🥇  " + (playerWon ? me : computer), bold: true));
             DuelRanking.Children.Add(RankingLine("🥈  " + (playerWon ? computer : me), bold: false));
@@ -175,6 +199,7 @@ namespace Smart_Sudoku.Pages
 
         // The score bar above the board: me, and the computer with how many cells it has left
         private void RefreshAiScoreboard()
+        // פעולה: RefreshAiScoreboard — מעדכנת את פס התוצאות שמעל הלוח: הנקודות שלי, והנקודות של המחשב וכמה משבצות נשארו לו.
         {
             if (ai == null)
                 return;
@@ -184,6 +209,7 @@ namespace Smart_Sudoku.Pages
         }
 
         private static Border ScoreChip(string text, bool me)
+        // פעולה: ScoreChip — יוצרת "תווית" מעוגלת עם תוצאה (התווית שלי מודגשת).
         {
             return new Border
             {
@@ -203,6 +229,7 @@ namespace Smart_Sudoku.Pages
         }
 
         private static TextBlock RankingLine(string text, bool bold)
+        // פעולה: RankingLine — יוצרת שורה בטבלת התוצאות של סוף הדו-קרב.
         {
             return new TextBlock
             {
@@ -215,8 +242,10 @@ namespace Smart_Sudoku.Pages
         }
 
         private static int CountEmpty(int[,] grid)
+        // פעולה: CountEmpty — סופרת כמה משבצות ריקות יש בלוח.
         {
             int count = 0;
+            // אובייקט: count — המונה של המשבצות הריקות.
             for (int r = 0; r < 9; r++)
             {
                 for (int c = 0; c < 9; c++)

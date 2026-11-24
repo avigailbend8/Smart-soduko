@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>גשם כוכבים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/arcade.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const NETS = [
+  { id: "net-moon", name: "סהר", price: 0, c: "#FFE9A8", kind: "moon" },
+  { id: "net-jar", name: "צנצנת אור", price: 90, c: "#BDF4FF", kind: "jar" },
+  { id: "net-hat", name: "כובע קוסם", price: 140, c: "#9B7BFF", kind: "hat" },
+  { id: "net-ufo", name: "צלחת מעופפת", price: 200, c: "#7CFFB2", kind: "ufo" },
+];
+const NIGHTS = [
+  { id: "nt-violet", name: "לילה סגול", price: 0, hue: 265 },
+  { id: "nt-aurora", name: "זוהר", price: 120, hue: 170 },
+  { id: "nt-rose", name: "שחר ורוד", price: 120, hue: 330 },
+];
+const CFG = {
+  id: "catcher", title: "גשם כוכבים", startCoins: 40, startStock: { magnet: 1 },
+  items: [Hub.theme("plum", 0), Hub.theme("night", 120), Hub.theme("amber", 100), ...NETS.map(n => ({ ...n, slot: "net" })), ...NIGHTS.map(n => ({ ...n, slot: "nightsky" })),
+    { id: "magnet3", consumable: true, stockId: "magnet", amount: 3, name: "3 מגנטים", desc: "מושך כוכבים קרובים לכל הסיבוב", price: 40 }],
+  storeGroups: [{ slot: "net", title: "מה תופס" }, { slot: "nightsky", title: "שמי לילה" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span style="font-size:38px">🧲</span>` : it.slot === "net" ? `<img alt="" src="${netImg(it)}" style="height:64px">` : `<div style="width:100%;height:100%;background:radial-gradient(circle at 60% 40%, hsla(${it.hue + 40},80%,55%,.55), transparent 60%), hsl(${it.hue},55%,9%)"></div>`,
+};
+const { rr, spaceBg, stars, drawStars } = Arcade;
+function drawNet(c, x, y, s, n) {
+  c.save(); c.translate(x, y); c.fillStyle = n.c; c.shadowColor = n.c; c.shadowBlur = 16;
+  if (n.kind === "moon") { c.beginPath(); c.arc(0, -s * .1, s * .7, .15 * Math.PI, .85 * Math.PI); c.arc(0, -s * .55, s * .62, .82 * Math.PI, .18 * Math.PI, true); c.fill(); }
+  else if (n.kind === "jar") { c.globalAlpha = .85; rr(c, -s * .55, -s * .5, s * 1.1, s * .9, s * .2); c.fill(); c.globalAlpha = 1; c.fillStyle = "#C9A96E"; rr(c, -s * .45, -s * .62, s * .9, s * .16, 4); c.fill(); }
+  else if (n.kind === "hat") { c.beginPath(); c.ellipse(0, s * .3, s * .8, s * .16, 0, 0, 7); c.fill(); c.beginPath(); c.moveTo(-s * .5, s * .3); c.lineTo(-s * .38, -s * .35); c.lineTo(s * .38, -s * .35); c.lineTo(s * .5, s * .3); c.fill(); c.fillStyle = "#FFD86B"; c.fillRect(-s * .45, s * .05, s * .9, s * .1); }
+  else { c.beginPath(); c.ellipse(0, s * .1, s * .85, s * .25, 0, 0, 7); c.fill(); c.fillStyle = "rgba(200,255,255,.8)"; c.beginPath(); c.ellipse(0, -s * .1, s * .38, s * .3, 0, Math.PI, 0); c.fill(); }
+  c.restore();
+}
+const imgs = {}; function netImg(n) { if (imgs[n.id]) return imgs[n.id]; const cv = document.createElement("canvas"); cv.width = 120; cv.height = 100; drawNet(cv.getContext("2d"), 60, 58, 44, n); return imgs[n.id] = cv.toDataURL(); }
+const KINDS = { star: { pts: 10, e: "⭐" }, big: { pts: 30, e: "🌟" }, gem: { pts: 50, e: "💎" }, rock: { pts: 0, e: "☄️" }, heart: { pts: 0, e: "💗" } };
+
+Arcade.run(CFG, {
+  tagline: "כוכבים נופלים מהשמיים. תפסו כמה שיותר — ושימו לב לשביטים. רצף תפיסות מכפיל את הניקוד!",
+  play: "לתפוס כוכבים", ratio: 1.4, unit: "נק׳", stageBg: "#0b0820", targets: [300, 800, 1500],
+  bots: [["קוואזר", "🛸", 2200], ["אוריון", "👾", 1000], ["ניצוץ", "🤖", 350]],
+  powers: [{ id: "magnet", label: "🧲 מגנט" }], pointerMove: true, pad: [["left", "◀", "שמאלה"], ["right", "▶", "ימינה"]],
+  keysText: "חצים או A/D · בטלפון: גוררים את האצבע",
+  readyText: "⭐ 10 · 🌟 30 · 💎 50 · ☄️ מוריד לב · 💗 מוסיף לב",
+  help: `<h2>המטרה</h2><p>לתפוס כמה שיותר כוכבים לפני שנגמרים הלבבות.</p><h2>חוקים</h2><ul><li>⭐ 10 · 🌟 30 · 💎 50 נקודות. כל 5 תפיסות ברצף מגדילות את המכפיל.</li><li>☄️ שביט מוריד לב ומאפס את הרצף. כוכב שנופל לקרקע רק מאפס את הרצף.</li><li>🧲 מגנט מושך כוכבים שעוברים קרוב.</li></ul>`,
+  init(S, w, h) { S.x = w / 2; S.score = 0; S.lives = 3; S.items = []; S.next = .5; S.streak = 0; S.mult = 1; S.sky = stars(100, w, h); S.parts = []; S.pops = []; },
+  update(S, dt, w, h) {
+    if (S.pointer) S.x += (S.tapX - S.x) * Math.min(1, dt * 18);
+    if (S.left) S.x -= 460 * dt; if (S.right) S.x += 460 * dt;
+    S.x = Math.max(30, Math.min(w - 30, S.x));
+    const speed = 150 + S.t * 4.5;
+    S.next -= dt;
+    if (S.next <= 0) {
+      S.next = Math.max(.28, .9 - S.t * .012);
+      const r = Math.random(), k = r < .22 + Math.min(.15, S.t * .003) ? "rock" : r < .3 ? "big" : r < .34 ? "gem" : r < .36 ? "heart" : "star";
+      S.items.push({ k, x: 20 + Math.random() * (w - 40), y: -20, v: speed * (.8 + Math.random() * .5), rot: Math.random() * 6 });
+    }
+    const catchY = h - 56;
+    for (const it of S.items) {
+      it.y += it.v * dt; it.rot += dt * 2;
+      if (S.power.magnet && it.k !== "rock" && it.y > h * .45 && Math.abs(it.x - S.x) < 110) it.x += (S.x - it.x) * Math.min(1, dt * 5);
+      if (!it.done && it.y > catchY - 22 && it.y < catchY + 16 && Math.abs(it.x - S.x) < 38) {
+        it.done = true;
+        if (it.k === "rock") { S.lives--; S.streak = 0; S.mult = 1; Hub.sound("wrong"); if (S.lives <= 0) { S.over = true; return; } }
+        else if (it.k === "heart") { S.lives = Math.min(5, S.lives + 1); Hub.sound("hint"); }
+        else {
+          S.streak++; S.mult = 1 + Math.floor(S.streak / 5); const pts = KINDS[it.k].pts * S.mult; S.score += pts; Hub.sound(it.k === "star" ? "tap" : "coin");
+          S.pops.push({ x: it.x, y: catchY - 30, txt: "+" + pts, life: .8 });
+          for (let i = 0; i < 10; i++) S.parts.push({ x: it.x, y: catchY - 10, vx: (Math.random() - .5) * 200, vy: -Math.random() * 200, life: .5 });
+        }
+      }
+      if (!it.done && it.y > h + 20) { it.done = true; if (it.k !== "rock" && it.k !== "heart") { S.streak = 0; S.mult = 1; } }
+    }
+    S.items = S.items.filter(i => !i.done);
+    for (const p of S.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 400 * dt; p.life -= dt; } S.parts = S.parts.filter(p => p.life > 0);
+    for (const p of S.pops) { p.y -= 40 * dt; p.life -= dt; } S.pops = S.pops.filter(p => p.life > 0);
+  },
+  draw(c, S, w, h, t) {
+    spaceBg(c, w, h, Hub.equipped("nightsky").hue); drawStars(c, S.sky, w, h, t * .01, t);
+    c.font = `28px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`; c.textAlign = "center"; c.textBaseline = "middle";
+    for (const it of S.items) { c.save(); c.translate(it.x, it.y); if (it.k !== "rock") c.rotate(Math.sin(it.rot) * .3); c.fillText(KINDS[it.k].e, 0, 0); c.restore(); }
+    drawNet(c, S.x, h - 56, 34, Hub.equipped("net"));
+    if (S.power.magnet) { c.strokeStyle = "rgba(255,120,120,.25)"; c.setLineDash([4, 6]); c.beginPath(); c.arc(S.x, h - 56, 110, Math.PI, 0); c.stroke(); c.setLineDash([]); }
+    c.fillStyle = "#FFE9A8"; for (const p of S.parts) { c.globalAlpha = p.life / .5; c.fillRect(p.x, p.y, 3, 3); } c.globalAlpha = 1;
+    c.font = "700 18px Heebo"; for (const p of S.pops) { c.globalAlpha = Math.min(1, p.life * 2); c.fillStyle = "#FFE9A8"; c.fillText(p.txt, p.x, p.y); } c.globalAlpha = 1;
+    if (S.mult > 1) { c.font = "700 20px 'Frank Ruhl Libre'"; c.fillStyle = "#FFD86B"; c.fillText(`×${S.mult}`, w / 2, 60); }
+    c.fillStyle = "rgba(255,255,255,.08)"; c.fillRect(0, h - 22, w, 22);
+  },
+  input(S, name, down) { if (name === "left") S.left = down; if (name === "right") S.right = down; },
+  hud: S => [["⭐", S.score], ["💗", S.lives]],
+  score: S => S.score, coins: S => S.score / 25,
+  resultTitle: () => "נגמרו הלבבות",
+  onBuy: () => Object.keys(imgs).forEach(k => delete imgs[k]),
+});
+</script>
+</body>
+</html>

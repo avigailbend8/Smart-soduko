@@ -92,6 +92,13 @@ const CFG = {
     { id: "peek3", consumable: true, stockId: "peek", amount: 3, name: "3 הצצות", desc: "רואים את הקלפים של היריבים לכמה שניות", price: 30 },
   ],
   storeGroups: [{ slot: "theme", title: "ערכות צבע" }, { slot: "back", title: "גב הקלפים" }, { slot: "felt", title: "שולחן" }, { consumable: true, title: "עזרים" }],
+  boards: [{ id: "wins", title: "ניצחונות", bots: [["קוואזר", "🛸", 35], ["אוריון", "👾", 15], ["ניצוץ", "🤖", 5]] }],
+  duel: {
+    mode: "match",
+    start: r => { newGame([8, 18, 28][r.level], true); view = "game"; nav = ["menu"]; render(); },
+    progress: () => G?.over && G.players[0].hand.length === 0 ? 1 : 0, over: () => !!G?.over, lose: () => {},
+    active: () => view === "game" && !!G, menu: () => { clearTimeout(botTimer); view = "menu"; nav = []; render(); },
+  },
   preview: it => it.slot === "back" ? `<div class="crd back" style="--back:${it.css};${it.edge ? `--back-edge:${it.edge}` : ""}"></div>`
     : `<div class="pv-felt" style="background:radial-gradient(circle, color-mix(in srgb, ${it.c} 75%, #fff), ${it.c})">${cardHTML({ color: "y", kind: "num", n: 7 })}</div>`,
 };
@@ -123,14 +130,16 @@ const P = () => { const p = W.progress; p.wins = p.wins || 0; p.games = p.games 
 const topCard = () => G.pile[G.pile.length - 1];
 const me = () => G.cur === 0;
 
-function newGame(bots) {
+const COUNT = 30;
+function newGame(L, duel = false) {
+  const bots = L <= 10 ? 1 : L <= 20 ? 2 : 3;
   clearTimeout(botTimer);
   const deck = newDeck();
   const players = [{ name: "את/ה", avatar: Hub.user.avatar, hand: [], me: true }, ...BOTS.slice(0, bots).map(b => ({ ...b, hand: [] }))];
   for (let k = 0; k < 7; k++) for (const p of players) p.hand.push(deck.pop());
   players.forEach(p => sortHand(p.hand));
   let first; do { first = deck.pop(); if (first.kind !== "num") deck.unshift(first); } while (first.kind !== "num"); // the game opens on a number card
-  G = { bots, players, deck, pile: [first], color: first.color, cur: 0, dir: 1, pending: 0, again: false, over: false, msg: "", land: true, peek: false, rots: { [first.id]: 0 } };
+  G = { L, duel, dumb: L <= 10 ? .55 - (L - 1) * .04 : L <= 20 ? .2 - (L - 11) * .02 : 0, peeks: 0, bots, players, deck, pile: [first], color: first.color, cur: 0, dir: 1, pending: 0, again: false, over: false, msg: "", land: true, peek: false, rots: { [first.id]: 0 } };
 }
 const nextIndex = (steps = 1) => { const n = G.players.length; return ((G.cur + G.dir * steps) % n + n) % n; };
 function canPlay(c) {
@@ -194,7 +203,7 @@ function botTurn() {
     if (c.kind === "rev") s += 3;
     return s + Math.random() * 3;
   };
-  const [card, idx] = opts.sort((a, b) => scoreOf(b[0]) - scoreOf(a[0]))[0];
+  const [card, idx] = Math.random() < (G.dumb || 0) ? opts[Math.floor(Math.random() * opts.length)] : opts.sort((a, b) => scoreOf(b[0]) - scoreOf(a[0]))[0];
   let chosen = null;
   if (card.kind === "wild") { const rest = pl.hand.filter(c => c !== card && c.color); chosen = Object.keys(COLORS).sort((a, b) => rest.filter(c => c.color === b).length - rest.filter(c => c.color === a).length)[0]; }
   playCard(pi, idx, chosen);
@@ -204,13 +213,16 @@ function endGame(pi) {
   const p = P(); p.games++;
   const win = G.players[pi].me;
   let coins = 0;
-  if (win) { p.wins++; coins = prize(G.bots); }
+  let stars = 0;
+  if (win) { p.wins++; Hub.submitScore(p.wins, "wins"); stars = G.peeks ? 2 : 3; const first = !G.duel && Hub.levelDone(G.L, stars); coins = G.duel ? prize(G.bots) : first ? 10 + G.L * 3 : Math.ceil((10 + G.L * 3) / 3); }
   Hub.save(); if (coins) Hub.earn(coins);
   render();
   const winner = G.players[pi].name, left = G.players[0].hand.length, bots = G.bots;
   setTimeout(() => {
     if (win) { Hub.sound("win"); Hub.confetti(); } else Hub.sound("lose");
-    Hub.result({ title: win ? "ניצחת! 🎉" : `${winner} ניצח/ה`, sub: win ? `סיימת את כל הקלפים לפני ${bots === 1 ? "היריב" : `${bots} היריבים`}` : `נשארו לך ${left} קלפים. בפעם הבאה!`, coins, buttons: [["again", "סיבוב נוסף", true], ["tomenu", "לתפריט"]] });
+    const sub = win ? `סיימת את כל הקלפים לפני ${bots === 1 ? "היריב" : `${bots} היריבים`}` : `נשארו לך ${left} קלפים. בפעם הבאה!`;
+    if (G.duel) Hub.result({ title: win ? "ניצחת! 🎉" : `${winner} ניצח/ה`, sub, coins, buttons: [["tomenu", "לתפריט", true]] });
+    else Hub.levelResult({ L: G.L, count: COUNT, won: win, stars, coins, title: win ? `ניצחת בשלב ${G.L}! 🎉` : `${winner} ניצח/ה`, sub });
   }, 500);
 }
 
@@ -221,11 +233,11 @@ function render() {
   if (view !== "game") Hub.closeOverlay();
   const bk = Hub.equipped("back"), st = document.documentElement.style;
   st.setProperty("--back", bk.css); st.setProperty("--back-edge", bk.edge || "rgba(255,255,255,.25)"); st.setProperty("--felt", Hub.equipped("felt").c);
-  $("#app").innerHTML = ({ menu: menuView, setup: setupView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+  $("#app").innerHTML = ({ menu: menuView, levels: () => `${Hub.topbar("שלבים")}<p class="fine" style="margin-top:-6px">עולם 1: יריב אחד · עולם 2: שני יריבים · עולם 3: שלושה יריבים</p>${Hub.levelMap({ count: COUNT, names: ["דו-קרב קלפים", "שלישייה", "שולחן מלא"] })}`, game: gameView, store: () => Hub.store(), help: helpView })[view]();
   G && (G.land = false);
 }
 function menuView() {
-  return Hub.menu({ tagline: "משחק קלפים מהיר וצבעוני: התאימו צבע או מספר, ונסו להיפטר מכל הקלפים לפני כולם.", buttons: [["setup", "משחק חדש", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+  return Hub.menu({ tagline: "משחק קלפים מהיר וצבעוני: התאימו צבע או מספר, ונסו להיפטר מכל הקלפים לפני כולם.", buttons: [["levels", "שלבים", true], ["store", "החנות"], ["help", "איך משחקים"]] });
 }
 function setupView() {
   const p = P();
@@ -243,7 +255,7 @@ function gameView() {
     return `<div class="seat ${G.cur === i && !G.over ? "turn" : ""}"><div class="who">${pl.avatar} ${pl.name}</div><div class="small" style="color:rgba(255,255,255,.75)">${pl.hand.length} קלפים</div><div class="fan ${open ? "open" : ""}">${fan}</div></div>`;
   }).join("");
   const status = G.over ? "המשחק נגמר" : myTurn ? (G.msg && G.again ? G.msg : G.pending ? `+${G.pending}! שחקו +2 או קחו ${G.pending} קלפים` : (G.msg ? G.msg + " · " : "") + "תורך") : `<span class="thinking">${G.msg ? G.msg + " · " : ""}תור ${G.players[G.cur].name}</span>`;
-  return `${Hub.topbar("ארבעה צבעים")}
+  return `${Hub.topbar(`ארבעה צבעים · שלב ${G.L}`)}
     <div class="table">
       <div class="seats">${seats}</div>
       <div class="mid-table">
@@ -295,22 +307,25 @@ document.addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   const a = b.dataset.act;
   if (a === "back") { Hub.closeOverlay(); return back(); }
-  if (a === "setup") return go("setup");
+  if (a === "levels") return go("levels");
+  if (a === "lvl") { newGame(+b.dataset.level); return go("game"); }
+  if (a === "lvnext") { Hub.closeOverlay(); newGame(Math.min(COUNT, G.L + 1)); return render(); }
+  if (a === "lvagain") { Hub.closeOverlay(); newGame(G.L); return render(); }
+  if (a === "lvmap") { Hub.closeOverlay(); clearTimeout(botTimer); view = "levels"; nav = ["menu"]; return render(); }
   if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
   if (a === "help") return go("help");
   if (a === "buy") { Hub.buy(b.dataset.item); return render(); }
-  if (a === "start") { newGame(+b.dataset.bots); return go("game"); }
   if (a === "card") return clickCard(+b.dataset.i, b);
   if (a === "color") { Hub.closeOverlay(); return playCard(0, G.wildIdx, b.dataset.c); }
   if (a === "draw") { if (me() && !G.over) draw(0); return; }
   if (a === "peek") {
     if (G.over || G.peek) return;
     if (!Hub.useStock("peek")) { Hub.toast("נגמרו ההצצות — אפשר לקנות עוד בחנות"); Hub.sound("wrong"); return; }
-    G.peek = true; Hub.sound("hint"); render();
+    G.peek = true; G.peeks++; Hub.sound("hint"); render();
     setTimeout(() => { if (G) { G.peek = false; if (view === "game") render(); } }, 3500);
     return;
   }
-  if (a === "again") { Hub.closeOverlay(); newGame(G.bots); return render(); }
+  if (a === "again") { Hub.closeOverlay(); newGame(G.L, G.duel); return render(); }
   if (a === "tomenu") { view = "menu"; nav = []; return render(); }
 });
 

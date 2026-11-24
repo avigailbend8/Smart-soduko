@@ -1,4 +1,4 @@
-<local:BasePage
+﻿<local:BasePage
     x:Class="Smart_Sudoku.Pages.LeaderboardPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -7,9 +7,12 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="Transparent">
+    <!-- אובייקט: LeaderboardPage — עמוד טבלת השיאים. יורש מ-BasePage, והרקע שלו שקוף. -->
 
     <local:BasePage.Resources>
+    <!-- אובייקט: Resources — משאבים שרק העמוד הזה משתמש בהם. -->
         <Style x:Key="HeaderText" TargetType="TextBlock">
+        <!-- אובייקט: HeaderText — הסגנון של כותרות העמודות בטבלה (קטן, מודגש וצבע עדין). -->
             <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{StaticResource MutedTextBrush}" />
@@ -17,20 +20,30 @@
     </local:BasePage.Resources>
 
     <Grid>
+    <!-- אובייקט: Grid — "מגש" שמחזיק את התוכן הנגלל ואת כפתור החזרה. -->
         <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <!-- אובייקט: ScrollViewer — מאפשר לגלול כשיש הרבה שחקנים. -->
             <StackPanel Margin="24,96,24,32" Spacing="18" MaxWidth="780" FlowDirection="RightToLeft">
+            <!-- אובייקט: StackPanel — עמודה עם הכותרת, כפתורי המיון והטבלה. -->
                 <TextBlock Text="🏆 טבלת שיאים" Style="{StaticResource TitleText}" />
+                <!-- אובייקט: TextBlock — הכותרת "טבלת שיאים". -->
                 <TextBlock Text="כל המשתמשים במחשב הזה. אפשר למיין לפי כוכבים, שלבים או מטבעות."
                            Style="{StaticResource SubtitleText}" />
+                           <!-- אובייקט: TextBlock — הסבר קצר מתחת לכותרת. -->
 
                 <!-- Sort buttons, filled in code -->
                 <StackPanel x:Name="SortPanel" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" />
+                <!-- אובייקט: SortPanel — שורת כפתורי המיון. הקוד ממלא אותה. -->
 
                 <Border Style="{StaticResource Card}" Padding="20">
+                <!-- אובייקט: Border — כרטיס לבן שבתוכו הטבלה. -->
                     <StackPanel Spacing="10">
+                    <!-- אובייקט: StackPanel — הכותרות של העמודות, ומתחתיהן השורות. -->
                         <!-- Column titles -->
                         <Grid Padding="14,0,14,4">
+                        <!-- אובייקט: Grid — שורת הכותרות של הטבלה. -->
                             <Grid.ColumnDefinitions>
+                            <!-- אובייקט: ColumnDefinitions — הרוחב של כל אחת מ-7 העמודות: מקום, תמונה, שם, כוכבים, שלבים, מטבעות וזמן. -->
                                 <ColumnDefinition Width="56" />
                                 <ColumnDefinition Width="64" />
                                 <ColumnDefinition Width="*" />
@@ -39,17 +52,25 @@
                                 <ColumnDefinition Width="100" />
                                 <ColumnDefinition Width="90" />
                             </Grid.ColumnDefinitions>
+                            <!-- (ההגדרות למעלה זהות לרוחב העמודות שהקוד בונה בכל שורה, כדי שהכול יהיה מיושר.) -->
                             <TextBlock Grid.Column="2" Text="שחקן/ית" Style="{StaticResource HeaderText}" />
+                            <!-- אובייקט: TextBlock — כותרת העמודה "שחקן/ית". -->
                             <TextBlock Grid.Column="3" Text="⭐ כוכבים" Style="{StaticResource HeaderText}" />
+                            <!-- אובייקט: TextBlock — כותרת העמודה "כוכבים". -->
                             <TextBlock Grid.Column="4" Text="✅ שלבים" Style="{StaticResource HeaderText}" />
+                            <!-- אובייקט: TextBlock — כותרת העמודה "שלבים". -->
                             <TextBlock Grid.Column="5" Text="🪙 מטבעות" Style="{StaticResource HeaderText}" />
+                            <!-- אובייקט: TextBlock — כותרת העמודה "מטבעות". -->
                             <TextBlock Grid.Column="6" Text="⚡ הכי מהר" Style="{StaticResource HeaderText}" />
+                            <!-- אובייקט: TextBlock — כותרת העמודה "הכי מהר". -->
                         </Grid>
                         <StackPanel x:Name="RowsPanel" Spacing="8" />
+                        <!-- אובייקט: RowsPanel — העמודה שבה הקוד מוסיף שורה לכל שחקן. -->
                         <TextBlock x:Name="EmptyText"
                                    Text="עוד אין משתמשים רשומים. נרשמים בתפריט — ומופיעים כאן!"
                                    Style="{StaticResource SubtitleText}"
                                    Visibility="Collapsed" />
+                                   <!-- אובייקט: EmptyText — הודעה שמופיעה רק כשאין עוד משתמשים. -->
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -62,7 +83,9 @@
                 ToolTipService.ToolTip="חזרה"
                 AutomationProperties.Name="חזרה"
                 Click="BackButton_Click">
+                <!-- אובייקט: Button — כפתור "חזרה" עגול בפינה (BackButton_Click). -->
             <FontIcon Glyph="&#xE72B;" FontSize="20" />
+            <!-- אובייקט: FontIcon — האייקון של החץ שבתוך כפתור החזרה. -->
         </Button>
     </Grid>
 

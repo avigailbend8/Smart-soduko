@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>מגדל הבלוקים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/arcade.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const STYLES = [
+  { id: "bk-glass", name: "זכוכית", price: 0, cols: ["#7DE2FC", "#FFD166", "#C77DFF", "#80ED99", "#FF8FA3", "#5E9BFF", "#FFA45B"], kind: "glass", hue: 250 },
+  { id: "bk-candy", name: "ממתקים", price: 100, cols: ["#FFB3C6", "#FFE5A5", "#CDB4DB", "#B9FBC0", "#FFC8DD", "#A2D2FF", "#FFD6A5"], kind: "candy", hue: 320 },
+  { id: "bk-neon", name: "ניאון", price: 150, cols: ["#00F0FF", "#FFF01F", "#FF2CDF", "#39FF14", "#FF3131", "#4D4DFF", "#FF8C00"], kind: "neon", hue: 265 },
+  { id: "bk-stone", name: "אבני חן", price: 180, cols: ["#3AAFA9", "#E9C46A", "#9D4EDD", "#52B788", "#E63946", "#457B9D", "#F4A261"], kind: "gem", hue: 210 },
+];
+const CFG = {
+  id: "blocks", title: "מגדל הבלוקים", startCoins: 40,
+  items: [Hub.theme("slate", 0), Hub.theme("indigo", 100), Hub.theme("plum", 100), Hub.theme("night", 160), ...STYLES.map(s => ({ ...s, slot: "blocks" }))],
+  storeGroups: [{ slot: "blocks", title: "סגנון הבלוקים" }, { slot: "theme", title: "ערכות צבע" }],
+  preview: it => `<div style="display:grid;grid-template-columns:repeat(4,16px);gap:2px">${[0, 1, 2, 3, 4, 5, 6, 0].map(i => `<i style="height:16px;border-radius:${it.kind === "candy" ? 6 : 3}px;background:${it.cols[i]};${it.kind === "neon" ? `box-shadow:0 0 6px ${it.cols[i]}` : ""}"></i>`).join("")}</div>`,
+};
+const { rr, spaceBg, stars, drawStars } = Arcade;
+const SHAPES = [[[1, 1, 1, 1]], [[1, 1], [1, 1]], [[0, 1, 0], [1, 1, 1]], [[0, 1, 1], [1, 1, 0]], [[1, 1, 0], [0, 1, 1]], [[1, 0, 0], [1, 1, 1]], [[0, 0, 1], [1, 1, 1]]];
+const COLS = 10, ROWS = 20;
+const rot = m => m[0].map((_, c) => m.map(r => r[c]).reverse());
+function bag(S) { if (!S.bag.length) S.bag = Hub.shuffle([0, 1, 2, 3, 4, 5, 6]); return S.bag.pop(); }
+function spawn(S) {
+  const k = S.nextK ?? bag(S); S.nextK = bag(S);
+  S.cur = { k, m: SHAPES[k], x: Math.floor((COLS - SHAPES[k][0].length) / 2), y: -1 };
+  if (hits(S, S.cur.m, S.cur.x, S.cur.y + 1)) S.over = true;
+}
+function hits(S, m, x, y) { for (let r = 0; r < m.length; r++) for (let c = 0; c < m[r].length; c++) if (m[r][c]) { const X = x + c, Y = y + r; if (X < 0 || X >= COLS || Y >= ROWS || (Y >= 0 && S.grid[Y][X] >= 0)) return true; } return false; }
+function lock(S) {
+  const { m, x, y, k } = S.cur;
+  for (let r = 0; r < m.length; r++) for (let c = 0; c < m[r].length; c++) if (m[r][c]) { if (y + r < 0) { S.over = true; return; } S.grid[y + r][x + c] = k; }
+  const full = S.grid.map((row, i) => row.every(v => v >= 0) ? i : -1).filter(i => i >= 0);
+  if (full.length) {
+    S.flash = { rows: full, t: .25 };
+    S.score += [0, 100, 300, 500, 800][full.length] * S.level; S.lines += full.length;
+    Hub.sound(full.length >= 4 ? "win" : "good");
+    if (full.length >= 4) Hub.toast("ארבע שורות! 🎉");
+    S.level = 1 + Math.floor(S.lines / 10);
+  } else Hub.sound("tap");
+  spawn(S);
+}
+function clearFlash(S) { const rows = S.flash.rows; S.grid = S.grid.filter((_, i) => !rows.includes(i)); while (S.grid.length < ROWS) S.grid.unshift(Array(COLS).fill(-1)); S.flash = null; }
+function drawBlock(c, x, y, s, col, kind) {
+  if (kind === "neon") { c.shadowColor = col; c.shadowBlur = 10; c.strokeStyle = col; c.lineWidth = 2; rr(c, x + 2, y + 2, s - 4, s - 4, 4); c.stroke(); c.fillStyle = col + "33"; c.fill(); c.shadowBlur = 0; return; }
+  const g = c.createLinearGradient(x, y, x + s, y + s); g.addColorStop(0, `color-mix(in srgb, ${col} 65%, #fff)`); g.addColorStop(1, col);
+  c.fillStyle = g; rr(c, x + 1, y + 1, s - 2, s - 2, kind === "candy" ? s * .32 : 4); c.fill();
+  c.fillStyle = "rgba(255,255,255,.45)"; rr(c, x + 4, y + 3, s - 8, s * .2, 3); c.fill();
+  if (kind === "gem") { c.strokeStyle = "rgba(0,0,0,.18)"; c.beginPath(); c.moveTo(x + 2, y + 2); c.lineTo(x + s - 2, y + s - 2); c.moveTo(x + s - 2, y + 2); c.lineTo(x + 2, y + s - 2); c.stroke(); }
+}
+
+Arcade.run(CFG, {
+  tagline: "צורות נופלות מלמעלה. סובבו והזיזו אותן כדי למלא שורות שלמות — שורה מלאה נעלמת.",
+  play: "לבנות", ratio: 1.45, unit: "נק׳", stageBg: "#120a24", targets: [1500, 5000, 12000],
+  bots: [["קוואזר", "🛸", 18000], ["אוריון", "👾", 7000], ["ניצוץ", "🤖", 2000]],
+  pad: [["left", "◀", "שמאלה"], ["up", "⟳", "סיבוב"], ["down", "▼", "למטה"], ["action", "⤓", "הפלה"], ["right", "▶", "ימינה"]],
+  keysText: "←/→ הזזה · ↑ סיבוב · ↓ ירידה מהירה · רווח הפלה · בטלפון: הכפתורים או החלקה",
+  spaceIsAction: true, repeatKeys: true,
+  keys: { ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right", ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down", " ": "action" },
+  readyText: "שורה = 100, ארבע שורות ביחד = 800. כל 10 שורות — שלב חדש ומהיר יותר.",
+  help: `<h2>המטרה</h2><p>למלא שורות שלמות לרוחב הלוח. שורה מלאה נעלמת ונותנת נקודות. המשחק נגמר כשהערימה מגיעה למעלה.</p>
+    <h2>שליטה</h2><ul><li>←/→ הזזה · ↑ סיבוב · ↓ ירידה מהירה · רווח (⤓) הפלה מיידית.</li><li>בטלפון: הכפתורים, או החלקה ימינה/שמאלה/למטה והקשה לסיבוב.</li></ul>
+    <h2>ניקוד</h2><ul><li>1/2/3/4 שורות = 100/300/500/800 כפול השלב. הצל השקוף מראה איפה הצורה תנחת.</li></ul>`,
+  init(S, w, h) {
+    S.grid = Array.from({ length: ROWS }, () => Array(COLS).fill(-1)); S.bag = []; S.nextK = null;
+    S.score = 0; S.lines = 0; S.level = 1; S.drop = 0; S.flash = null; S.soft = false; S.sky = stars(60, w, h);
+    spawn(S);
+  },
+  update(S, dt) {
+    if (S.flash) { S.flash.t -= dt; if (S.flash.t <= 0) clearFlash(S); return; }
+    S.softT = Math.max(0, (S.softT || 0) - dt); S.soft = S.softT > 0;
+    const interval = Math.max(.07, .8 * Math.pow(.84, S.level - 1)) / (S.soft ? 8 : 1);
+    S.drop += dt;
+    if (S.drop >= interval) {
+      S.drop = 0;
+      if (!hits(S, S.cur.m, S.cur.x, S.cur.y + 1)) { S.cur.y++; if (S.soft) S.score += 1; }
+      else lock(S);
+    }
+  },
+  draw(c, S, w, h, t) {
+    const st = Hub.equipped("blocks");
+    spaceBg(c, w, h, st.hue); drawStars(c, S.sky, w, h, 0, t);
+    const cs = Math.floor(Math.min((w * .72) / COLS, (h - 20) / ROWS)), bx = 10, by = Math.floor((h - cs * ROWS) / 2);
+    c.fillStyle = "rgba(255,255,255,.06)"; rr(c, bx - 4, by - 4, cs * COLS + 8, cs * ROWS + 8, 10); c.fill();
+    c.strokeStyle = "rgba(255,255,255,.05)";
+    for (let x = 0; x <= COLS; x++) { c.beginPath(); c.moveTo(bx + x * cs, by); c.lineTo(bx + x * cs, by + ROWS * cs); c.stroke(); }
+    for (let y = 0; y <= ROWS; y++) { c.beginPath(); c.moveTo(bx, by + y * cs); c.lineTo(bx + COLS * cs, by + y * cs); c.stroke(); }
+    S.grid.forEach((row, y) => row.forEach((k, x) => { if (k >= 0) drawBlock(c, bx + x * cs, by + y * cs, cs, st.cols[k], st.kind); }));
+    if (S.flash) { c.fillStyle = `rgba(255,255,255,${S.flash.t * 3})`; for (const y of S.flash.rows) c.fillRect(bx, by + y * cs, COLS * cs, cs); }
+    if (S.cur && !S.flash && !S.over) {
+      let gy = S.cur.y; while (!hits(S, S.cur.m, S.cur.x, gy + 1)) gy++;
+      c.globalAlpha = .22; S.cur.m.forEach((row, r) => row.forEach((v, cc) => { if (v && gy + r >= 0) drawBlock(c, bx + (S.cur.x + cc) * cs, by + (gy + r) * cs, cs, st.cols[S.cur.k], st.kind); })); c.globalAlpha = 1;
+      S.cur.m.forEach((row, r) => row.forEach((v, cc) => { if (v && S.cur.y + r >= 0) drawBlock(c, bx + (S.cur.x + cc) * cs, by + (S.cur.y + r) * cs, cs, st.cols[S.cur.k], st.kind); }));
+    }
+    const sx = bx + COLS * cs + 14, sw = w - sx - 8;
+    c.fillStyle = "rgba(255,255,255,.75)"; c.font = "500 13px Heebo"; c.textAlign = "center"; c.textBaseline = "top";
+    c.fillText("הבא", sx + sw / 2, by + 60);
+    if (S.nextK !== null) { const m = SHAPES[S.nextK], s2 = Math.min(18, sw / 4.5); m.forEach((row, r) => row.forEach((v, cc) => { if (v) drawBlock(c, sx + (sw - m[0].length * s2) / 2 + cc * s2, by + 82 + r * s2, s2, st.cols[S.nextK], st.kind); })); }
+    c.fillText("שלב", sx + sw / 2, by + 140); c.font = "700 24px 'Frank Ruhl Libre'"; c.fillText(S.level, sx + sw / 2, by + 158);
+    c.font = "500 13px Heebo"; c.fillText("שורות", sx + sw / 2, by + 200); c.font = "700 24px 'Frank Ruhl Libre'"; c.fillText(S.lines, sx + sw / 2, by + 218);
+  },
+  input(S, name, down) {
+    if (name === "down") { if (down) S.softT = .35; return; }
+    if (!down || S.flash || !S.cur) return;
+    if (name === "left" || name === "right") { const d = name === "left" ? -1 : 1; if (!hits(S, S.cur.m, S.cur.x + d, S.cur.y)) { S.cur.x += d; Hub.sound("tap"); } }
+    else if (name === "up" || name === "tap") { const m = rot(S.cur.m); for (const k of [0, -1, 1, -2, 2]) if (!hits(S, m, S.cur.x + k, S.cur.y)) { S.cur.m = m; S.cur.x += k; Hub.sound("flip"); break; } }
+    else if (name === "action") { let n = 0; while (!hits(S, S.cur.m, S.cur.x, S.cur.y + 1)) { S.cur.y++; n++; } S.score += n * 2; lock(S); }
+  },
+  hud: S => [["⭐", S.score], ["▤", S.lines]],
+  score: S => S.score, coins: S => S.score / 120 + S.lines,
+  resultTitle: S => `המגדל הגיע לתקרה · ${S.lines} שורות`,
+});
+</script>
+</body>
+</html>

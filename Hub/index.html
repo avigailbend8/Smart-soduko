@@ -46,6 +46,15 @@
 .cat-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--line); }
 .cat-head h2 { font-size: 28px; }
 html { scroll-behavior: smooth; }
+.bg-picks { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 6px 0 12px; }
+.bg-pick { aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--line); cursor: pointer; padding: 0; }
+.bg-pick.on { box-shadow: 0 0 0 2px var(--accent); }
+.account-menu { width: 280px; }
+.dark .game .cover { background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--c) 45%, transparent), color-mix(in srgb, var(--c) 14%, transparent)); }
+.dark .game:hover { box-shadow: 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent), 0 26px 50px -20px var(--c); }
+.hero .display { background: linear-gradient(120deg, var(--ink), var(--accent), var(--ink)); background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent; animation: shine 8s linear infinite; }
+@keyframes shine { to { background-position: 200% center; } }
+@media (prefers-reduced-motion: reduce) { .hero .display { animation: none; } }
 .note { text-align: center; color: var(--muted); font-size: 14px; margin-top: 30px; }
 @media (max-width: 520px) { .brand small { display: none; } .account > button span.nm { display: none; } }
 </style>
@@ -56,11 +65,24 @@ html { scroll-behavior: smooth; }
 const { $, esc } = Hub;
 const logo = `<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="2" y="2" width="36" height="36" rx="11" fill="var(--accent)"/><circle cx="15" cy="15" r="4.2" fill="#fff"/><rect x="21" y="11" width="8.4" height="8.4" rx="2.4" fill="#fff" opacity=".75"/><rect x="11" y="21" width="8.4" height="8.4" rx="2.4" fill="#fff" opacity=".75"/><path d="M25 21l4.2 4.2-4.2 4.2-4.2-4.2z" fill="#fff"/></svg>`;
 let menuOpen = false;
+// The studio's own background (free here): galaxy by default, changeable in the account menu
+const HUB_BG_KEY = "mindstudio.hubbg";
+// All the games' title fonts in one request, so every card shows its game's own lettering
+{ const fams = [...new Set(Object.values(Hub.LOOKS).map(l => l.font))].map(f => "family=" + f.replace(/ /g, "+")).join("&");
+  const l = document.createElement("link"); l.rel = "stylesheet"; l.href = `https://fonts.googleapis.com/css2?${fams}&display=swap`; document.head.append(l); }
+function applyHubBg() {
+  let id = "bg-galaxy"; try { id = localStorage.getItem(HUB_BG_KEY) || id; } catch (e) {}
+  const b = Hub.BGS.find(x => x.id === id) || Hub.BGS[3];
+  Hub.applyPalette(b.dark ? { paper: "#0A0918", paper2: "#17122E", card: "rgba(30,25,56,.7)", ink: "#F3EEFF", muted: "#B9AEDB", accent: "#E79AC0", soft: "rgba(255,255,255,.09)", line: "rgba(255,255,255,.15)", dark: true } : Hub.PALETTES.terracotta);
+  Hub.setBackground(b.kind);
+  return b.id;
+}
 
 function greeting() { const h = new Date().getHours(); return h < 5 ? "לילה טוב" : h < 12 ? "בוקר טוב" : h < 17 ? "צהריים טובים" : h < 21 ? "ערב טוב" : "לילה טוב"; }
 
 function render() {
   const u = Hub.currentUser();
+  const hubBg = applyHubBg();
   if (!u) return Hub.loginCard($("#app"), { title: "סטודיו המשחקים", subtitle: "משחקי חשיבה, לוח, קלפים ופעולה. מתחברים פעם אחת, וכל המשחקים כבר מחוברים." }, render);
   $("#app").innerHTML = `
   <header class="hub-head">
@@ -70,6 +92,8 @@ function render() {
       ${menuOpen ? `<div class="card account-menu rise">
         <p class="small">הדמות שלך</p>
         <div class="avatars">${Hub.AVATARS.map(a => `<button class="avatar-pick ${a === u.avatar ? "on" : ""}" data-avatar="${a}" aria-label="${a}">${a}</button>`).join("")}</div>
+        <p class="small">רקע הסטודיו</p>
+        <div class="bg-picks">${Hub.BGS.map(b => `<button class="bg-pick ${b.id === hubBg ? "on" : ""}" data-bg="${b.id}" title="${b.name}" aria-label="${b.name}" style="background:${b.sw}"></button>`).join("")}</div>
         <button class="btn wide" data-act="logout">התנתקות</button>
       </div>` : ""}
     </div>
@@ -82,9 +106,9 @@ function render() {
   <nav class="cat-nav" aria-label="קטגוריות">${Hub.CATS.map(c => `<a class="pill-link" href="#cat-${c.id}">${c.title}</a>`).join("")}</nav>
   ${Hub.CATS.map(cat => `<section class="cat" id="cat-${cat.id}"><div class="cat-head"><h2>${cat.title}</h2><p class="small">${cat.sub}</p></div>
   <div class="games">${Hub.GAMES.filter(g => g.cat === cat.id).map((g, i) => {
-    const coins = Hub.coinsOf(u, g.id);
-    return `<a class="game rise" style="--c:${g.color};animation-delay:${i * 60}ms" href="${g.url}">
-      <div class="cover">${Hub.art(g.id, g.color)}</div>
+    const coins = Hub.coinsOf(u, g.id), lk = Hub.LOOKS[g.id] || { n1: g.color, n2: g.color, font: "Frank Ruhl Libre" };
+    return `<a class="game neon-card rise" style="--c:${lk.n1};--n1:${lk.n1};--n2:${lk.n2};--gfont:'${lk.font}', var(--display);animation-delay:${i * 60}ms" href="${g.url}">
+      <div class="cover"><i class="cv-orb"></i>${Hub.art(g.id, lk.n1)}</div>
       <div class="body">
         <p class="eyebrow">${g.tag}</p>
         <h2>${g.title}</h2>
@@ -97,7 +121,8 @@ function render() {
 }
 
 document.addEventListener("click", e => {
-  const b = e.target.closest("[data-act],[data-avatar]");
+  const b = e.target.closest("[data-act],[data-avatar],[data-bg]");
+  if (b?.dataset.bg) { try { localStorage.setItem(HUB_BG_KEY, b.dataset.bg); } catch (e) {} return render(); }
   if (!b) { if (menuOpen && !e.target.closest(".account-menu")) { menuOpen = false; render(); } return; }
   if (b.dataset.avatar && Hub.currentUser()) { Hub.setAvatar(b.dataset.avatar); return render(); }
   if (b.dataset.act === "account") { menuOpen = !menuOpen; return render(); }

@@ -8,14 +8,18 @@
     mc:Ignorable="d"
     NavigationCacheMode="Enabled"
     Background="Transparent">
+    <!-- אובייקט: GamePage — מסך המשחק. יורש מ-BasePage. NavigationCacheMode="Enabled" שומר את המסך בזיכרון, כך שחזרה ממסך העזרה ממשיכה את אותו משחק. -->
 
     <local:BasePage.Resources>
+    <!-- אובייקט: Resources — סגנונות שרק המסך הזה משתמש בהם. -->
         <Style x:Key="ToolButton" TargetType="Button" BasedOn="{StaticResource WhiteButton}">
+        <!-- אובייקט: ToolButton — הסגנון של כפתורי הכלים מתחת ללוח (ביטול, מחק, פתקים...). -->
             <Setter Property="MinWidth" Value="130" />
             <Setter Property="Padding" Value="18,10" />
             <Setter Property="FontSize" Value="17" />
         </Style>
         <Style x:Key="StatText" TargetType="TextBlock">
+        <!-- אובייקט: StatText — הסגנון של הטקסטים בשורת המידע (שעון, לבבות, מטבעות). -->
             <Setter Property="FontSize" Value="20" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Foreground" Value="{StaticResource BerryBrush}" />
@@ -24,19 +28,24 @@
     </local:BasePage.Resources>
 
     <Grid>
+    <!-- אובייקט: Grid — "מגש" שמחזיק את כל המסך: הפס העליון, הלוח, והחלונות שקופצים מעליו. -->
         <Grid.RowDefinitions>
+        <!-- אובייקט: RowDefinitions — שתי שורות: הפס העליון בגובה לפי התוכן, והלוח בכל השאר. -->
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
         <!-- Top bar: back, level title, sound, help -->
         <Grid Margin="24,20,24,0">
+        <!-- אובייקט: Grid — הפס העליון: חזרה, כותרת, עצירה, צליל ועזרה. -->
             <Button Style="{StaticResource CircleButton}"
                     HorizontalAlignment="Left"
                     ToolTipService.ToolTip="חזרה"
                     AutomationProperties.Name="חזרה"
                     Click="BackButton_Click">
+                    <!-- אובייקט: Button — כפתור "חזרה" עגול (BackButton_Click). -->
                 <FontIcon Glyph="&#xE72B;" FontSize="20" />
+                <!-- אובייקט: FontIcon — האייקון של החץ. -->
             </Button>
 
             <TextBlock x:Name="LevelText"
@@ -44,20 +53,26 @@
                        Style="{StaticResource TitleText}"
                        FontSize="36"
                        VerticalAlignment="Center" />
+                       <!-- אובייקט: LevelText — הכותרת שמעל הלוח (מספר השלב, אתגר יומי, זן, מסע או דו-קרב). -->
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+            <!-- אובייקט: StackPanel — שורה של שלושה כפתורים עגולים בצד ימין. -->
                 <Button x:Name="PauseButton"
                         Style="{StaticResource CircleButton}"
                         ToolTipService.ToolTip="עצירה"
                         AutomationProperties.Name="עצירה"
                         Click="PauseButton_Click">
+                        <!-- אובייקט: PauseButton — כפתור "עצירה" (PauseButton_Click). -->
                     <FontIcon Glyph="&#xE769;" FontSize="20" />
+                    <!-- אובייקט: FontIcon — האייקון של העצירה. -->
                 </Button>
                 <Button Style="{StaticResource CircleButton}"
                         ToolTipService.ToolTip="צלילים"
                         AutomationProperties.Name="צלילים"
                         Click="SoundButton_Click">
+                        <!-- אובייקט: Button — כפתור הצליל (SoundButton_Click). -->
                     <FontIcon x:Name="SoundIcon" Glyph="&#xE767;" FontSize="20" />
+                    <!-- אובייקט: SoundIcon — האייקון של הרמקול. הקוד מחליף אותו בין "פועל" ל"כבוי". -->
                 </Button>
                 <Button Content="?"
                         Style="{StaticResource CircleButton}"
@@ -65,14 +80,18 @@
                         ToolTipService.ToolTip="איך משחקים?"
                         AutomationProperties.Name="עזרה"
                         Click="HelpButton_Click" />
+                        <!-- אובייקט: Button — כפתור "?" שפותח את מסך העזרה (HelpButton_Click). -->
             </StackPanel>
         </Grid>
 
         <Viewbox Grid.Row="1" Margin="24,8,24,20" Stretch="Uniform" StretchDirection="DownOnly">
+        <!-- אובייקט: Viewbox — מקטין את הלוח והכפתורים כשהחלון קטן, כדי שהכול ייכנס. -->
             <StackPanel Spacing="14">
+            <!-- אובייקט: StackPanel — עמודה עם שורת המידע, הלוח, וכל הכפתורים. -->
 
                 <!-- Timer, lives, coins -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="28">
+                <!-- אובייקט: StackPanel — שורת המידע: קמע, שעון, לבבות, בונוס מהירות, שיא ומטבעות. -->
                     <!-- The mascot reacts to every move -->
                     <Border Width="52"
                             Height="52"
@@ -81,28 +100,35 @@
                             BorderBrush="{StaticResource SoftPinkBrush}"
                             BorderThickness="2"
                             ToolTipService.ToolTip="החבר הקטן שלך 💕">
+                            <!-- אובייקט: Border — העיגול שבו יושב הקמע. -->
                         <TextBlock x:Name="MascotFace"
                                    Text="😊"
                                    FontSize="30"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Center" />
+                                   <!-- אובייקט: MascotFace — הקמע: הפרצוף הקטן שמגיב לכל מהלך. -->
                     </Border>
                     <TextBlock x:Name="TimerText" Style="{StaticResource StatText}" Text="⏱ 00:00" />
+                    <!-- אובייקט: TimerText — השעון. -->
                     <TextBlock x:Name="LivesText"
                                Style="{StaticResource StatText}"
                                FontFamily="Segoe UI Symbol"
                                FontSize="24"
                                Foreground="{StaticResource RoseBrush}"
                                Text="♥♥♥" />
+                               <!-- אובייקט: LivesText — הלבבות (♥ מלא = לב שנשאר, ♡ ריק = לב שנשבר). -->
                     <TextBlock x:Name="SpeedText"
                                Style="{StaticResource StatText}"
                                Text="⚡ +0"
                                ToolTipService.ToolTip="בונוס מהירות: מטבע על כל 5 שניות מהר יותר מהיעד" />
+                               <!-- אובייקט: SpeedText — בונוס המהירות שעוד אפשר להרוויח (יורד עם הזמן). -->
                     <TextBlock x:Name="BestText"
                                Style="{StaticResource StatText}"
                                Text="🏆 --:--"
                                ToolTipService.ToolTip="השיא שלך בשלב הזה" />
+                               <!-- אובייקט: BestText — השיא בשלב הזה. -->
                     <TextBlock x:Name="CoinsText" Style="{StaticResource StatText}" Text="🪙 0" />
+                    <!-- אובייקט: CoinsText — כמה מטבעות יש. -->
                 </StackPanel>
 
                 <!-- Duel only: everyone's live score -->
@@ -112,6 +138,7 @@
                             Spacing="10"
                             FlowDirection="RightToLeft"
                             Visibility="Collapsed" />
+                            <!-- אובייקט: DuelScoreboard — פס התוצאות של הדו-קרב (רק בדו-קרב). הקוד ממלא אותו. -->
 
                 <!-- Duel only: quick reactions -->
                 <StackPanel x:Name="EmojiBar"
@@ -119,75 +146,113 @@
                             HorizontalAlignment="Center"
                             Spacing="8"
                             Visibility="Collapsed" />
+                            <!-- אובייקט: EmojiBar — שורת כפתורי האימוג'י לשליחה בדו-קרב (רק בדו-קרב). -->
 
                 <!-- The 9x9 board, filled in code, with the frame's corner decorations around it -->
                 <Grid HorizontalAlignment="Center">
+                <!-- אובייקט: Grid — המקום של הלוח עם קישוטי המסגרת בפינות. -->
                     <Border x:Name="BoardFrame"
                             Background="{StaticResource CardBrush}"
                             BorderBrush="{StaticResource RoseBrush}"
                             BorderThickness="3"
                             CornerRadius="14"
                             Margin="14">
+                            <!-- אובייקט: BoardFrame — המסגרת סביב הלוח (משתנה לפי המסגרת שנקנתה בחנות). -->
                         <Grid x:Name="BoardGrid" />
+                        <!-- אובייקט: BoardGrid — הלוח 9×9 עצמו. הקוד ממלא אותו ב-81 משבצות. -->
                     </Border>
                     <TextBlock x:Name="FrameCornerTL" FontSize="26" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False" />
+                    <!-- אובייקט: FrameCornerTL — אימוג'י המסגרת בפינה השמאלית העליונה. -->
                     <TextBlock x:Name="FrameCornerTR" FontSize="26" HorizontalAlignment="Right" VerticalAlignment="Top" IsHitTestVisible="False" />
+                    <!-- אובייקט: FrameCornerTR — אימוג'י המסגרת בפינה הימנית העליונה. -->
                     <TextBlock x:Name="FrameCornerBL" FontSize="26" HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False" />
+                    <!-- אובייקט: FrameCornerBL — אימוג'י המסגרת בפינה השמאלית התחתונה. -->
                     <TextBlock x:Name="FrameCornerBR" FontSize="26" HorizontalAlignment="Right" VerticalAlignment="Bottom" IsHitTestVisible="False" />
+                    <!-- אובייקט: FrameCornerBR — אימוג'י המסגרת בפינה הימנית התחתונה. -->
                 </Grid>
 
                 <TextBlock x:Name="StatusText"
                            Style="{StaticResource SubtitleText}"
                            Text="בחרו משבצת ריקה ואז מספר"
                            FlowDirection="RightToLeft" />
+                           <!-- אובייקט: StatusText — שורת הסבר מתחת ללוח ("בחרו משבצת", "אופס", "יופי!"...). -->
 
                 <!-- Numbers 1-9, filled in code -->
                 <StackPanel x:Name="NumberPad" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" />
+                <!-- אובייקט: NumberPad — שורת כפתורי המספרים 1–9. הקוד ממלא אותה. -->
 
                 <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                <!-- אובייקט: StackPanel — השורה הראשונה של כפתורי הכלים. -->
                     <Button Style="{StaticResource ToolButton}" Click="UndoButton_Click">
+                    <!-- אובייקט: Button — כפתור "ביטול": מחזיר את הצעד האחרון (UndoButton_Click). -->
                         <StackPanel Orientation="Horizontal" Spacing="8">
+                        <!-- אובייקט: StackPanel — האייקון והמילה שבתוך הכפתור, זה לצד זה. -->
                             <FontIcon Glyph="&#xE7A7;" FontSize="16" />
+                            <!-- אובייקט: FontIcon — אייקון של חץ אחורה. -->
                             <TextBlock Text="ביטול" />
+                            <!-- אובייקט: TextBlock — המילה "ביטול". -->
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource ToolButton}" Click="EraseButton_Click">
+                    <!-- אובייקט: Button — כפתור "מחק" (EraseButton_Click). -->
                         <StackPanel Orientation="Horizontal" Spacing="8">
+                        <!-- אובייקט: StackPanel — האייקון והמילה שבתוך הכפתור. -->
                             <FontIcon Glyph="&#xE75C;" FontSize="16" />
+                            <!-- אובייקט: FontIcon — אייקון של מחק. -->
                             <TextBlock Text="מחק" />
+                            <!-- אובייקט: TextBlock — המילה "מחק". -->
                         </StackPanel>
                     </Button>
                     <Button x:Name="NotesButton" Style="{StaticResource ToolButton}" Click="NotesButton_Click">
+                    <!-- אובייקט: NotesButton — כפתור "פתקים" (NotesButton_Click). -->
                         <StackPanel Orientation="Horizontal" Spacing="8">
+                        <!-- אובייקט: StackPanel — האייקון והמילה שבתוך הכפתור. -->
                             <FontIcon Glyph="&#xE70F;" FontSize="16" />
+                            <!-- אובייקט: FontIcon — אייקון של עיפרון. -->
                             <TextBlock x:Name="NotesText" Text="פתקים" />
+                            <!-- אובייקט: NotesText — הכיתוב של כפתור הפתקים (הקוד כותב "פועל" כשהמצב דלוק). -->
                         </StackPanel>
                     </Button>
                     <Button x:Name="HintButton" Style="{StaticResource ToolButton}" Click="HintButton_Click">
+                    <!-- אובייקט: HintButton — כפתור "רמז" (HintButton_Click). -->
                         <StackPanel Orientation="Horizontal" Spacing="8">
+                        <!-- אובייקט: StackPanel — האייקון והמילה שבתוך הכפתור. -->
                             <FontIcon Glyph="&#xE82F;" FontSize="16" />
+                            <!-- אובייקט: FontIcon — אייקון של נורה. -->
                             <TextBlock x:Name="HintText" Text="רמז (3)" />
+                            <!-- אובייקט: HintText — הכיתוב של כפתור הרמז, עם מספר הרמזים שנשארו. -->
                         </StackPanel>
                     </Button>
                     <Button x:Name="MistakesButton"
                             Style="{StaticResource ToolButton}"
                             ToolTipService.ToolTip="הדגשת טעויות באדום. כבוי = אתגר אמיתי: בלי סימון ובלי לבבות שנשברים"
                             Click="MistakesButton_Click">
+                            <!-- אובייקט: MistakesButton — כפתור "טעויות": מציג או מסתיר טעויות (MistakesButton_Click). -->
                         <TextBlock x:Name="MistakesText" Text="👁 טעויות: מוצגות" />
+                        <!-- אובייקט: MistakesText — הכיתוב של כפתור הטעויות. -->
                     </Button>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                <!-- אובייקט: StackPanel — השורה השנייה של כפתורי הכלים. -->
                     <Button x:Name="RestartButton" Style="{StaticResource ToolButton}" Click="RestartButton_Click">
+                    <!-- אובייקט: RestartButton — כפתור "משחק חוזר": אותו לוח מההתחלה (RestartButton_Click). -->
                         <StackPanel Orientation="Horizontal" Spacing="8">
+                        <!-- אובייקט: StackPanel — האייקון והמילה שבתוך הכפתור. -->
                             <FontIcon Glyph="&#xE72C;" FontSize="16" />
+                            <!-- אובייקט: FontIcon — אייקון של חץ מעגלי. -->
                             <TextBlock Text="משחק חוזר" />
+                            <!-- אובייקט: TextBlock — המילים "משחק חוזר". -->
                         </StackPanel>
                     </Button>
                     <Button x:Name="NewBoardButton" Style="{StaticResource ToolButton}" Click="NewBoardButton_Click">
+                    <!-- אובייקט: NewBoardButton — כפתור "שנה את דף הסודוקו": לוח אחר באותו שלב (NewBoardButton_Click). -->
                         <StackPanel Orientation="Horizontal" Spacing="8">
+                        <!-- אובייקט: StackPanel — האייקון והמילים שבתוך הכפתור. -->
                             <FontIcon Glyph="&#xE8B1;" FontSize="16" />
+                            <!-- אובייקט: FontIcon — אייקון של ערבוב. -->
                             <TextBlock Text="שנה את דף הסודוקו" />
+                            <!-- אובייקט: TextBlock — המילים "שנה את דף הסודוקו". -->
                         </StackPanel>
                     </Button>
                 </StackPanel>
@@ -199,31 +264,39 @@
               Grid.RowSpan="2"
               Background="{StaticResource OverlayBrush}"
               Visibility="Collapsed">
+              <!-- אובייקט: WinOverlay — חלון הניצחון, שמכסה את כל המסך כשהלוח נפתר (מוסתר עד אז). -->
             <Border Style="{StaticResource Card}"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Padding="48,32"
                     Margin="24"
                     MinWidth="400">
+                    <!-- אובייקט: Border — הכרטיס שבמרכז חלון הניצחון. -->
                 <StackPanel Spacing="14">
+                <!-- אובייקט: StackPanel — כל מה שבכרטיס, זה מתחת לזה. -->
                     <TextBlock Text="✿  ♥  ✦  ♥  ✿"
                                FontFamily="Segoe UI Symbol"
                                FontSize="24"
                                Foreground="{StaticResource DecoBrush}"
                                HorizontalAlignment="Center" />
+                               <!-- אובייקט: TextBlock — שורת קישוטים. -->
                     <TextBlock Text="כל הכבוד!" Style="{StaticResource TitleText}" FontSize="48" />
+                    <!-- אובייקט: TextBlock — הכותרת "כל הכבוד!". -->
                     <TextBlock x:Name="WinStarsText"
                                FontFamily="Segoe UI Symbol"
                                FontSize="44"
                                Foreground="{StaticResource RoseBrush}"
                                HorizontalAlignment="Center"
                                Text="★★★" />
+                               <!-- אובייקט: WinStarsText — הכוכבים שהרווחת (★ מלא, ☆ ריק). -->
                     <TextBlock x:Name="WinText" Style="{StaticResource SubtitleText}" FlowDirection="RightToLeft" />
+                    <!-- אובייקט: WinText — משפט על מה שפתרת. -->
                     <TextBlock x:Name="WinDetailsText"
                                Style="{StaticResource SubtitleText}"
                                Foreground="{StaticResource BerryBrush}"
                                FontWeight="SemiBold"
                                FlowDirection="RightToLeft" />
+                               <!-- אובייקט: WinDetailsText — הפירוט: זמן, שיא וכמה מטבעות קיבלת על כל דבר. -->
                     <Button x:Name="NextLevelButton"
                             HorizontalAlignment="Stretch"
                             FontSize="22"
@@ -233,11 +306,13 @@
                             BorderBrush="{StaticResource RoseBrush}"
                             Foreground="{StaticResource RoseBrush}"
                             Click="NextLevelButton_Click" />
+                            <!-- אובייקט: NextLevelButton — כפתור "לשלב הבא" (NextLevelButton_Click). הקוד משנה את הכיתוב לפי המצב. -->
                     <Button x:Name="BackToLevelsButton"
                             Content="חזרה לשלבים"
                             HorizontalAlignment="Stretch"
                             FontSize="18"
                             Click="BackButton_Click" />
+                            <!-- אובייקט: BackToLevelsButton — כפתור "חזרה לשלבים" (BackButton_Click). -->
                 </StackPanel>
             </Border>
         </Grid>
@@ -247,16 +322,22 @@
               Grid.RowSpan="2"
               Background="{StaticResource OverlayBrush}"
               Visibility="Collapsed">
+              <!-- אובייקט: GameOverOverlay — החלון שמופיע כשנגמרו הלבבות (מוסתר עד אז). -->
             <Border Style="{StaticResource Card}"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Padding="48,32"
                     Margin="24"
                     MinWidth="400">
+                    <!-- אובייקט: Border — הכרטיס שבמרכז החלון. -->
                 <StackPanel Spacing="14">
+                <!-- אובייקט: StackPanel — כל מה שבכרטיס. -->
                     <TextBlock Text="💔" FontSize="56" HorizontalAlignment="Center" />
+                    <!-- אובייקט: TextBlock — לב שבור. -->
                     <TextBlock Text="אוי, נגמרו הלבבות" Style="{StaticResource TitleText}" FontSize="36" />
+                    <!-- אובייקט: TextBlock — הכותרת "אוי, נגמרו הלבבות". -->
                     <TextBlock x:Name="GameOverMessage" Style="{StaticResource SubtitleText}" FlowDirection="RightToLeft" />
+                    <!-- אובייקט: GameOverMessage — משפט עידוד (או "אין מספיק מטבעות"). -->
                     <Button x:Name="BuyHeartButton"
                             HorizontalAlignment="Stretch"
                             FontSize="22"
@@ -266,14 +347,23 @@
                             BorderBrush="{StaticResource RoseBrush}"
                             Foreground="{StaticResource RoseBrush}"
                             Click="BuyHeartButton_Click" />
+                            <!-- אובייקט: BuyHeartButton — כפתור "לב נוסף" שקונה לב וממשיך (BuyHeartButton_Click). -->
                     <Button Content="לנסות שוב מההתחלה"
                             HorizontalAlignment="Stretch"
                             FontSize="18"
                             Click="RestartButton_Click" />
+                            <!-- אובייקט: Button — כפתור "לנסות שוב מההתחלה" (RestartButton_Click). -->
+                    <Button x:Name="GameOverNewBoardButton"
+                            Content="🔀 לנסות לוח אחר"
+                            HorizontalAlignment="Stretch"
+                            FontSize="18"
+                            Click="NewBoardButton_Click" />
+                            <!-- אובייקט: GameOverNewBoardButton — כפתור "לנסות לוח אחר": לוח חדש באותו שלב (NewBoardButton_Click). -->
                     <Button Content="חזרה לשלבים"
                             HorizontalAlignment="Stretch"
                             FontSize="18"
                             Click="BackButton_Click" />
+                            <!-- אובייקט: Button — כפתור "חזרה לשלבים" (BackButton_Click). -->
                 </StackPanel>
             </Border>
         </Grid>
@@ -283,16 +373,22 @@
               Grid.RowSpan="2"
               Background="{StaticResource PageBackgroundBrush}"
               Visibility="Collapsed">
+              <!-- אובייקט: PauseOverlay — חלון ההפסקה. הוא מסתיר את הלוח, כדי שאי אפשר יהיה לחשוב בזמן שהשעון עצור. -->
             <Border Style="{StaticResource Card}"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Padding="48,32"
                     Margin="24"
                     MinWidth="400">
+                    <!-- אובייקט: Border — הכרטיס שבמרכז חלון ההפסקה. -->
                 <StackPanel Spacing="14">
+                <!-- אובייקט: StackPanel — כל מה שבכרטיס. -->
                     <TextBlock Text="⏸" FontSize="56" HorizontalAlignment="Center" Foreground="{StaticResource RoseBrush}" />
+                    <!-- אובייקט: TextBlock — סמל ההפסקה. -->
                     <TextBlock Text="המשחק בהפסקה" Style="{StaticResource TitleText}" FontSize="36" />
+                    <!-- אובייקט: TextBlock — הכותרת "המשחק בהפסקה". -->
                     <TextBlock x:Name="PauseTimeText" Style="{StaticResource SubtitleText}" FlowDirection="RightToLeft" />
+                    <!-- אובייקט: PauseTimeText — כמה זמן עבר עד העצירה. -->
                     <Button Content="המשך לשחק  ▶"
                             HorizontalAlignment="Stretch"
                             FontSize="22"
@@ -302,10 +398,23 @@
                             BorderBrush="{StaticResource RoseBrush}"
                             Foreground="{StaticResource RoseBrush}"
                             Click="ResumeButton_Click" />
+                            <!-- אובייקט: Button — כפתור "המשך לשחק" (ResumeButton_Click). -->
+                    <Button Content="↻ להתחיל מההתחלה"
+                            HorizontalAlignment="Stretch"
+                            FontSize="18"
+                            Click="RestartButton_Click" />
+                            <!-- אובייקט: Button — כפתור "להתחיל מההתחלה": אותו לוח מאפס (RestartButton_Click). -->
+                    <Button x:Name="PauseNewBoardButton"
+                            Content="🔀 לשנות את הלוח"
+                            HorizontalAlignment="Stretch"
+                            FontSize="18"
+                            Click="NewBoardButton_Click" />
+                            <!-- אובייקט: PauseNewBoardButton — כפתור "לשנות את הלוח": לוח חדש באותו שלב (NewBoardButton_Click). -->
                     <Button Content="חזרה לשלבים"
                             HorizontalAlignment="Stretch"
                             FontSize="18"
                             Click="BackButton_Click" />
+                            <!-- אובייקט: Button — כפתור "חזרה לשלבים" (BackButton_Click). -->
                 </StackPanel>
             </Border>
         </Grid>
@@ -315,10 +424,15 @@
               Grid.RowSpan="2"
               Background="{StaticResource PageBackgroundBrush}"
               Visibility="Collapsed">
+              <!-- אובייקט: CountdownOverlay — מסך הספירה לאחור לפני דו-קרב (5-4-3-2-1). -->
             <StackPanel VerticalAlignment="Center" Spacing="10">
+            <!-- אובייקט: StackPanel — הכותרת, המספר וההסבר, זה מתחת לזה. -->
                 <TextBlock Text="⚔️ דו-קרב מתחיל!" Style="{StaticResource TitleText}" FontSize="36" />
+                <!-- אובייקט: TextBlock — הכותרת "דו-קרב מתחיל!". -->
                 <TextBlock x:Name="CountdownText" Style="{StaticResource TitleText}" FontSize="140" Foreground="{StaticResource RoseBrush}" Text="3" />
+                <!-- אובייקט: CountdownText — המספר הגדול של הספירה. -->
                 <TextBlock x:Name="CountdownHint" Text="כולם מקבלים את אותו לוח — בהצלחה!" Style="{StaticResource SubtitleText}" />
+                <!-- אובייקט: CountdownHint — הסבר קצר מתחת למספר. -->
             </StackPanel>
         </Grid>
 
@@ -327,17 +441,24 @@
               Grid.RowSpan="2"
               Background="{StaticResource OverlayBrush}"
               Visibility="Collapsed">
+              <!-- אובייקט: DuelOverlay — חלון הדו-קרב: מחכים שכולם יסיימו, ואז רואים מי ניצח. -->
             <Border Style="{StaticResource Card}"
                     HorizontalAlignment="Center"
                     VerticalAlignment="Center"
                     Padding="44,30"
                     Margin="24"
                     MinWidth="420">
+                    <!-- אובייקט: Border — הכרטיס שבמרכז החלון. -->
                 <StackPanel Spacing="14" FlowDirection="RightToLeft">
+                <!-- אובייקט: StackPanel — כל מה שבכרטיס, מימין לשמאל. -->
                     <TextBlock x:Name="DuelTitle" Style="{StaticResource TitleText}" FontSize="40" />
+                    <!-- אובייקט: DuelTitle — הכותרת ("סיימת!", "ניצחת!"...). -->
                     <TextBlock x:Name="DuelText" Style="{StaticResource SubtitleText}" />
+                    <!-- אובייקט: DuelText — הפירוט: מטבעות, זמן ומי ניצח. -->
                     <StackPanel x:Name="DuelRanking" Spacing="6" />
+                    <!-- אובייקט: DuelRanking — טבלת המקומות. הקוד ממלא אותה. -->
                     <StackPanel x:Name="DuelButtons" Spacing="10" Visibility="Collapsed">
+                    <!-- אובייקט: DuelButtons — הכפתורים של סוף הדו-קרב (מוסתרים בזמן ההמתנה). -->
                         <Button Content="לסיבוב נוסף  ▶"
                                 HorizontalAlignment="Stretch"
                                 FontSize="22"
@@ -346,7 +467,9 @@
                                 BorderBrush="{StaticResource RoseBrush}"
                                 Foreground="{StaticResource RoseBrush}"
                                 Click="DuelLobby_Click" />
+                                <!-- אובייקט: Button — כפתור "לסיבוב נוסף" (DuelLobby_Click). -->
                         <Button Content="יציאה לתפריט" HorizontalAlignment="Stretch" FontSize="18" Click="DuelExit_Click" />
+                        <!-- אובייקט: Button — כפתור "יציאה לתפריט" (DuelExit_Click). -->
                     </StackPanel>
                 </StackPanel>
             </Border>
@@ -354,5 +477,6 @@
 
         <!-- Falling hearts and flowers when a level is solved -->
         <Canvas x:Name="CelebrationCanvas" Grid.RowSpan="2" IsHitTestVisible="False" />
+        <!-- אובייקט: CelebrationCanvas — שכבה שקופה מעל הכול, שבה נופלים לבבות, פרחים וזיקוקים. היא לא חוסמת לחיצות. -->
     </Grid>
 </local:BasePage>

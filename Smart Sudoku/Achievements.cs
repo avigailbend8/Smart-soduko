@@ -1,16 +1,19 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 namespace Smart_Sudoku
 {
     public sealed record Achievement(string Id, string Emoji, string Name, string Description, int RewardCoins);
+    // אובייקט: Achievement — הישג אחד: אימוג'י, שם, הסבר מה צריך לעשות, וכמה מטבעות מקבלים.
 
     /// <summary>
     /// Badges for milestones. Unlocking one gives coins and shows a small notification.
     /// </summary>
     public static class Achievements
+    // אובייקט: Achievements — כל ההישגים (תגים) במשחק. כשמשיגים אחד — מקבלים מטבעות והודעה קטנה.
     {
         public static readonly IReadOnlyList<Achievement> All = new[]
+        // אובייקט: All — הרשימה של כל ההישגים, למשל: לפתור שלב ראשון, לפתור בלי טעויות, לנצח בדו-קרב.
         {
             new Achievement("first-win", "🌟", "צעד ראשון", "לפתור שלב ראשון", 50),
             new Achievement("perfect", "💎", "בלי טעויות", "לפתור שלב בלי טעויות ובלי רמזים", 50),
@@ -38,8 +41,10 @@ namespace Smart_Sudoku
 
         /// <summary>Unlocks an achievement (once), pays its coins and shows a notification.</summary>
         public static void Unlock(string id)
+        // פעולה: Unlock — פותחת הישג (רק בפעם הראשונה): נותנת את המטבעות, משמיעה צליל ומציגה הודעה.
         {
             var achievement = All.FirstOrDefault(a => a.Id == id);
+            // אובייקט: achievement — ההישג שמצאנו לפי השם שלו.
             if (achievement == null || !GameData.Unlock(id))
                 return;
 

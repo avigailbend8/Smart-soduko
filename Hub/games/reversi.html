@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>רברסי · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/duo.js"></script>
+<style>
+.rv { width: min(100%, 520px, 70vh); margin: 0 auto; padding: 10px; border-radius: 20px; background: color-mix(in srgb, var(--felt) 70%, #000); box-shadow: 0 24px 40px -20px rgba(0,0,0,.5); display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; direction: ltr; }
+.rv button { aspect-ratio: 1; border: 0; border-radius: 6px; padding: 0; background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--felt) 85%, #fff), var(--felt)); cursor: pointer; display: grid; place-items: center; position: relative; perspective: 300px; }
+.rv .ok::after { content: ""; width: 26%; height: 26%; border-radius: 50%; background: rgba(255,255,255,.35); }
+.rv .hintc { box-shadow: inset 0 0 0 3px var(--gold); }
+.rv .s { width: 82%; height: 82%; border-radius: 50%; transition: transform .45s; transform-style: preserve-3d; box-shadow: 0 3px 4px rgba(0,0,0,.4); }
+.rv .s.me { background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--me) 55%, #fff), var(--me)); }
+.rv .s.ai { background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--ai) 60%, #fff), var(--ai)); }
+.rv .s.flip { animation: flipS .5s; }
+@keyframes flipS { 0% { transform: rotateY(0); } 50% { transform: rotateY(90deg) scale(1.1); } 100% { transform: rotateY(0); } }
+.rv .s.new { animation: pop .3s cubic-bezier(.3,1.6,.5,1); }
+@keyframes pop { from { transform: scale(.2); } }
+.who { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; }
+.mini { width: 14px; height: 14px; border-radius: 50%; display: inline-block; vertical-align: -2px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const STONES = [
+  { id: "st-classic", name: "שחור ולבן", price: 0, me: "#F7F4EE", ai: "#26232B" },
+  { id: "st-pearl", name: "פנינה ואובסידיאן", price: 100, me: "#F3E6FF", ai: "#3B2A5A" },
+  { id: "st-sun", name: "שמש וירח", price: 130, me: "#FFD86B", ai: "#4A5A8A" },
+  { id: "st-coral", name: "אלמוג וים", price: 130, me: "#FF8F70", ai: "#1F6F8B" },
+];
+const FELTS = [
+  { id: "fl-green", name: "לבד ירוק", price: 0, c: "#2E7D5B" },
+  { id: "fl-navy", name: "כחול לילה", price: 90, c: "#26407A" },
+  { id: "fl-wine", name: "יין", price: 90, c: "#7A2E45" },
+  { id: "fl-wood", name: "עץ", price: 110, c: "#9A6B42" },
+];
+const CFG = {
+  id: "reversi", title: "רברסי", startCoins: 40, startStock: { hint: 2 },
+  items: [Hub.theme("sage", 0), Hub.theme("slate", 100), Hub.theme("plum", 100), Hub.theme("night", 160), ...STONES.map(x => ({ ...x, slot: "stones" })), ...FELTS.map(x => ({ ...x, slot: "felt" })),
+    { id: "hint3", consumable: true, stockId: "hint", amount: 3, name: "3 רמזים", desc: "מסמן את המהלך הכי טוב", price: 30 }],
+  storeGroups: [{ slot: "stones", title: "אבנים" }, { slot: "felt", title: "לוח" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => { if (it.consumable) return `<span style="font-size:38px">💡</span>`; const s = it.slot === "stones" ? it : Hub.equipped("stones"), f = it.slot === "felt" ? it : Hub.equipped("felt"); return `<div style="display:grid;grid-template-columns:repeat(2,26px);gap:3px;padding:6px;border-radius:10px;background:${f.c}">${[s.me, s.ai, s.ai, s.me].map(c => `<i style="height:26px;border-radius:50%;background:${c}"></i>`).join("")}</div>`; },
+};
+const ME = 1, AI = 2, DIRS = [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]];
+// Corners are gold, the squares next to them are dangerous
+const WEIGHT = [100, -20, 10, 5, 5, 10, -20, 100, -20, -50, -2, -2, -2, -2, -50, -20, 10, -2, 1, 1, 1, 1, -2, 10, 5, -2, 1, 0, 0, 1, -2, 5, 5, -2, 1, 0, 0, 1, -2, 5, 10, -2, 1, 1, 1, 1, -2, 10, -20, -50, -2, -2, -2, -2, -50, -20, 100, -20, 10, 5, 5, 10, -20, 100];
+function flips(b, i, p) {
+  if (b[i]) return []; const r = i >> 3, c = i & 7, o = 3 - p, out = [];
+  for (const [dr, dc] of DIRS) { let rr = r + dr, cc = c + dc; const line = []; while (rr >= 0 && rr < 8 && cc >= 0 && cc < 8 && b[rr * 8 + cc] === o) { line.push(rr * 8 + cc); rr += dr; cc += dc; } if (line.length && rr >= 0 && rr < 8 && cc >= 0 && cc < 8 && b[rr * 8 + cc] === p) out.push(...line); }
+  return out;
+}
+const moves = (b, p) => { const m = []; for (let i = 0; i < 64; i++) { const f = flips(b, i, p); if (f.length) m.push({ i, f }); } return m; };
+function apply(b, m, p) { const nb = b.slice(); nb[m.i] = p; for (const x of m.f) nb[x] = p; return nb; }
+function evalB(b, p) { let s = 0; for (let i = 0; i < 64; i++) if (b[i] === p) s += WEIGHT[i]; else if (b[i]) s -= WEIGHT[i]; return s + (moves(b, p).length - moves(b, 3 - p).length) * 4; }
+function search(b, p, depth, alpha, beta) {
+  const ms = moves(b, p);
+  if (!depth || (!ms.length && !moves(b, 3 - p).length)) { if (!ms.length && !moves(b, 3 - p).length) { const d = b.filter(v => v === p).length - b.filter(v => v === 3 - p).length; return d * 1000; } return evalB(b, p); }
+  if (!ms.length) return -search(b, 3 - p, depth - 1, -beta, -alpha);
+  for (const m of ms.sort((x, y) => WEIGHT[y.i] - WEIGHT[x.i])) { const s = -search(apply(b, m, p), 3 - p, depth - 1, -beta, -alpha); if (s > alpha) alpha = s; if (alpha >= beta) break; }
+  return alpha;
+}
+function bestMove(b, p, depth) { let bm = null, bs = -Infinity; for (const m of moves(b, p)) { const s = -search(apply(b, m, p), 3 - p, depth - 1, -Infinity, Infinity) + Math.random(); if (s > bs) { bs = s; bm = m; } } return bm; }
+const count = (b, p) => b.filter(v => v === p).length;
+function place(G, m, p) { G.b = apply(G.b, m, p); G.last = m.i; G.flipped = m.f; G.hint = -1; Hub.sound(m.f.length > 3 ? "good" : "move"); nextTurn(G, 3 - p); }
+function nextTurn(G, p) { if (moves(G.b, p).length) G.who = p; else if (moves(G.b, 3 - p).length) { G.who = 3 - p; G.msg = p === ME ? "אין לך מהלך — התור עובר למחשב" : "למחשב אין מהלך — שוב תורך"; } else G.who = 0; }
+
+Duo.run(CFG, {
+  tagline: "מניחים אבן כך שאבני היריב נלכדות ביניכם — והן מתהפכות לצבע שלכם. בסוף, מי שיש לו יותר אבנים מנצח.",
+  worlds: ["הפיכות ראשונות", "שליטה בפינות", "רברסי מאסטר"],
+  randomMove(G) { const ms = moves(G.b, AI); place(G, ms[Math.floor(Math.random() * ms.length)], AI); },
+  help: `<h2>המטרה</h2><p>שבסוף המשחק יהיו על הלוח יותר אבנים בצבע שלכם.</p><h2>איך משחקים</h2><ul><li>מניחים אבן במקום שבו היא סוגרת שורה של אבני יריב (בכל כיוון, גם באלכסון) בין שתי אבנים שלכם. כל האבנים הסגורות מתהפכות.</li><li>הנקודות הלבנות מסמנות איפה מותר להניח. אם אין מהלך — התור עובר.</li><li>💡 טיפ: הפינות לא יכולות להתהפך אף פעם.</li></ul>`,
+  newGame(G) { G.b = Array(64).fill(0); G.b[27] = G.b[36] = AI; G.b[28] = G.b[35] = ME; G.who = ME; G.last = -1; G.flipped = []; G.hint = -1; },
+  turn: G => G.who === ME ? "me" : "ai",
+  click(G, el) { const m = moves(G.b, ME).find(x => x.i === +el.dataset.i); if (!m) { G.msg = "אי אפשר להניח כאן — בחרו נקודה מסומנת"; Hub.sound("wrong"); return false; } place(G, m, ME); return true; },
+  ai(G) { const ms = moves(G.b, AI); let m = G.d === 0 ? (Math.random() < .5 ? ms[Math.floor(Math.random() * ms.length)] : ms.sort((a, b) => b.f.length - a.f.length)[0]) : bestMove(G.b, AI, G.d === 1 ? 1 : 4); place(G, m, AI); },
+  result(G) { if (G.who) return null; const a = count(G.b, ME), b = count(G.b, AI); return a > b ? "win" : a < b ? "lose" : "draw"; },
+  resultText: G => `התוצאה: ${count(G.b, ME)} מול ${count(G.b, AI)}`,
+  beforeRender() { const s = Hub.equipped("stones"), st = document.documentElement.style; st.setProperty("--me", s.me); st.setProperty("--ai", s.ai); st.setProperty("--felt", Hub.equipped("felt").c); },
+  board(G) {
+    const ok = G.who === ME ? new Set(moves(G.b, ME).map(m => m.i)) : new Set();
+    return `<div class="who"><span class="chip"><i class="mini" style="background:var(--me)"></i> ${Hub.user.avatar} <b>${count(G.b, ME)}</b></span><span class="chip"><i class="mini" style="background:var(--ai)"></i> 🤖 <b>${count(G.b, AI)}</b></span></div>
+      <div class="rv">${G.b.map((v, i) => `<button data-act="cell" data-i="${i}" class="${ok.has(i) ? "ok" : ""} ${i === G.hint ? "hintc" : ""}" aria-label="משבצת ${i + 1}">${v ? `<span class="s ${v === ME ? "me" : "ai"} ${i === G.last ? "new" : G.flipped.includes(i) ? "flip" : ""}"></span>` : ""}</button>`).join("")}</div>`;
+  },
+  tools: G => G.over ? "" : `<button class="btn" data-act="x-hint">💡 רמז · ${Hub.stock("hint")}</button>`,
+  act(G, a) { if (a === "x-hint" && G.who === ME && !G.over) { if (!Hub.useStock("hint")) { G.msg = "נגמרו הרמזים — יש עוד בחנות"; return; } G.hint = bestMove(G.b, ME, 3).i; G.msg = "💡 המהלך המומלץ מסומן"; Hub.sound("hint"); } },
+});
+</script>
+</body>
+</html>

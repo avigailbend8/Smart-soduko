@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>מיזוג · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/puzzle.js"></script>
+<style>
+.mg { width: min(100%, 440px); margin: 0 auto; padding: 10px; border-radius: 20px; background: color-mix(in srgb, var(--ink) 14%, var(--card)); display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; touch-action: none; direction: ltr; box-shadow: var(--shadow); }
+.mg i { aspect-ratio: 1; border-radius: 12px; background: color-mix(in srgb, var(--ink) 8%, transparent); display: grid; place-items: center; font: 700 clamp(18px, 7vw, 34px) var(--body); font-style: normal; color: #fff; position: relative; }
+.mg i.t { box-shadow: 0 4px 0 rgba(0,0,0,.15), inset 0 2px 0 rgba(255,255,255,.3); }
+.mg i.n { animation: pop .2s cubic-bezier(.3,1.6,.5,1); }
+.mg i.m { animation: bump .22s; }
+.mg i.big { font-size: clamp(14px, 5.4vw, 26px); }
+@keyframes pop { from { transform: scale(0); } }
+@keyframes bump { 50% { transform: scale(1.15); } }
+.score2 { display: flex; justify-content: center; gap: 10px; margin-bottom: 10px; }
+.arrows { display: grid; grid-template-columns: repeat(4, 56px); gap: 8px; direction: ltr; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SETS = [
+  { id: "tl-warm", name: "חם", price: 0, hues: [36, 30, 22, 14, 6, 355, 345, 330, 300, 270, 250] },
+  { id: "tl-ocean", name: "אוקיינוס", price: 100, hues: [190, 195, 200, 205, 210, 220, 230, 245, 260, 280, 300] },
+  { id: "tl-candy", name: "ממתקים", price: 110, hues: [330, 300, 270, 240, 200, 160, 120, 60, 40, 20, 0], light: true },
+  { id: "tl-galaxy", name: "גלקסיה", price: 160, hues: [250, 260, 270, 280, 290, 300, 310, 320, 200, 180, 45], glow: true },
+];
+const CFG = {
+  id: "merge", title: "מיזוג", startCoins: 40, startStock: { undo: 3 },
+  items: [Hub.theme("amber", 0), Hub.theme("rose", 100), Hub.theme("ocean", 100), Hub.theme("night", 160), ...SETS.map(x => ({ ...x, slot: "tiles" })),
+    { id: "undo3", consumable: true, stockId: "undo", amount: 3, name: "3 ביטולים", desc: "מחזיר מהלך אחד אחורה", price: 30 }],
+  storeGroups: [{ slot: "tiles", title: "צבעי האריחים" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span style="font-size:38px">↩</span>` : `<div style="display:flex;gap:4px">${[0, 2, 4, 7].map(k => `<i style="width:26px;height:26px;border-radius:7px;background:${tileColor(it, 2 ** (k + 1))}"></i>`).join("")}</div>`,
+};
+function tileColor(set, v) { const k = Math.min(set.hues.length - 1, Math.log2(v) - 1), l = set.light ? 72 - k * 2 : 62 - k * 2.5; return `hsl(${set.hues[k]},${70 + k * 2}%,${l}%)`; }
+const N = 4;
+const targetOf = L => L <= 4 ? 128 : L <= 10 ? 256 : L <= 17 ? 512 : L <= 24 ? 1024 : 2048;
+const PAR = { 128: 50, 256: 100, 512: 180, 1024: 330, 2048: 650 };
+function add(G) { const empty = G.g.map((v, i) => v ? -1 : i).filter(i => i >= 0); if (!empty.length) return; const i = empty[Math.floor(Math.random() * empty.length)]; G.g[i] = Math.random() < .9 ? 2 : 4; G.fresh = i; }
+// Slide one line towards its start, merging equal neighbours once
+function slide(line) { const v = line.filter(Boolean), out = [], merged = []; let pts = 0; for (let i = 0; i < v.length; i++) { if (v[i] === v[i + 1]) { out.push(v[i] * 2); merged.push(out.length - 1); pts += v[i] * 2; i++; } else out.push(v[i]); } while (out.length < N) out.push(0); return { out, merged, pts }; }
+function move(G, dir) {
+  const before = G.g.join(","), g = G.g.slice(), mergedAt = [];
+  let pts = 0;
+  for (let k = 0; k < N; k++) {
+    const idx = Array.from({ length: N }, (_, j) => dir === "left" ? k * N + j : dir === "right" ? k * N + (N - 1 - j) : dir === "up" ? j * N + k : (N - 1 - j) * N + k);
+    const r = slide(idx.map(i => G.g[i])); idx.forEach((i, j) => { g[i] = r.out[j]; }); r.merged.forEach(j => mergedAt.push(idx[j])); pts += r.pts;
+  }
+  if (g.join(",") === before) return false;
+  G.hist.push({ g: G.g.slice(), score: G.score }); if (G.hist.length > 20) G.hist.shift();
+  G.g = g; G.score += pts; G.merged = mergedAt; G.moves++; add(G);
+  Hub.sound(pts >= 64 ? "good" : pts ? "tap" : "flip");
+  return true;
+}
+const canMove = G => G.g.some(v => !v) || G.g.some((v, i) => (i % N < N - 1 && v === G.g[i + 1]) || (i < N * (N - 1) && v === G.g[i + N]));
+let swipeAt = null;
+
+Puzzle.run(CFG, {
+  tagline: "מחליקים את כל האריחים לכיוון אחד. שני אריחים זהים שנפגשים מתמזגים לאריח כפול. הגיעו לאריח היעד!",
+  play: "להתחיל למזג",
+  worlds: ["אריחים קטנים", "מגדלים של מספרים", "אל ה-2048"], par: G => PAR[G.target], goal: G => `היעד: להגיע לאריח <b>${G.target}</b>`,
+  extraBoards: [{ id: "points", title: "הכי הרבה נקודות", bots: [["קוואזר", "🛸", 28000], ["אוריון", "👾", 12000], ["ניצוץ", "🤖", 3500]] }],
+  help: `<h2>המטרה</h2><p>להגיע לאריח היעד (512, 1024 או 2048).</p><h2>שליטה</h2><ul><li>חצים / WASD, הכפתורים, או החלקה על הלוח.</li><li>כל מהלך מזיז את כל האריחים עד הסוף. שני אריחים זהים מתמזגים, ואריח חדש מופיע.</li><li>אם הלוח מתמלא בלי מיזוגים אפשריים — המשחק נגמר. ↩ ביטול מחזיר מהלך.</li></ul>`,
+  newGame(G) { G.target = targetOf(G.L); G.g = Array(N * N).fill(0); G.score = 0; G.hist = []; G.merged = []; add(G); add(G); },
+  board: G => {
+    const set = Hub.equipped("tiles");
+    return `<div class="score2"><span class="chip">⭐ <b>${G.score}</b></span><span class="chip">🎯 ${G.target}</span></div>
+    <div class="mg" id="mgBoard">${G.g.map((v, i) => v ? `<i class="t ${i === G.fresh ? "n" : ""} ${G.merged.includes(i) ? "m" : ""} ${v >= 1024 ? "big" : ""}" style="background:${tileColor(set, v)};${set.glow ? `box-shadow:0 0 16px ${tileColor(set, v)}` : ""}">${v}</i>` : `<i></i>`).join("")}</div>`;
+  },
+  tools: G => G.done || G.failed ? "" : `<div class="arrows"><button class="btn" data-act="x-left">◀</button><button class="btn" data-act="x-up">▲</button><button class="btn" data-act="x-down">▼</button><button class="btn" data-act="x-right">▶</button></div><button class="btn" data-act="x-undo">↩ ביטול · ${Hub.stock("undo")}</button>`,
+  act(G, a) {
+    if (a === "x-undo") { if (!G.hist.length) return; if (!Hub.useStock("undo")) { G.msg = "נגמרו הביטולים"; return; } const h = G.hist.pop(); G.g = h.g; G.score = h.score; G.merged = []; G.fresh = -1; return; }
+    if (move(G, a.slice(2))) return "moved";
+  },
+  key(G, e) { const d = { ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right", ArrowUp: "up", w: "up", W: "up", ArrowDown: "down", s: "down", S: "down" }[e.key]; return d ? move(G, d) || true : false; },
+  click: () => false,
+  afterRender(G) {
+    const b = document.getElementById("mgBoard"); if (!b) return;
+    b.onpointerdown = e => { swipeAt = { x: e.clientX, y: e.clientY }; };
+    b.onpointerup = e => { if (!swipeAt || G.done || G.failed) return; const dx = e.clientX - swipeAt.x, dy = e.clientY - swipeAt.y; swipeAt = null; if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return; const d = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "right" : "left") : (dy > 0 ? "down" : "up"); if (move(G, d)) PuzzleDebug.check(); };
+  },
+  progress: G => Math.log2(Math.max(...G.g)) / Math.log2(G.target),
+  solved: G => G.g.some(v => v >= G.target),
+  failed: G => !canMove(G),
+  failTitle: "הלוח התמלא", winTitle: "הגעת ליעד! 🎉",
+  stars: G => G.hist.length && G.moves ? (G.secs < [120, 240, 480][G.d] ? 3 : 2) : 3,
+  resultText: G => `${G.score} נקודות`,
+  score: G => G.score,
+});
+</script>
+</body>
+</html>

@@ -67,6 +67,15 @@ const CFG = {
     { id: "reveal6", consumable: true, stockId: "reveal", amount: 6, name: "6 גילויים", desc: "חבילה משתלמת", price: 90 },
   ],
   storeGroups: [{ slot: "theme", title: "ערכות צבע" }, { slot: "set", title: "אבני הצופן" }, { consumable: true, title: "עזרים" }],
+  boards: [{ id: "wins", title: "צפנים שפוצחו", bots: [["קוואזר", "🛸", 40], ["אוריון", "👾", 18], ["ניצוץ", "🤖", 6]] }],
+  duel: {
+    mode: "race",
+    start: r => { newGame([8, 18, 28][r.level], true); view = "game"; nav = ["menu"]; render(); },
+    seconds: r => [80, 130, 170][r.level],
+    progress: () => !G ? 0 : G.won ? 1 : Math.min(.9, Math.max(0, ...G.guesses.map(g => g.exact + g.near * .4)) / G.D.slots * .9),
+    over: () => !!G && G.done && !G.won, lose: () => { G.done = true; render(); },
+    active: () => view === "game", menu: () => { view = "menu"; nav = []; render(); },
+  },
   preview: it => `<div class="pv-row">${[0, 1, 2, 3].map(i => `<span>${symbol(i, it)}</span>`).join("")}</div>`,
 };
 const DIFFS = [
@@ -75,7 +84,13 @@ const DIFFS = [
   { name: "מומחים", slots: 5, colors: 7, dup: true, tries: 10, coins: 40, note: "5 אבנים, 7 צבעים, עם חזרות" },
   { name: "אגדה", slots: 5, colors: 8, dup: true, tries: 9, coins: 60, note: "5 אבנים, 8 צבעים, רק 9 ניסיונות" },
 ];
-const NEED_WINS = 2; // wins at one level that open the next
+const NEED_WINS = 2;
+// 30 levels: more stones, more colours, repeats, and fewer tries as you climb
+const COUNT = 30;
+function levelD(L) {
+  const t = [[3, 5, false, 10], [4, 6, false, 10], [4, 6, true, 9], [4, 7, true, 9], [5, 7, true, 10], [5, 8, true, L >= 28 ? 8 : 9]][Math.min(5, Math.floor((L - 1) / 5))];
+  return { name: `שלב ${L}`, slots: t[0], colors: t[1], dup: t[2], tries: t[3], coins: 10 + L * 2, note: "" };
+}
 
 let W, view = "menu", nav = [], G = null;
 const P = () => { W.progress.wins = W.progress.wins || [0, 0, 0, 0]; W.progress.best = W.progress.best || [0, 0, 0, 0]; return W.progress; };
@@ -84,10 +99,11 @@ function symbol(i, set = Hub.equipped("set")) {
 }
 
 // ---------- Logic ----------
-function newGame(d) {
-  const D = DIFFS[d], pool = [...Array(D.colors).keys()];
+function newGame(L, duel = false) {
+  const d = Math.min(2, Math.floor((L - 1) / 10));
+  const D = levelD(L), pool = [...Array(D.colors).keys()];
   const secret = D.dup ? Array.from({ length: D.slots }, () => Math.floor(Math.random() * D.colors)) : Hub.shuffle(pool).slice(0, D.slots);
-  G = { d, D, secret, guesses: [], cur: Array(D.slots).fill(null), sel: 0, revealed: [], done: false, won: false };
+  G = { L, duel, d, D, secret, guesses: [], cur: Array(D.slots).fill(null), sel: 0, revealed: [], done: false, won: false };
 }
 function score(g) {
   let exact = 0; const a = {}, b = {};
@@ -101,10 +117,10 @@ function go(v) { nav.push(view); view = v; render(); scrollTo(0, 0); }
 function back() { view = nav.pop() || "menu"; render(); }
 function render() {
   Hub.closeOverlay();
-  $("#app").innerHTML = ({ menu: menuView, diffs: diffsView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+  $("#app").innerHTML = ({ menu: menuView, levels: () => `${Hub.topbar("שלבים")}${Hub.levelMap({ count: COUNT, names: ["צפנים קטנים", "צבעים חוזרים", "צפנים של אגדה"] })}`, game: gameView, store: () => Hub.store(), help: helpView })[view]();
 }
 function menuView() {
-  return Hub.menu({ tagline: "המחשב בחר צופן סודי של אבני חן. בכל ניסיון תקבלו רמז — כמה אבנים במקום הנכון, וכמה רק בצבע הנכון.", buttons: [["diffs", "לפצח צופן", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+  return Hub.menu({ tagline: "המחשב בחר צופן סודי של אבני חן. בכל ניסיון תקבלו רמז — כמה אבנים במקום הנכון, וכמה רק בצבע הנכון.", buttons: [["levels", "שלבים", true], ["store", "החנות"], ["help", "איך משחקים"]] });
 }
 function diffsView() {
   const p = P();
@@ -149,7 +165,7 @@ function helpView() {
     <li>הרמזים לא אומרים <b>איזו</b> אבן — רק כמה. זה כל הכיף.</li></ul>
     <h2>שליטה</h2><ul><li>לוחצים על צבע כדי להניח אותו במקום המסומן. לוחצים על מקום כדי לבחור אותו.</li><li>במקלדת: מספרים לצבעים, Backspace למחיקה, Enter לבדיקה.</li>
     <li><b>💡 גילוי</b> חושף אבן אחת מהצופן. אפשר לקנות עוד בחנות.</li></ul>
-    <h2>רמות ומטבעות</h2><ul><li>${NEED_WINS} ניצחונות פותחים את הרמה הבאה. רמה קשה יותר נותנת יותר מטבעות.</li><li>כל ניסיון שנשאר לכם מוסיף 3 מטבעות.</li></ul>
+    <h2>שלבים ומטבעות</h2><ul><li>30 שלבים: עוד אבנים, עוד צבעים, צבעים שחוזרים ופחות ניסיונות. פיצוח פותח את השלב הבא.</li><li>כוכבים לפי מספר הניסיונות. כל ניסיון שנשאר מוסיף 2 מטבעות.</li></ul>
     <p class="small" style="margin-top:14px">💡 טיפ: בניסיון הראשון כדאי לשים כמה צבעים שונים — כך מגלים מהר אילו צבעים בכלל בצופן.</p></div>`;
 }
 
@@ -180,25 +196,31 @@ function finish(won) {
   const p = P(), used = G.guesses.length, left = G.D.tries - used;
   if (!won) {
     Hub.sound("wrong");
-    return Hub.result({ title: "הצופן ניצח הפעם", sub: "הצופן הסודי מופיע למעלה. בפעם הבאה!", buttons: [["again", "צופן חדש", true], ["todiffs", "לבחירת רמה"]] });
+    return G.duel ? Hub.result({ title: "הצופן ניצח הפעם", sub: "הצופן הסודי מופיע למעלה.", buttons: [["tomenu2", "לתפריט", true]] }) : Hub.levelResult({ L: G.L, count: COUNT, won: false, title: "הצופן ניצח הפעם", sub: "הצופן הסודי מופיע למעלה. בפעם הבאה!" });
   }
   const stars = used <= Math.ceil(G.D.tries * .45) ? 3 : used <= Math.ceil(G.D.tries * .7) ? 2 : 1;
-  const coins = G.D.coins + left * 3 + (G.revealed.length ? 0 : 5);
-  p.wins[G.d]++; if (!p.best[G.d] || used < p.best[G.d]) p.best[G.d] = used;
+  const first = !G.duel && Hub.levelDone(G.L, stars);
+  const coins = (first || G.duel ? G.D.coins : Math.ceil(G.D.coins / 3)) + left * 2;
+  p.wins[G.d]++; Hub.submitScore(p.wins.reduce((a, b) => a + b, 0), "wins"); if (!p.best[G.d] || used < p.best[G.d]) p.best[G.d] = used;
   Hub.save(); Hub.earn(coins); Hub.sound("win"); Hub.confetti();
-  const unlocked = G.d < DIFFS.length - 1 && p.wins[G.d] === NEED_WINS;
-  Hub.result({ title: "פיצחת את הצופן!", sub: `ב-${used} ניסיונות${unlocked ? `<br><b>נפתחה רמה חדשה: ${DIFFS[G.d + 1].name} ✨</b>` : ""}`, stars, coins, buttons: [["again", "צופן חדש", true], ["todiffs", "לבחירת רמה"]] });
+
+  if (G.duel) Hub.result({ title: "פיצחת את הצופן!", sub: `ב-${used} ניסיונות`, stars, coins, buttons: [["tomenu2", "לתפריט", true]] });
+  else Hub.levelResult({ L: G.L, count: COUNT, won: true, stars, coins, title: `פיצחת את הצופן! · שלב ${G.L}`, sub: `ב-${used} ניסיונות` });
 }
 
 document.addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   const a = b.dataset.act;
   if (a === "back") return back();
-  if (a === "diffs") return go("diffs");
+  if (a === "levels") return go("levels");
+  if (a === "lvl") { newGame(+b.dataset.level); return go("game"); }
+  if (a === "lvnext") { Hub.closeOverlay(); newGame(Math.min(COUNT, G.L + 1)); return render(); }
+  if (a === "lvagain") { Hub.closeOverlay(); newGame(G.L); return render(); }
+  if (a === "lvmap" || a === "todiffs") { Hub.closeOverlay(); view = "levels"; nav = ["menu"]; return render(); }
+  if (a === "tomenu2") { Hub.closeOverlay(); view = "menu"; nav = []; return render(); }
   if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
   if (a === "help") return go("help");
   if (a === "buy") { Hub.buy(b.dataset.item); return render(); }
-  if (a === "start") { newGame(+b.dataset.d); return go("game"); }
   if (a === "slot") { const k = +b.dataset.k; if (G.sel === k && G.cur[k] !== null && !G.revealed.includes(k)) G.cur[k] = null; G.sel = k; return render(); }
   if (a === "color") return place(+b.dataset.c);
   if (a === "erase") {
@@ -219,7 +241,7 @@ document.addEventListener("click", e => {
     say(`גילית את האבן במקום ${i + 1}`);
     return;
   }
-  if (a === "again") { newGame(G.d); return render(); }
+  if (a === "again") { Hub.closeOverlay(); newGame(G.L, G.duel); return render(); }
   if (a === "todiffs") { view = "diffs"; nav = ["menu"]; return render(); }
 });
 document.addEventListener("keydown", e => {

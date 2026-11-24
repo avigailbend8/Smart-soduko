@@ -1,4 +1,4 @@
-<local:BasePage
+﻿<local:BasePage
     x:Class="Smart_Sudoku.Pages.LuckyWheelPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -7,31 +7,48 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="Transparent">
+    <!-- אובייקט: LuckyWheelPage — עמוד גלגלי המזל. יורש מ-BasePage, והרקע שלו שקוף. -->
 
     <Grid>
+    <!-- אובייקט: Grid — "מגש" שמחזיק את הגלגל, את המטבעות ואת כפתור החזרה. -->
         <Viewbox Margin="24,80,24,20" Stretch="Uniform" StretchDirection="DownOnly">
+        <!-- אובייקט: Viewbox — מקטין את התוכן כשהחלון קטן. -->
             <StackPanel Spacing="14" Width="560">
+            <!-- אובייקט: StackPanel — עמודה עם הכותרת, הלשוניות, הגלגל והכפתורים. -->
                 <TextBlock x:Name="TitleText" Text="🎡 גלגל המזל" Style="{StaticResource TitleText}" />
+                <!-- אובייקט: TitleText — הכותרת ("גלגל המזל" או "גלגל הזהב"). -->
 
                 <!-- Regular or golden wheel -->
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" FlowDirection="RightToLeft">
+                <!-- אובייקט: StackPanel — שורה של שתי הלשוניות. -->
                     <Button x:Name="RegularTab" Content="🎡 גלגל רגיל" FontSize="18" Padding="22,8" Click="RegularTab_Click" />
+                    <!-- אובייקט: RegularTab — לשונית "גלגל רגיל" (RegularTab_Click). -->
                     <Button x:Name="GoldenTab" Content="👑 גלגל הזהב" FontSize="18" Padding="22,8" Click="GoldenTab_Click" />
+                    <!-- אובייקט: GoldenTab — לשונית "גלגל הזהב" (GoldenTab_Click). -->
                 </StackPanel>
 
                 <TextBlock x:Name="InfoText" Style="{StaticResource SubtitleText}" FlowDirection="RightToLeft" />
+                <!-- אובייקט: InfoText — הסבר על הגלגל שנבחר. -->
 
                 <!-- The wheel, drawn in code, with a pointer on top -->
                 <Grid Width="440" Height="470" HorizontalAlignment="Center">
+                <!-- אובייקט: Grid — המקום של הגלגל: ההילה, הגלגל, המרכז והחץ, זה מעל זה. -->
                     <Ellipse x:Name="WheelHalo" Width="440" Height="440" VerticalAlignment="Bottom" Opacity="0" />
+                    <!-- אובייקט: WheelHalo — עיגול זוהר מאחורי גלגל הזהב (שקוף בגלגל הרגיל). -->
                     <Canvas x:Name="Wheel" Width="400" Height="400" VerticalAlignment="Bottom" Margin="0,0,0,20" RenderTransformOrigin="0.5,0.5">
+                    <!-- אובייקט: Wheel — "בד" (Canvas) שעליו הקוד מצייר את הפלחים והפרסים. -->
                         <Canvas.RenderTransform>
+                        <!-- אובייקט: RenderTransform — האפשרות לסובב את הבד. -->
                             <RotateTransform x:Name="WheelRotation" />
+                            <!-- אובייקט: WheelRotation — הסיבוב של הגלגל. האנימציה משנה את הזווית שלו. -->
                         </Canvas.RenderTransform>
                     </Canvas>
                     <Ellipse x:Name="Hub" Width="74" Height="74" VerticalAlignment="Bottom" Margin="0,0,0,183" StrokeThickness="4" />
+                    <!-- אובייקט: Hub — העיגול שבמרכז הגלגל. -->
                     <TextBlock x:Name="HubEmoji" Text="💖" FontSize="32" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,198" />
+                    <!-- אובייקט: HubEmoji — האימוג'י שבמרכז (💖 או 👑). -->
                     <Polygon x:Name="Pointer" Points="0,0 44,0 22,46" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,10,0,0" />
+                    <!-- אובייקט: Pointer — החץ (משולש) שמעל הגלגל ומראה איפה הוא נעצר. -->
                 </Grid>
 
                 <TextBlock x:Name="ResultText"
@@ -39,6 +56,7 @@
                            FontSize="26"
                            FlowDirection="RightToLeft"
                            TextWrapping="Wrap" />
+                           <!-- אובייקט: ResultText — שורה שמראה מה זכית. -->
 
                 <Button x:Name="SpinButton"
                         HorizontalAlignment="Stretch"
@@ -48,11 +66,13 @@
                         BorderBrush="{StaticResource RoseBrush}"
                         Foreground="{StaticResource RoseBrush}"
                         Click="Spin_Click" />
+                        <!-- אובייקט: SpinButton — כפתור "סובבו!" (Spin_Click). -->
                 <Button x:Name="BuySpinButton"
                         HorizontalAlignment="Center"
                         FontSize="17"
                         Padding="24,8"
                         Click="BuySpin_Click" />
+                        <!-- אובייקט: BuySpinButton — כפתור "קנו סיבוב" (BuySpin_Click). -->
             </StackPanel>
         </Viewbox>
 
@@ -63,6 +83,7 @@
                    FontSize="22"
                    FontWeight="SemiBold"
                    Foreground="{StaticResource BerryBrush}" />
+                   <!-- אובייקט: CoinsText — הטקסט בפינה שמראה כמה מטבעות יש. -->
 
         <Button Style="{StaticResource CircleButton}"
                 HorizontalAlignment="Left"
@@ -71,7 +92,9 @@
                 ToolTipService.ToolTip="חזרה"
                 AutomationProperties.Name="חזרה"
                 Click="BackButton_Click">
+                <!-- אובייקט: Button — כפתור "חזרה" עגול בפינה (BackButton_Click). -->
             <FontIcon Glyph="&#xE72B;" FontSize="20" />
+            <!-- אובייקט: FontIcon — האייקון של החץ שבתוך כפתור החזרה. -->
         </Button>
     </Grid>
 </local:BasePage>

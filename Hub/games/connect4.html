@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ארבע בשורה · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/duo.js"></script>
+<style>
+.c4 { width: min(100%, 520px); margin: 0 auto; padding: 12px; border-radius: 26px; background: linear-gradient(160deg, color-mix(in srgb, var(--frame) 85%, #fff), var(--frame)); box-shadow: inset 0 2px 0 rgba(255,255,255,.3), 0 24px 40px -20px rgba(0,0,0,.5); display: grid; grid-template-columns: repeat(7, 1fr); gap: 7px; direction: ltr; }
+.c4 button { aspect-ratio: 1; border-radius: 50%; border: 0; padding: 0; cursor: pointer; background: color-mix(in srgb, var(--frame) 40%, #0d0d1a); box-shadow: inset 0 4px 8px rgba(0,0,0,.45); position: relative; overflow: hidden; }
+.c4 button:hover::before { content: ""; position: absolute; inset: 0; background: rgba(255,255,255,.08); }
+.c4 .d { position: absolute; inset: 7%; border-radius: 50%; box-shadow: inset 0 -5px 0 rgba(0,0,0,.2), inset 0 4px 6px rgba(255,255,255,.45); }
+.c4 .d.me { background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--me) 60%, #fff), var(--me)); }
+.c4 .d.ai { background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--ai) 60%, #fff), var(--ai)); }
+.c4 .d.drop { animation: drop .45s cubic-bezier(.4,0,.6,1.4) both; }
+@keyframes drop { from { transform: translateY(calc(var(--r) * -118%)); } }
+.c4 .d.win { animation: pulse4 .8s ease-in-out infinite; box-shadow: 0 0 0 3px #fff, 0 0 18px #fff; }
+@keyframes pulse4 { 50% { transform: scale(.88); } }
+.who { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; }
+.mini { width: 14px; height: 14px; border-radius: 50%; display: inline-block; vertical-align: -2px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const DISCS = [
+  { id: "ds-classic", name: "אדום וצהוב", price: 0, me: "#F4C430", ai: "#E0435A" },
+  { id: "ds-ocean", name: "טורקיז וסגול", price: 90, me: "#2EC4B6", ai: "#8E5CF5" },
+  { id: "ds-candy", name: "ממתקים", price: 110, me: "#FF9EC4", ai: "#7CC6FE" },
+  { id: "ds-gold", name: "זהב וכסף", price: 160, me: "#FFD86B", ai: "#B8C0CC" },
+];
+const FRAMES = [
+  { id: "fr-blue", name: "כחול קלאסי", price: 0, c: "#2F5FD0" },
+  { id: "fr-night", name: "לילה", price: 90, c: "#2A2244" },
+  { id: "fr-rose", name: "ורד", price: 100, c: "#C25C7A" },
+  { id: "fr-forest", name: "יער", price: 100, c: "#2F6B4F" },
+];
+const CFG = {
+  id: "connect4", title: "ארבע בשורה", startCoins: 40,
+  items: [Hub.theme("ocean", 0), Hub.theme("indigo", 100), Hub.theme("amber", 100), Hub.theme("night", 160), ...DISCS.map(x => ({ ...x, slot: "discs" })), ...FRAMES.map(x => ({ ...x, slot: "frame" }))],
+  storeGroups: [{ slot: "discs", title: "דיסקיות" }, { slot: "frame", title: "מסגרת" }, { slot: "theme", title: "ערכות צבע" }],
+  preview: it => { const d = it.slot === "discs" ? it : Hub.equipped("discs"), f = it.slot === "frame" ? it : Hub.equipped("frame"); return `<div style="display:flex;gap:5px;padding:8px;border-radius:12px;background:${f.c}">${[d.me, d.ai, d.me].map(c => `<i style="width:22px;height:22px;border-radius:50%;background:${c}"></i>`).join("")}</div>`; },
+};
+const C = 7, R = 6, ME = 1, AI = 2;
+const drop = (b, col) => { for (let r = R - 1; r >= 0; r--) if (!b[r * C + col]) return r; return -1; };
+function winLine(b) {
+  const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+  for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) { const v = b[r * C + c]; if (!v) continue; for (const [dr, dc] of dirs) { const cells = [0, 1, 2, 3].map(k => [r + dr * k, c + dc * k]); if (cells.every(([rr, cc]) => rr >= 0 && rr < R && cc >= 0 && cc < C && b[rr * C + cc] === v)) return cells.map(([rr, cc]) => rr * C + cc); } }
+  return null;
+}
+// Score every window of four cells: more of mine and none of theirs is good, and the centre column matters
+function heur(b, p) {
+  const o = 3 - p; let s = 0;
+  for (let r = 0; r < R; r++) if (b[r * C + 3] === p) s += 3;
+  const lines = [[0, 1], [1, 0], [1, 1], [1, -1]];
+  for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) for (const [dr, dc] of lines) {
+    const er = r + dr * 3, ec = c + dc * 3; if (er < 0 || er >= R || ec < 0 || ec >= C) continue;
+    let mine = 0, theirs = 0; for (let k = 0; k < 4; k++) { const v = b[(r + dr * k) * C + c + dc * k]; if (v === p) mine++; else if (v === o) theirs++; }
+    if (theirs === 0) s += [0, 1, 5, 40, 10000][mine]; if (mine === 0) s -= [0, 1, 6, 60, 10000][theirs];
+  }
+  return s;
+}
+const ORDER = [3, 2, 4, 1, 5, 0, 6];
+function negamax(b, depth, alpha, beta, p) {
+  const w = winLine(b); if (w) return -100000 - depth; // the previous player just won
+  if (b.every(Boolean)) return 0;
+  if (depth === 0) return heur(b, p);
+  for (const c of ORDER) { const r = drop(b, c); if (r < 0) continue; b[r * C + c] = p; const s = -negamax(b, depth - 1, -beta, -alpha, 3 - p); b[r * C + c] = 0; if (s > alpha) alpha = s; if (alpha >= beta) break; }
+  return alpha;
+}
+function best(b, depth, p) {
+  let bestC = -1, bestS = -Infinity;
+  for (const c of ORDER) { const r = drop(b, c); if (r < 0) continue; b[r * C + c] = p; const s = -negamax(b, depth - 1, -Infinity, Infinity, 3 - p) + Math.random(); b[r * C + c] = 0; if (s > bestS) { bestS = s; bestC = c; } }
+  return bestC;
+}
+function play(G, col, p) { const r = drop(G.b, col); if (r < 0) return false; G.b[r * C + col] = p; G.last = r * C + col; G.lastR = r; G.who = 3 - p; Hub.sound("move"); return true; }
+
+Duo.run(CFG, {
+  tagline: "מפילים דיסקיות לתוך הלוח בתורות. הראשון שמסדר ארבע ברצף — בשורה, בטור או באלכסון — מנצח.",
+  worlds: ["דיסקיות ראשונות", "מלכודות", "אסטרטג"],
+  randomMove(G) { const o = ORDER.filter(x => drop(G.b, x) >= 0); play(G, o[Math.floor(Math.random() * o.length)], AI); },
+  help: `<h2>המטרה</h2><p>לסדר ארבע דיסקיות שלכם ברצף — אופקי, אנכי או אלכסוני.</p><h2>איך משחקים</h2><ul><li>לוחצים על טור, והדיסקית נופלת למקום הפנוי הנמוך ביותר בו.</li><li>אתם מתחילים. ניצחון מזכה במטבעות לפי הרמה, ותיקו בשליש.</li></ul>`,
+  newGame(G) { G.b = Array(C * R).fill(0); G.who = ME; G.last = -1; },
+  turn: G => G.who === ME ? "me" : "ai",
+  click(G, el) { return play(G, +el.dataset.i % C, ME); },
+  ai(G) { const d = [1, 4, 7][G.d]; let c = best(G.b, d, AI); if (G.d === 0 && Math.random() < .3) { const opts = ORDER.filter(x => drop(G.b, x) >= 0); c = opts[Math.floor(Math.random() * opts.length)]; } play(G, c, AI); },
+  result(G) { const w = winLine(G.b); if (w) { G.win = w; return G.b[w[0]] === ME ? "win" : "lose"; } return G.b.every(Boolean) ? "draw" : null; },
+  beforeRender() { const d = Hub.equipped("discs"), s = document.documentElement.style; s.setProperty("--me", d.me); s.setProperty("--ai", d.ai); s.setProperty("--frame", Hub.equipped("frame").c); },
+  board: G => `<div class="who"><span class="chip"><i class="mini" style="background:var(--me)"></i> ${Hub.user.avatar} את/ה</span><span class="chip"><i class="mini" style="background:var(--ai)"></i> 🤖 מחשב</span></div>
+    <div class="c4">${G.b.map((v, i) => `<button data-act="cell" data-i="${i}" aria-label="טור ${i % C + 1}">${v ? `<span class="d ${v === ME ? "me" : "ai"} ${i === G.last ? "drop" : ""} ${G.win?.includes(i) ? "win" : ""}" style="--r:${Math.floor(i / C) + 1}"></span>` : ""}</button>`).join("")}</div>`,
+});
+</script>
+</body>
+</html>

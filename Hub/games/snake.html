@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>נחש הכוכבים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/arcade.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SKINS = [
+  { id: "skin-neon", name: "ניאון מנטה", price: 0, a: "#3DF5C4", b: "#1C8F75" },
+  { id: "skin-fire", name: "אש", price: 100, a: "#FFC46B", b: "#E0432B" },
+  { id: "skin-ice", name: "קרח", price: 100, a: "#D2F0FF", b: "#3F86C9" },
+  { id: "skin-rainbow", name: "קשת", price: 170, rainbow: true },
+  { id: "skin-gold", name: "זהב", price: 240, a: "#FFE59A", b: "#B8861B" },
+];
+const ARENAS = [
+  { id: "ar-space", name: "חלל עמוק", price: 0, hue: 255 },
+  { id: "ar-sea", name: "ים לילי", price: 90, hue: 200 },
+  { id: "ar-rose", name: "ערפילית ורודה", price: 120, hue: 320 },
+  { id: "ar-forest", name: "יער זוהר", price: 120, hue: 140 },
+];
+const CFG = {
+  id: "snake", title: "נחש הכוכבים", startCoins: 40, startStock: { life: 1 },
+  items: [
+    Hub.theme("indigo", 0), Hub.theme("sage", 100), Hub.theme("coral", 100), Hub.theme("night", 160),
+    ...SKINS.map(s => ({ ...s, slot: "skin" })), ...ARENAS.map(a => ({ ...a, slot: "arena" })),
+    { id: "life3", consumable: true, stockId: "life", amount: 3, name: "3 חיים נוספים", desc: "חיים נוספים סולחים על התנגשות אחת", price: 40 },
+  ],
+  storeGroups: [{ slot: "skin", title: "עור הנחש" }, { slot: "arena", title: "זירות" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span style="font-size:38px">💖</span>` : it.slot === "skin"
+    ? `<div style="display:flex;gap:3px">${[0, 1, 2, 3, 4].map(i => `<i style="width:18px;height:18px;border-radius:6px;background:${it.rainbow ? `hsl(${i * 60},85%,60%)` : `color-mix(in srgb, ${it.a} ${100 - i * 18}%, ${it.b})`}"></i>`).join("")}</div>`
+    : `<div style="width:100%;height:100%;background:radial-gradient(circle at 60% 40%, hsla(${it.hue + 40},80%,55%,.5), transparent 60%), hsl(${it.hue},55%,10%)"></div>`,
+};
+const { rr, spaceBg, stars, drawStars } = Arcade;
+const COLS = 16;
+function spawnFood(S) {
+  let p; do { p = { x: Math.floor(Math.random() * S.cols), y: Math.floor(Math.random() * S.rows) }; } while (S.snake.some(s => s.x === p.x && s.y === p.y));
+  p.gold = Math.random() < .14; p.born = S.t; S.food = p;
+}
+function colorAt(skin, i, n) { return skin.rainbow ? `hsl(${(i * 24) % 360},85%,62%)` : `color-mix(in srgb, ${skin.a} ${Math.round(100 - (i / Math.max(1, n - 1)) * 70)}%, ${skin.b})`; }
+
+Arcade.run(CFG, {
+  tagline: "הנחש אוכל כוכבים וגדל. אל תיתקעו בקיר או בזנב, ומהירות הנחש עולה ככל שהוא גדל.",
+  play: "להתחיל לזחול", ratio: 1.25, unit: "נק׳", stageBg: "#0b0820",
+  targets: [100, 260, 480], bots: [["קוואזר", "🛸", 620], ["אוריון", "👾", 300], ["ניצוץ", "🤖", 110]],
+  powers: [{ id: "life", label: "💖 חיים נוספים" }],
+  readyTitle: "מוכנים לזחול?", readyText: "כוכב רגיל = 10 נקודות, כוכב זהב = 30.",
+  help: `<h2>המטרה</h2><p>לאכול כמה שיותר כוכבים בלי להתנגש בקיר או בזנב.</p>
+    <h2>שליטה</h2><ul><li>חצים או WASD, הכפתורים, או החלקה על המסך.</li></ul>
+    <h2>ניקוד</h2><ul><li>⭐ כוכב = 10 נקודות, 🌟 כוכב זהב = 30 (נעלם אחרי כמה שניות).</li><li>💖 חיים נוספים סולחים על התנגשות אחת: הנחש עובר לצד השני של הזירה.</li></ul>`,
+  init(S, w, h) {
+    S.cols = COLS; S.cell = w / COLS; S.rows = Math.floor(h / S.cell);
+    const y = Math.floor(S.rows / 2);
+    S.snake = [{ x: 5, y }, { x: 4, y }, { x: 3, y }]; S.dir = { x: 1, y: 0 }; S.queue = [];
+    S.acc = 0; S.score = 0; S.lives = S.power.life ? 1 : 0; S.parts = []; S.sky = stars(70, w, h);
+    spawnFood(S);
+  },
+  update(S, dt) {
+    S.acc += dt;
+    const step = Math.max(.065, .15 - S.snake.length * .0028);
+    while (S.acc >= step && !S.over) {
+      S.acc -= step;
+      if (S.queue.length) S.dir = S.queue.shift();
+      const h = S.snake[0]; let nx = h.x + S.dir.x, ny = h.y + S.dir.y;
+      const wall = nx < 0 || ny < 0 || nx >= S.cols || ny >= S.rows, self = S.snake.slice(0, -1).some(s => s.x === nx && s.y === ny);
+      if (wall || self) {
+        if (S.lives > 0) { S.lives--; Hub.sound("hint"); Hub.toast("💖 חיים נוספים!"); nx = (nx + S.cols) % S.cols; ny = (ny + S.rows) % S.rows; if (self) { S.over = true; return; } }
+        else { S.over = true; return; }
+      }
+      S.snake.unshift({ x: nx, y: ny });
+      if (S.food && nx === S.food.x && ny === S.food.y) {
+        S.score += S.food.gold ? 30 : 10; Hub.sound(S.food.gold ? "coin" : "tap");
+        for (let k = 0; k < 14; k++) S.parts.push({ x: (nx + .5) * S.cell, y: (ny + .5) * S.cell, vx: (Math.random() - .5) * 160, vy: (Math.random() - .5) * 160, life: .6, c: S.food.gold ? "#FFD86B" : "#9FF7FF" });
+        spawnFood(S);
+      } else S.snake.pop();
+    }
+    if (S.food.gold && S.t - S.food.born > 6) spawnFood(S);
+    for (const p of S.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+    S.parts = S.parts.filter(p => p.life > 0);
+  },
+  draw(c, S, w, h, t) {
+    const ar = Hub.equipped("arena"), sk = Hub.equipped("skin"), cs = S.cell;
+    spaceBg(c, w, h, ar.hue); drawStars(c, S.sky, w, h, 0, t);
+    c.fillStyle = "rgba(255,255,255,.07)";
+    for (let x = 0; x < S.cols; x++) for (let y = 0; y < S.rows; y++) c.fillRect((x + .5) * cs - 1, (y + .5) * cs - 1, 2, 2);
+    c.strokeStyle = `hsla(${ar.hue + 40},80%,70%,.35)`; c.lineWidth = 2; rr(c, 1, 1, S.cols * cs - 2, S.rows * cs - 2, 10); c.stroke();
+    if (S.food) { // a pulsing star
+      const f = S.food, fx = (f.x + .5) * cs, fy = (f.y + .5) * cs, pr = cs * (.32 + .05 * Math.sin(t / 160));
+      const g = c.createRadialGradient(fx, fy, 0, fx, fy, cs * 1.2); g.addColorStop(0, f.gold ? "rgba(255,216,107,.6)" : "rgba(160,240,255,.5)"); g.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = g; c.beginPath(); c.arc(fx, fy, cs * 1.2, 0, 7); c.fill();
+      c.fillStyle = f.gold ? "#FFD86B" : "#E6FBFF"; c.beginPath();
+      for (let k = 0; k < 10; k++) { const a = -Math.PI / 2 + k * Math.PI / 5 + t / 900, r = k % 2 ? pr * .45 : pr; c.lineTo(fx + Math.cos(a) * r, fy + Math.sin(a) * r); }
+      c.fill();
+    }
+    const n = S.snake.length;
+    for (let i = n - 1; i >= 0; i--) {
+      const s = S.snake[i], pad = i === 0 ? cs * .06 : cs * (.1 + i / n * .08);
+      c.shadowColor = colorAt(sk, i, n); c.shadowBlur = i === 0 ? 16 : 8;
+      c.fillStyle = colorAt(sk, i, n); rr(c, s.x * cs + pad, s.y * cs + pad, cs - pad * 2, cs - pad * 2, cs * .32); c.fill();
+    }
+    c.shadowBlur = 0;
+    const hd = S.snake[0], ex = (hd.x + .5) * cs, ey = (hd.y + .5) * cs;
+    for (const side of [-1, 1]) {
+      const ox = S.dir.x * cs * .14 + S.dir.y * side * cs * .18, oy = S.dir.y * cs * .14 - S.dir.x * side * cs * .18;
+      c.fillStyle = "#fff"; c.beginPath(); c.arc(ex + ox, ey + oy, cs * .12, 0, 7); c.fill();
+      c.fillStyle = "#1a1030"; c.beginPath(); c.arc(ex + ox + S.dir.x * cs * .04, ey + oy + S.dir.y * cs * .04, cs * .06, 0, 7); c.fill();
+    }
+    for (const p of S.parts) { c.globalAlpha = p.life / .6; c.fillStyle = p.c; c.fillRect(p.x, p.y, 3, 3); }
+    c.globalAlpha = 1;
+  },
+  input(S, name, down) {
+    if (!down) return;
+    const d = { left: { x: -1, y: 0 }, right: { x: 1, y: 0 }, up: { x: 0, y: -1 }, down: { x: 0, y: 1 } }[name]; if (!d) return;
+    const last = S.queue[S.queue.length - 1] || S.dir;
+    if (d.x === -last.x && d.y === -last.y) return; // no turning back into yourself
+    if (d.x === last.x && d.y === last.y) return;
+    if (S.queue.length < 3) S.queue.push(d);
+  },
+  hud: S => [["⭐", S.score], ["💖", S.lives]],
+  score: S => S.score, coins: S => S.score / 8,
+  resultTitle: () => "בום! הנחש נתקע",
+});
+</script>
+</body>
+</html>

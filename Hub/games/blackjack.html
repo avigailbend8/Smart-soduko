@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>21 · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/duo.js"></script>
+<style>
+.tbl { width: min(100%, 560px); margin: 0 auto; padding: 20px 16px; border-radius: 120px 120px 30px 30px; color: #fff; text-align: center;
+  background: radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, var(--felt) 75%, #fff), var(--felt) 55%, color-mix(in srgb, var(--felt) 75%, #000)); box-shadow: inset 0 0 0 8px color-mix(in srgb, var(--felt) 60%, #3a2414), inset 0 -10px 30px rgba(0,0,0,.3), var(--shadow); }
+.hand { display: flex; justify-content: center; gap: 0; min-height: 112px; margin: 6px 0 2px; direction: ltr; }
+.pc { width: 74px; height: 106px; border-radius: 10px; background: #fff; color: #222; margin-inline: -10px; box-shadow: 0 6px 12px -4px rgba(0,0,0,.5); position: relative; font-family: var(--display); animation: deal .35s cubic-bezier(.2,.9,.3,1.2) both; }
+.pc.red { color: #C8243B; }
+.pc .tl { position: absolute; top: 5px; left: 7px; font-size: 18px; line-height: 1; text-align: center; }
+.pc .md { position: absolute; inset: 0; display: grid; place-items: center; font-size: 38px; }
+.pc.back { background: var(--back); border: 3px solid #fff; }
+@keyframes deal { from { transform: translateY(-60px) rotate(-8deg); opacity: 0; } }
+.tot { display: inline-block; margin-top: 4px; padding: 2px 12px; border-radius: 999px; background: rgba(0,0,0,.25); font-weight: 700; }
+.lbl { font-size: 14px; opacity: .85; margin-top: 8px; }
+.bet { font: 500 18px var(--display); margin: 12px 0 0; color: var(--gold); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const FELTS = [
+  { id: "bj-green", name: "קזינו ירוק", price: 0, c: "#1F6B47", back: "repeating-linear-gradient(45deg,#B4324A 0 6px,#8E2238 6px 12px)" },
+  { id: "bj-blue", name: "כחול מלכותי", price: 100, c: "#1F3F7A", back: "repeating-linear-gradient(45deg,#2C5AA0 0 6px,#1E3F75 6px 12px)" },
+  { id: "bj-purple", name: "קטיפה סגולה", price: 130, c: "#4A2470", back: "radial-gradient(#D9B154 1.5px,transparent 2px) 0 0/9px 9px,#3A1C5A" },
+  { id: "bj-black", name: "שחור וזהב", price: 180, c: "#1E1B1B", back: "linear-gradient(135deg,#D9B154,#8A6A1F)" },
+];
+const CFG = {
+  id: "blackjack", title: "21", startCoins: 100,
+  items: [Hub.theme("sage", 0), Hub.theme("amber", 100), Hub.theme("night", 160), ...FELTS.map(x => ({ ...x, slot: "felt" }))],
+  storeGroups: [{ slot: "felt", title: "שולחן וקלפים" }, { slot: "theme", title: "ערכות צבע" }],
+  preview: it => `<div style="width:100%;height:100%;display:grid;place-items:center;background:${it.c}"><i style="width:30px;height:42px;border-radius:5px;border:2px solid #fff;background:${it.back}"></i></div>`,
+};
+const SUITS = ["♠", "♥", "♦", "♣"], RANKS = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+const deck = () => Hub.shuffle(Array.from({ length: 6 * 52 }, (_, i) => ({ r: RANKS[i % 13], s: SUITS[Math.floor(i / 13) % 4] })));
+function total(h) { let t = 0, aces = 0; for (const c of h) { if (c.r === "A") { aces++; t += 11; } else t += ["J", "Q", "K"].includes(c.r) ? 10 : +c.r; } while (t > 21 && aces) { t -= 10; aces--; } return t; }
+const card = c => `<div class="pc ${c.s === "♥" || c.s === "♦" ? "red" : ""}"><span class="tl">${c.r}<br>${c.s}</span><span class="md">${c.s}</span></div>`;
+const BETS = [10, 25, 50];
+
+Duo.run(CFG, {
+  tagline: "נגד הדילר: מתקרבים ל-21 כמה שאפשר בלי לעבור. ההימור יוצא מהמטבעות של המשחק (10, 25 או 50 לפי העולם) — ניצחון מחזיר אותו כפול ופותח את השלב הבא!",
+  play: "לשבת לשולחן",
+  worlds: ["שולחן 10", "שולחן 25", "שולחן 50"],
+  bots: [["קוואזר", "🛸", 60], ["אוריון", "👾", 25], ["ניצוץ", "🤖", 8]],
+  help: `<h2>המטרה</h2><p>להגיע לסכום קרוב יותר ל-21 מהדילר, בלי לעבור את 21.</p><h2>ערכי הקלפים</h2><ul><li>2–10 לפי המספר · J, Q, K שווים 10 · A שווה 11 או 1.</li></ul><h2>הפעולות</h2><ul><li><b>קלף</b> — עוד קלף · <b>מספיק</b> — עוצרים · <b>הכפלה</b> — מכפילים את ההימור, מקבלים קלף אחד ועוצרים.</li><li>הדילר מושך קלפים עד שיש לו 17 או יותר.</li></ul>`,
+  newGame(G, d) {
+    const bet = BETS[d];
+    if (!Hub.spend(bet)) { Hub.toast(`צריך לפחות ${bet} מטבעות לשולחן הזה`); return false; }
+    G.bet = bet; G.shoe = deck(); G.me = [G.shoe.pop(), G.shoe.pop()]; G.dl = [G.shoe.pop(), G.shoe.pop()]; G.who = 1; G.done = false; G.reveal = false;
+    G.coinsWin = bet * 2; G.coinsDraw = bet;
+    if (total(G.me) === 21) { G.who = 2; G.natural = true; G.coinsWin = Math.round(bet * 2.5); }
+    Hub.sound("card");
+  },
+  turn: G => G.who === 1 ? "me" : G.done ? "me" : "ai",
+  click: () => false,
+  ai(G) { G.reveal = true; if (total(G.dl) < 17 && total(G.me) <= 21 && !G.natural) { G.dl.push(G.shoe.pop()); Hub.sound("card"); } else G.done = true; },
+  result(G) {
+    const me = total(G.me), dl = total(G.dl);
+    if (me > 21) return "lose";
+    if (G.natural && G.done) return total(G.dl) === 21 && G.dl.length === 2 ? "draw" : "win";
+    if (!G.done) return null;
+    if (dl > 21 || me > dl) return "win"; return me === dl ? "draw" : "lose";
+  },
+  resultText: (G, k) => `${total(G.me)} מול ${total(G.dl)}${k === "win" ? ` · הרווחת ${G.coinsWin - G.bet} מטבעות` : k === "draw" ? " · ההימור חזר אלייך" : ` · הפסדת ${G.bet} מטבעות`}`,
+  aiDelay: 600, thinkingText: "הדילר משחק",
+  beforeRender() { const f = Hub.equipped("felt"), st = document.documentElement.style; st.setProperty("--felt", f.c); st.setProperty("--back", f.back); },
+  status: G => `יש לך ${total(G.me)}`,
+  board(G) {
+    const hide = !G.reveal && !G.over;
+    return `<div class="tbl"><div class="lbl">🎩 הדילר</div><div class="hand">${G.dl.map((c, i) => i === 1 && hide ? `<div class="pc back"></div>` : card(c)).join("")}</div>
+      <span class="tot">${hide ? total([G.dl[0]]) + " + ?" : total(G.dl)}</span>
+      <div class="lbl">${Hub.user.avatar} את/ה</div><div class="hand">${G.me.map(card).join("")}</div><span class="tot">${total(G.me)}</span>
+      <p class="bet">הימור: ${G.bet} ${Hub.coinSvg}</p></div>`;
+  },
+  tools: G => G.over || G.who !== 1 ? "" : `<button class="btn primary" data-act="x-hit">🂠 קלף</button><button class="btn" data-act="x-stand">✋ מספיק</button>${G.me.length === 2 ? `<button class="btn" data-act="x-double">×2 הכפלה</button>` : ""}`,
+  act(G, a) {
+    if (G.who !== 1 || G.over) return;
+    if (a === "x-hit") { G.me.push(G.shoe.pop()); Hub.sound("card"); if (total(G.me) >= 21) G.who = 2; return "moved"; }
+    if (a === "x-stand") { G.who = 2; return "moved"; }
+    if (a === "x-double") { if (!Hub.spend(G.bet)) { G.msg = "אין מספיק מטבעות להכפלה"; return; } G.bet *= 2; G.coinsWin = G.bet * 2; G.coinsDraw = G.bet; G.me.push(G.shoe.pop()); Hub.sound("card"); G.who = 2; return "moved"; }
+  },
+});
+</script>
+</body>
+</html>

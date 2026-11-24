@@ -54,6 +54,13 @@ const CFG = {
     { id: "undo3", consumable: true, stockId: "undo", amount: 3, name: "3 ביטולים", desc: "מחזיר את המהלך האחרון שלך", price: 25 },
   ],
   storeGroups: [{ slot: "theme", title: "ערכות צבע" }, { slot: "board", title: "לוחות" }, { slot: "discs", title: "אבנים" }, { consumable: true, title: "עזרים" }],
+  boards: [{ id: "wins", title: "ניצחונות", bots: [["קוואזר", "🛸", 30], ["אוריון", "👾", 12], ["ניצוץ", "🤖", 4]] }],
+  duel: {
+    mode: "match",
+    start: r => { newGame([8, 18, 28][r.level], true); view = "game"; nav = ["menu"]; render(); },
+    progress: () => G?.over?.kind === "win" ? 1 : 0, over: () => !!G?.over, lose: () => {},
+    active: () => view === "game" && !!G, menu: () => { view = "menu"; nav = []; render(); },
+  },
   preview: it => {
     const bd = it.slot === "board" ? it : Hub.equipped("board"), ds = it.slot === "discs" ? it : Hub.equipped("discs");
     return `<div class="pv-dam">${Array.from({ length: 8 }, (_, i) => { const dark = (i + (i >> 2)) % 2; return `<i style="background:${dark ? bd.d : bd.l}">${dark ? `<b style="background:${i < 4 ? ds.b : ds.a}"></b>` : ""}</i>`; }).join("")}</div>`;
@@ -174,8 +181,15 @@ function bestMove(b, side, depth, time) {
 // ---------- State ----------
 let W, view = "menu", nav = [], G = null;
 const P = () => { const p = W.progress; p.wins = p.wins || { easy: 0, mid: 0, hard: 0 }; p.draws = p.draws || 0; p.losses = p.losses || 0; return p; };
-function newGame(diff) {
-  G = { diff, b: initial(), turn: 1, hist: [], prefix: [], last: null, over: null, thinking: false, hint: null, helps: 0, quiet: 0, ply: 0, msg: "", show: null };
+const COUNT = 30;
+function aiOf(L) {
+  if (L <= 10) return { depth: 1 + (L > 6), time: 200, random: .35 - (L - 1) * .028 };
+  if (L <= 20) return { depth: 3 + (L > 15), time: 600, random: .06 - (L - 11) * .006 };
+  return { depth: 6 + Math.floor((L - 21) / 3), time: 700 + (L - 21) * 70, random: 0 };
+}
+function newGame(L, duel = false) {
+  const diff = L <= 10 ? "easy" : L <= 20 ? "mid" : "hard";
+  G = { L, duel, diff, b: initial(), turn: 1, hist: [], prefix: [], last: null, over: null, thinking: false, hint: null, helps: 0, quiet: 0, ply: 0, msg: "", show: null };
   G.moves = genMoves(G.b, 1);
 }
 const candidates = () => G.moves.filter(m => G.prefix.every((sq, i) => m.path[i] === sq));
@@ -187,10 +201,10 @@ function render() {
   if (view !== "game") Hub.closeOverlay();
   const bd = Hub.equipped("board"), ds = Hub.equipped("discs"), st = document.documentElement.style;
   st.setProperty("--sq-l", bd.l); st.setProperty("--sq-d", bd.d); st.setProperty("--da", ds.a); st.setProperty("--db", ds.b);
-  $("#app").innerHTML = ({ menu: menuView, diffs: diffsView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+  $("#app").innerHTML = ({ menu: menuView, levels: () => `${Hub.topbar("שלבים")}${Hub.levelMap({ count: COUNT, names: ["צעדים באלכסון", "קפיצות כפולות", "מלכים עפים"] })}`, game: gameView, store: () => Hub.store(), help: helpView })[view]();
 }
 function menuView() {
-  return Hub.menu({ tagline: "דמקה ישראלית מול המחשב: אכילה היא חובה, אפשר לאכול גם אחורה, ומלך עף לאורך כל האלכסון.", buttons: [["diffs", "משחק חדש", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+  return Hub.menu({ tagline: "דמקה ישראלית מול המחשב: אכילה היא חובה, אפשר לאכול גם אחורה, ומלך עף לאורך כל האלכסון.", buttons: [["levels", "שלבים", true], ["store", "החנות"], ["help", "איך משחקים"]] });
 }
 function diffsView() {
   const p = P();
@@ -220,7 +234,7 @@ function gameView() {
     const cls = ["sq", dark ? "d" : "", i === at && G.turn === 1 && !G.show ? "sel" : "", G.last && G.last.includes(i) ? "last" : "", nexts.has(i) ? "tgt" : "", movable.has(i) ? "can" : "", G.hint && G.hint.path.includes(i) ? "hint" : ""].filter(Boolean).join(" ");
     sqs += `<button class="${cls}" data-act="sq" data-i="${i}" ${dark ? "" : "tabindex='-1' aria-hidden='true'"} aria-label="משבצת ${i + 1}">${v ? `<span class="disc ${v > 0 ? "me" : "ai"} ${ghosts.includes(i) ? "ghost" : ""}">${Math.abs(v) === 2 ? `<span class="crown">♛︎</span>` : ""}</span>` : ""}</button>`;
   }
-  return `${Hub.topbar(`דמקה · ${DIFFS[G.diff].name}`)}
+  return `${Hub.topbar(`דמקה · שלב ${G.L}`)}
     <div class="score"><span class="chip"><i class="mini" style="background:var(--da)"></i> אתם <b>${count(1)}</b></span><span class="chip status" role="status">${status}</span><span class="chip"><i class="mini" style="background:var(--db)"></i> המחשב <b>${count(-1)}</b></span></div>
     <div class="board-wrap"><div class="board8">${sqs}</div></div>
     <div class="tools">
@@ -256,7 +270,7 @@ function play(m) {
 function computerTurn() {
   G.thinking = true; render();
   setTimeout(() => {
-    const d = DIFFS[G.diff];
+    const d = aiOf(G.L);
     let m = bestMove(G.b, -1, d.depth, d.time);
     if (Math.random() < d.random) m = G.moves[Math.floor(Math.random() * G.moves.length)];
     G.thinking = false;
@@ -273,13 +287,17 @@ function computerTurn() {
 function finish(kind) {
   const d = DIFFS[G.diff], p = P();
   let coins = 0, stars = null, title, sub;
-  if (kind === "win") { coins = d.coins; stars = Math.max(1, 3 - G.helps); p.wins[G.diff]++; title = "ניצחת! ♛"; sub = `ניצחון מול רמת ${d.name}`; Hub.sound("win"); Hub.confetti(); }
-  else if (kind === "draw") { coins = Math.ceil(d.coins / 3); p.draws++; title = "תיקו"; sub = "40 מהלכים בלי התקדמות"; Hub.sound("good"); }
+  const levelCoins = 10 + G.L * 3;
+  if (kind === "win" || kind === "draw") { const st = kind === "win" ? Math.max(1, 3 - G.helps) : 1, first = !G.duel && Hub.levelDone(G.L, st); G.levelStars = st; G.lvCoins = G.duel ? (kind === "win" ? d.coins : Math.ceil(d.coins / 3)) : Math.ceil((first ? levelCoins : levelCoins / 3) * (kind === "draw" ? .5 : 1)); }
+  if (kind === "win") { coins = G.lvCoins; stars = Math.max(1, 3 - G.helps); p.wins[G.diff]++; Hub.submitScore(Object.values(p.wins).reduce((a, b) => a + b, 0), "wins"); title = "ניצחת! ♛"; sub = `ניצחון מול רמת ${d.name}`; Hub.sound("win"); Hub.confetti(); }
+  else if (kind === "draw") { coins = G.lvCoins; p.draws++; title = "תיקו"; sub = "40 מהלכים בלי התקדמות"; Hub.sound("good"); }
   else { p.losses++; title = kind === "resign" ? "נכנעת" : "המחשב ניצח"; sub = "בפעם הבאה! אפשר לנסות רמה קלה יותר."; Hub.sound("lose"); }
   G.over = { kind, text: title };
   Hub.save(); if (coins) Hub.earn(coins);
   render();
-  setTimeout(() => Hub.result({ title, sub, stars, coins, buttons: [["again", "משחק חדש", true], ["view", "להסתכל על הלוח"], ["tomenu", "לתפריט"]] }), kind === "resign" ? 50 : 600);
+  const passed = kind === "win" || kind === "draw";
+  setTimeout(() => G.duel ? Hub.result({ title, sub, stars, coins, buttons: [["tomenu", "לתפריט", true], ["view", "להסתכל על הלוח"]] })
+    : Hub.levelResult({ L: G.L, count: COUNT, won: passed, stars: G.levelStars || 0, coins, title: passed ? `${title} · שלב ${G.L}` : title, sub }), kind === "resign" ? 50 : 600);
 }
 function clickSquare(i) {
   if (G.over || G.thinking || G.turn !== 1) return;
@@ -304,11 +322,14 @@ document.addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   const a = b.dataset.act;
   if (a === "back") { Hub.closeOverlay(); return back(); }
-  if (a === "diffs") return go("diffs");
+  if (a === "levels") return go("levels");
+  if (a === "lvl") { newGame(+b.dataset.level); return go("game"); }
+  if (a === "lvnext") { Hub.closeOverlay(); newGame(Math.min(COUNT, G.L + 1)); return render(); }
+  if (a === "lvagain") { Hub.closeOverlay(); newGame(G.L); return render(); }
+  if (a === "lvmap") { Hub.closeOverlay(); view = "levels"; nav = ["menu"]; return render(); }
   if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
   if (a === "help") return go("help");
   if (a === "buy") { Hub.buy(b.dataset.item); return render(); }
-  if (a === "start") { newGame(b.dataset.diff); return go("game"); }
   if (a === "sq") return clickSquare(+b.dataset.i);
   if (a === "undo") {
     if (G.over || G.thinking || !G.hist.length) return;
@@ -327,7 +348,7 @@ document.addEventListener("click", e => {
   if (a === "resign") { Hub.overlay(`<h2 class="display sm">להיכנע?</h2><p class="lede">המשחק ייגמר בהפסד.</p><div class="stack"><button class="btn wide" data-act="close">להמשיך לשחק</button><button class="btn wide primary" data-act="doresign">כן, להיכנע</button></div>`); return; }
   if (a === "doresign") { Hub.closeOverlay(); return finish("resign"); }
   if (a === "close" || a === "view") return Hub.closeOverlay();
-  if (a === "again") { Hub.closeOverlay(); newGame(G.diff); return render(); }
+  if (a === "again") { Hub.closeOverlay(); newGame(G.L, G.duel); return render(); }
   if (a === "tomenu") { view = "menu"; nav = []; return render(); }
 });
 

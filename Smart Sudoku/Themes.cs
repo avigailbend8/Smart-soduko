@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Windows.UI;
@@ -17,14 +17,18 @@ namespace Smart_Sudoku
         uint Dark, uint Accent, uint Soft, uint Muted,
         uint Deco, uint Selected, uint SameNumber, uint Related, uint Hover, uint Pressed,
         string[]? Decorations = null, string[]? Pictures = null, string? Credit = null);
+        // אובייקט: ThemePalette — ערכת עיצוב אחת: שם, מחיר, צבעי הרקע, כל הצבעים של הכפתורים והמשבצות,
+        // ואם יש — תמונת רקע, אימוג'י מקשטים, איורים, ומי צייר אותם.
 
     /// <summary>
     /// Color themes. Applying one recolors the shared brushes in App.xaml,
     /// so every page updates at once.
     /// </summary>
     public static class Themes
+    // אובייקט: Themes — כל ערכות העיצוב במשחק. כשבוחרים ערכה, כל הצבעים באפליקציה מתחלפים בבת אחת.
     {
         public static readonly IReadOnlyList<ThemePalette> All = new[]
+        // אובייקט: All — הרשימה של כל ערכות העיצוב: ורוד, סגול, תכלת, מנטה, קשת, גלקסיה, נסיכות, ים, חלל, ועוד.
         {
             new ThemePalette("pink", "ורוד", 0, new[] { 0xFFFFF4F8u, 0xFFFCE1ECu }, null,
                 0xFF8A2A55, 0xFFE75A97, 0xFFF6C6DA, 0xFFA0607E,
@@ -123,18 +127,25 @@ namespace Smart_Sudoku
         };
 
         public static ThemePalette Get(string id) => All.FirstOrDefault(t => t.Id == id) ?? All[0];
+        // פעולה: Get — מחזירה ערכת עיצוב לפי השם שלה. אם לא נמצאה — מחזירה את הוורודה.
 
         public static void Apply(string id)
+        // פעולה: Apply — מחילה ערכת עיצוב: צובעת מחדש את כל ה"מברשות" המשותפות של האפליקציה, ומחליפה את הרקע והקישוטים.
+        // במצב לילה היא משתמשת בגרסה הכהה של הערכה.
         {
             var theme = GameData.NightMode ? Night(Get(id)) : Get(id);
+            // אובייקט: theme — הערכה שבחרנו (או הגרסה הכהה שלה במצב לילה).
             var resources = Application.Current.Resources;
+            // אובייקט: resources — המשאבים המשותפים של האפליקציה (המברשות שבקובץ App.xaml).
 
             var background = (LinearGradientBrush)resources["PageBackgroundBrush"];
+            // אובייקט: background — המברשת המדורגת של רקע העמודים.
             background.GradientStops.Clear();
             foreach (var stop in MakeStops(theme.Background))
                 background.GradientStops.Add(stop);
 
             void Set(string key, uint argb) => ((SolidColorBrush)resources[key]).Color = ToColor(argb);
+            // פעולה: Set — פעולה קטנה בתוך הפעולה: צובעת מברשת אחת לפי השם שלה.
 
             Set("BerryBrush", theme.Dark);
             Set("RoseBrush", theme.Accent);
@@ -155,6 +166,7 @@ namespace Smart_Sudoku
 
         /// <summary>How a theme's background decorations move.</summary>
         private static string MotionFor(string themeId) => themeId switch
+        // פעולה: MotionFor — קובעת איך הקישוטים ברקע זזים: שלג בחורף, בועות בים, נצנוץ בחלל, ואחרת ריחוף.
         {
             "winter" => "snow",
             "ocean" => "bubbles",
@@ -165,10 +177,13 @@ namespace Smart_Sudoku
         // ---------- Night mode: a dark version of any theme, made from its own colors ----------
 
         private const uint NightBase = 0xFF17141F;
+        // אובייקט: NightBase — הצבע הכהה שממנו בונים את מצב הלילה.
 
         private static ThemePalette Night(ThemePalette day)
+        // פעולה: Night — יוצרת גרסה כהה של ערכת עיצוב מתוך הצבעים שלה עצמה (למצב לילה).
         {
             uint card = Blend(day.Accent, NightBase, 0.86);
+            // אובייקט: card — צבע הכרטיסים במצב לילה.
             return day with
             {
                 Background = day.Background.Select(c => Blend(c, NightBase, 0.88)).ToArray(),
@@ -186,19 +201,23 @@ namespace Smart_Sudoku
 
         /// <summary>Mixes two colors: amount 0 = the first, 1 = the second.</summary>
         private static uint Blend(uint a, uint b, double amount)
+        // פעולה: Blend — מערבבת שני צבעים. amount=0 נותן את הראשון, amount=1 את השני, ובאמצע — שילוב.
         {
             uint Mix(int shift) => (uint)Math.Round(((a >> shift) & 0xFF) * (1 - amount) + ((b >> shift) & 0xFF) * amount);
+            // פעולה: Mix — מערבבת ערוץ צבע אחד (אדום, ירוק או כחול).
             return 0xFF000000 | (Mix(16) << 16) | (Mix(8) << 8) | Mix(0);
         }
 
         /// <summary>Evenly spaced gradient stops, also used for previews in the store.</summary>
         public static IEnumerable<GradientStop> MakeStops(uint[] colors)
+        // פעולה: MakeStops — יוצרת "תחנות צבע" במרווחים שווים, כדי לבנות מעבר הדרגתי בין כמה צבעים.
         {
             for (int i = 0; i < colors.Length; i++)
                 yield return new GradientStop { Color = ToColor(colors[i]), Offset = (double)i / (colors.Length - 1) };
         }
 
         public static Color ToColor(uint argb) =>
+        // פעולה: ToColor — הופכת מספר צבע (כמו 0xFFE75A97) לצבע ש-Windows מבין.
             Color.FromArgb((byte)(argb >> 24), (byte)(argb >> 16), (byte)(argb >> 8), (byte)argb);
     }
 }

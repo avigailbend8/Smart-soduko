@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>מגדלים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/puzzle.js"></script>
+<style>
+.hn { width: min(100%, 600px); margin: 30px auto 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; direction: ltr; }
+.peg { height: clamp(220px, 50vw, 300px); position: relative; display: flex; flex-direction: column-reverse; align-items: center; padding-bottom: 14px; cursor: pointer; border-radius: 18px; transition: background .2s; }
+.peg:hover { background: color-mix(in srgb, var(--soft) 50%, transparent); }
+.peg.sel { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.peg::before { content: ""; position: absolute; bottom: 14px; left: 50%; width: 10px; height: 82%; transform: translateX(-50%); border-radius: 6px; background: linear-gradient(90deg, color-mix(in srgb, var(--rod) 70%, #fff), var(--rod)); }
+.peg::after { content: ""; position: absolute; bottom: 4px; left: 6%; right: 6%; height: 12px; border-radius: 8px; background: var(--rod); }
+.disc { height: clamp(18px, 4.6vw, 26px); border-radius: 999px; position: relative; z-index: 1; margin-top: 3px; box-shadow: inset 0 3px 0 rgba(255,255,255,.4), inset 0 -3px 0 rgba(0,0,0,.15), 0 3px 6px -2px rgba(0,0,0,.35); transition: transform .2s; }
+.peg.sel .disc:last-child { transform: translateY(-26px); }
+.goal { text-align: center; color: var(--muted); margin-top: 8px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SETS = [
+  { id: "tw-rainbow", name: "קשת", price: 0, rod: "#9C7A54", hue: [0, 30, 50, 120, 190, 220, 270, 310] },
+  { id: "tw-ocean", name: "אוקיינוס", price: 100, rod: "#5B7C8D", hue: [170, 180, 190, 200, 210, 220, 230, 240] },
+  { id: "tw-sunset", name: "שקיעה", price: 100, rod: "#7A4E5A", hue: [45, 35, 25, 15, 5, 350, 335, 320] },
+  { id: "tw-crystal", name: "קריסטל", price: 150, rod: "#B8C4D6", hue: [260, 270, 280, 290, 300, 190, 200, 210], glass: true },
+];
+const CFG = {
+  id: "towers", title: "מגדלים", startCoins: 40,
+  items: [Hub.theme("terracotta", 0), Hub.theme("ocean", 100), Hub.theme("indigo", 100), Hub.theme("night", 160), ...SETS.map(x => ({ ...x, slot: "set" }))],
+  storeGroups: [{ slot: "set", title: "דיסקים" }, { slot: "theme", title: "ערכות צבע" }],
+  preview: it => `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">${[0, 1, 2, 3].map(k => `<i style="height:11px;width:${30 + k * 14}px;border-radius:6px;background:hsl(${it.hue[k]},70%,${it.glass ? 75 : 58}%)"></i>`).join("")}</div>`,
+};
+const discsOf = L => L <= 3 ? 3 : L <= 8 ? 4 : L <= 14 ? 5 : L <= 20 ? 6 : L <= 26 ? 7 : 8;
+const minMoves = n => 2 ** n - 1;
+
+Puzzle.run(CFG, {
+  tagline: "העבירו את כל המגדל מהעמוד השמאלי לעמוד הימני. מזיזים דיסק אחד בכל פעם — ואסור להניח דיסק גדול על קטן.",
+  play: "לבנות מגדל",
+  worlds: ["מגדלים קטנים", "מגדלים גבוהים", "שמיים"], par: G => Math.round(minMoves(G.n) * 1.6 + 15), goal: G => `${G.n} דיסקים · מינימום ${minMoves(G.n)} מהלכים`,
+  help: `<h2>המטרה</h2><p>להעביר את כל הדיסקים לעמוד הימני, באותו סדר (הגדול למטה).</p><h2>חוקים</h2><ul><li>לוחצים על עמוד כדי להרים את הדיסק העליון, ואז על עמוד אחר כדי להניח.</li><li>אסור להניח דיסק גדול על דיסק קטן ממנו.</li><li>💡 טיפ: עם מספר זוגי של דיסקים, הזיזו את הקטן קודם לעמוד האמצעי.</li></ul>`,
+  newGame(G) { G.n = discsOf(G.L); G.p = [Array.from({ length: G.n }, (_, i) => G.n - i), [], []]; G.sel = -1; },
+  click(G, el) {
+    const i = +el.dataset.i;
+    if (G.sel < 0) { if (G.p[i].length) { G.sel = i; Hub.sound("tap"); } return false; }
+    if (G.sel === i) { G.sel = -1; return false; }
+    const from = G.p[G.sel], to = G.p[i], d = from[from.length - 1];
+    if (to.length && to[to.length - 1] < d) { G.msg = "אסור להניח דיסק גדול על קטן"; Hub.sound("wrong"); return false; }
+    to.push(from.pop()); G.sel = -1; G.moves++; Hub.sound("move"); return true;
+  },
+  key(G, e) { const k = { "1": 0, "2": 1, "3": 2 }[e.key]; if (k === undefined) return false; return this.click(G, { dataset: { i: k } }); },
+  board(G) {
+    const s = Hub.equipped("set"), w = v => 30 + (v - 1) / (G.n - 1) * 62;
+    return `<div class="hn" style="--rod:${s.rod}">${G.p.map((peg, i) => `<div class="peg ${i === G.sel ? "sel" : ""}" data-act="cell" data-i="${i}" role="button" aria-label="עמוד ${i + 1}">${peg.map(v => `<span class="disc" style="width:${w(v)}%;background:linear-gradient(180deg, hsl(${s.hue[(v - 1) % 8]},75%,${s.glass ? 80 : 66}%), hsl(${s.hue[(v - 1) % 8]},70%,${s.glass ? 68 : 52}%));${s.glass ? "opacity:.9" : ""}"></span>`).join("")}</div>`).join("")}</div>
+      <p class="goal">היעד: כל ${G.n} הדיסקים על העמוד הימני · המינימום: ${minMoves(G.n)} מהלכים</p>`;
+  },
+  progress: G => { let k = 0; const t = G.p[2]; while (k < t.length && t[k] === G.n - k) k++; return k / G.n; },
+  solved: G => G.p[2].length === G.n,
+  stars: G => G.moves <= minMoves(G.n) * 1.15 ? 3 : G.moves <= minMoves(G.n) * 1.6 ? 2 : 1,
+  winTitle: "המגדל הועבר! 🗼", resultText: G => `${G.moves} מהלכים (המינימום ${minMoves(G.n)})`,
+});
+</script>
+</body>
+</html>

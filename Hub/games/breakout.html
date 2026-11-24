@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>שובר הלבנים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/arcade.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const SETS = [
+  { id: "br-candy", name: "ממתקים", price: 0, cols: ["#FF8FAB", "#FFC46B", "#FFE66D", "#8DE4AF", "#7CC6FE", "#C3A6FF"], hue: 285 },
+  { id: "br-gems", name: "אבני חן", price: 110, cols: ["#E0245E", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899"], hue: 230 },
+  { id: "br-neon", name: "ניאון", price: 140, cols: ["#39FF14", "#00F0FF", "#FF2CDF", "#FFF01F", "#FF5F1F", "#7DF9FF"], hue: 260, neon: true },
+  { id: "br-sunset", name: "שקיעה", price: 120, cols: ["#FFB4A2", "#E5989B", "#B5838D", "#FFCDB2", "#F6BD60", "#F28482"], hue: 330 },
+];
+const PADDLES = [
+  { id: "pd-white", name: "פנינה", price: 0, c: "#F4F1FF" },
+  { id: "pd-gold", name: "זהב", price: 120, c: "#FFD86B" },
+  { id: "pd-laser", name: "לייזר", price: 150, c: "#5CF2FF", glow: true },
+  { id: "pd-rose", name: "ורד", price: 90, c: "#FF9EC4" },
+];
+const CFG = {
+  id: "breakout", title: "שובר הלבנים", startCoins: 40, startStock: { life: 1 },
+  items: [
+    Hub.theme("plum", 0), Hub.theme("rose", 100), Hub.theme("ocean", 100), Hub.theme("night", 160),
+    ...SETS.map(s => ({ ...s, slot: "bricks" })), ...PADDLES.map(p => ({ ...p, slot: "paddle" })),
+    { id: "life3", consumable: true, stockId: "life", amount: 3, name: "3 כדורים נוספים", desc: "מתחילים עם כדור נוסף", price: 40 },
+  ],
+  storeGroups: [{ slot: "bricks", title: "לבנים" }, { slot: "paddle", title: "מחבט" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span style="font-size:38px">⚪</span>` : it.slot === "bricks"
+    ? `<div style="display:grid;grid-template-columns:repeat(3,26px);gap:3px">${it.cols.map(c => `<i style="height:11px;border-radius:3px;background:${c};${it.neon ? `box-shadow:0 0 6px ${c}` : ""}"></i>`).join("")}</div>`
+    : `<i style="width:70px;height:12px;border-radius:8px;background:${it.c};${it.glow ? `box-shadow:0 0 12px ${it.c}` : ""}"></i>`,
+};
+const { rr, spaceBg, stars, drawStars } = Arcade;
+const POWER = { wide: { e: "↔", c: "#7CC6FE" }, multi: { e: "✦", c: "#C3A6FF" }, slow: { e: "🐢", c: "#8DE4AF" }, life: { e: "♥", c: "#FF8FAB" } };
+
+function buildLevel(S, w) {
+  const cols = 8, rows = Math.min(8, 4 + S.level), gap = 5, top = 56, bw = (w - 20 - gap * (cols - 1)) / cols, bh = 18;
+  S.bricks = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    if (S.level > 1 && (r + c + S.level) % 7 === 0) continue; // a few gaps make later levels look different
+    S.bricks.push({ x: 10 + c * (bw + gap), y: top + r * (bh + gap), w: bw, h: bh, hp: r < Math.floor(S.level / 2) ? 2 : 1, col: r % 6 });
+  }
+}
+function newBall(S, stuck = true) { return { x: S.px, y: S.py - 12, vx: 0, vy: 0, r: 7, stuck }; }
+
+Arcade.run(CFG, {
+  tagline: "החזירו את הכדור עם המחבט ושברו את כל הלבנים. אספו חיזוקים שנופלים: מחבט רחב, ריבוי כדורים ועוד.",
+  play: "לשבור לבנים", ratio: 1.3, unit: "נק׳", stageBg: "#120a24", targets: [300, 800, 1600],
+  bots: [["קוואזר", "🛸", 2400], ["אוריון", "👾", 1100], ["ניצוץ", "🤖", 400]],
+  powers: [{ id: "life", label: "⚪ כדור נוסף" }], pointerMove: true,
+  pad: [["left", "◀", "שמאלה"], ["action", "●", "שיגור"], ["right", "▶", "ימינה"]],
+  keysText: "חצים או A/D להזזה · רווח/↑ לשיגור · בטלפון: גוררים את האצבע על המסך",
+  spaceIsAction: true, keys: { ArrowLeft: "left", a: "left", A: "left", ArrowRight: "right", d: "right", D: "right", ArrowUp: "action", " ": "action", w: "action", W: "action" },
+  readyText: "גוררים את המחבט, משגרים את הכדור, ושוברים הכול.",
+  help: `<h2>המטרה</h2><p>לשבור את כל הלבנים בלי שהכדור ייפול למטה.</p>
+    <h2>שליטה</h2><ul><li>חצים או גרירת אצבע/עכבר על המסך מזיזים את המחבט. רווח או ● משגרים את הכדור.</li><li>איפה שהכדור פוגע במחבט קובע לאן הוא יעוף.</li></ul>
+    <h2>חיזוקים</h2><ul><li>↔ מחבט רחב · ✦ שלושה כדורים · 🐢 כדור איטי · ♥ כדור נוסף.</li><li>לבנים כהות צריכות שתי פגיעות.</li></ul>`,
+  init(S, w, h) {
+    S.level = 1; S.score = 0; S.lives = 3 + (S.power.life ? 1 : 0);
+    S.pw = w * .22; S.px = w / 2; S.py = h - 34; S.wide = 0; S.slow = 0;
+    S.balls = [newBall(S)]; S.drops = []; S.parts = []; S.sky = stars(60, w, h);
+    buildLevel(S, w);
+  },
+  update(S, dt, w, h) {
+    const pw = S.pw * (S.wide > 0 ? 1.5 : 1);
+    if (S.pointer) S.px += (S.tapX - S.px) * Math.min(1, dt * 18);
+    if (S.left) S.px -= 560 * dt; if (S.right) S.px += 560 * dt;
+    S.px = Math.max(pw / 2, Math.min(w - pw / 2, S.px));
+    S.wide = Math.max(0, S.wide - dt); S.slow = Math.max(0, S.slow - dt);
+    const speed = (300 + S.level * 28) * (S.slow > 0 ? .65 : 1);
+    for (const b of S.balls) {
+      if (b.stuck) { b.x = S.px; b.y = S.py - 12; continue; }
+      const sp = Math.hypot(b.vx, b.vy) || 1; b.vx = b.vx / sp * speed; b.vy = b.vy / sp * speed;
+      b.x += b.vx * dt; b.y += b.vy * dt;
+      if (b.x < b.r) { b.x = b.r; b.vx = Math.abs(b.vx); } if (b.x > w - b.r) { b.x = w - b.r; b.vx = -Math.abs(b.vx); }
+      if (b.y < b.r + 44) { b.y = b.r + 44; b.vy = Math.abs(b.vy); }
+      if (b.vy > 0 && b.y + b.r >= S.py - 6 && b.y < S.py + 6 && Math.abs(b.x - S.px) < pw / 2 + b.r) { // the paddle: where it hits sets the angle
+        const k = (b.x - S.px) / (pw / 2), a = k * 1.05;
+        b.vx = Math.sin(a) * speed; b.vy = -Math.cos(a) * speed; b.y = S.py - 6 - b.r; Hub.sound("tap");
+      }
+      for (const br of S.bricks) {
+        if (br.dead || b.x + b.r < br.x || b.x - b.r > br.x + br.w || b.y + b.r < br.y || b.y - b.r > br.y + br.h) continue;
+        const ox = Math.min(b.x + b.r - br.x, br.x + br.w - (b.x - b.r)), oy = Math.min(b.y + b.r - br.y, br.y + br.h - (b.y - b.r));
+        if (ox < oy) b.vx = -b.vx; else b.vy = -b.vy;
+        br.hp--; S.score += 10;
+        if (br.hp <= 0) {
+          br.dead = true; Hub.sound("good");
+          const col = Hub.equipped("bricks").cols[br.col];
+          for (let k = 0; k < 10; k++) S.parts.push({ x: br.x + br.w / 2, y: br.y + br.h / 2, vx: (Math.random() - .5) * 220, vy: (Math.random() - .5) * 220, life: .5, c: col });
+          if (Math.random() < .13) { const kinds = Object.keys(POWER); S.drops.push({ x: br.x + br.w / 2, y: br.y, k: kinds[Math.floor(Math.random() * kinds.length)] }); }
+        } else Hub.sound("flip");
+        break;
+      }
+    }
+    S.balls = S.balls.filter(b => b.y < h + 20);
+    if (!S.balls.length) {
+      S.lives--; Hub.sound("wrong");
+      if (S.lives <= 0) { S.over = true; return; }
+      S.balls = [newBall(S)]; S.wide = 0;
+    }
+    for (const d of S.drops) {
+      d.y += 150 * dt;
+      if (!d.got && d.y > S.py - 10 && d.y < S.py + 10 && Math.abs(d.x - S.px) < pw / 2 + 10) {
+        d.got = true; Hub.sound("coin"); S.score += 25;
+        if (d.k === "wide") S.wide = 12; else if (d.k === "slow") S.slow = 10; else if (d.k === "life") S.lives++;
+        else { const b0 = S.balls.find(b => !b.stuck) || S.balls[0]; for (const a of [-.5, .5]) S.balls.push({ x: b0.x, y: b0.y, vx: Math.sin(a) * 300, vy: -Math.cos(a) * 300, r: 7, stuck: false }); }
+      }
+    }
+    S.drops = S.drops.filter(d => !d.got && d.y < h + 20);
+    for (const p of S.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 300 * dt; p.life -= dt; }
+    S.parts = S.parts.filter(p => p.life > 0);
+    if (S.bricks.every(b => b.dead)) { S.level++; S.score += 100; Hub.sound("win"); Hub.toast(`שלב ${S.level}! ✨`); buildLevel(S, w); S.balls = [newBall(S)]; S.drops = []; }
+  },
+  draw(c, S, w, h, t) {
+    const set = Hub.equipped("bricks"), pd = Hub.equipped("paddle"), pw = S.pw * (S.wide > 0 ? 1.5 : 1);
+    spaceBg(c, w, h, set.hue); drawStars(c, S.sky, w, h, 0, t);
+    for (const br of S.bricks) {
+      if (br.dead) continue;
+      const col = set.cols[br.col];
+      if (set.neon) { c.shadowColor = col; c.shadowBlur = 12; }
+      const g = c.createLinearGradient(0, br.y, 0, br.y + br.h); g.addColorStop(0, `color-mix(in srgb, ${col} 70%, #fff)`); g.addColorStop(1, col);
+      c.fillStyle = br.hp > 1 ? `color-mix(in srgb, ${col} 60%, #000)` : col; rr(c, br.x, br.y, br.w, br.h, 5); c.fill();
+      c.shadowBlur = 0; c.fillStyle = "rgba(255,255,255,.35)"; rr(c, br.x + 3, br.y + 2, br.w - 6, 4, 2); c.fill();
+    }
+    for (const d of S.drops) { c.fillStyle = POWER[d.k].c; c.beginPath(); c.arc(d.x, d.y, 11, 0, 7); c.fill(); c.fillStyle = "#1a1030"; c.font = "bold 13px Heebo"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(POWER[d.k].e, d.x, d.y + 1); }
+    if (pd.glow) { c.shadowColor = pd.c; c.shadowBlur = 18; }
+    const g = c.createLinearGradient(0, S.py - 7, 0, S.py + 7); g.addColorStop(0, "#fff"); g.addColorStop(1, pd.c);
+    c.fillStyle = g; rr(c, S.px - pw / 2, S.py - 7, pw, 14, 7); c.fill(); c.shadowBlur = 0;
+    for (const b of S.balls) {
+      const gg = c.createRadialGradient(b.x - 2, b.y - 2, 1, b.x, b.y, b.r * 2.4); gg.addColorStop(0, "rgba(255,255,255,.95)"); gg.addColorStop(.4, "rgba(220,200,255,.45)"); gg.addColorStop(1, "rgba(0,0,0,0)");
+      c.fillStyle = gg; c.beginPath(); c.arc(b.x, b.y, b.r * 2.4, 0, 7); c.fill();
+      c.fillStyle = "#fff"; c.beginPath(); c.arc(b.x, b.y, b.r, 0, 7); c.fill();
+    }
+    for (const p of S.parts) { c.globalAlpha = p.life / .5; c.fillStyle = p.c; c.fillRect(p.x, p.y, 4, 4); }
+    c.globalAlpha = 1;
+    if (S.balls.some(b => b.stuck) && S.running && S.count <= 0) { c.fillStyle = "rgba(255,255,255,.8)"; c.font = "500 15px Heebo"; c.textAlign = "center"; c.fillText("רווח / ● / הקשה — שיגור", w / 2, S.py - 40); }
+  },
+  input(S, name, down) {
+    if (name === "left") S.left = down; else if (name === "right") S.right = down;
+    else if ((name === "action" || name === "tap" || name === "up") && down) for (const b of S.balls) if (b.stuck) { b.stuck = false; const a = (Math.random() - .5) * .6; b.vx = Math.sin(a) * 300; b.vy = -Math.cos(a) * 300; Hub.sound("jump"); }
+  },
+  hud: S => [["⭐", S.score], ["⚪", S.lives]],
+  score: S => S.score, coins: S => S.score / 25,
+  resultTitle: S => `נגמרו הכדורים · שלב ${S.level}`,
+});
+</script>
+</body>
+</html>

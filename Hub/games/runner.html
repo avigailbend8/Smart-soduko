@@ -46,6 +46,15 @@ const CFG = {
     { id: "magnet3", consumable: true, stockId: "magnet", amount: 3, name: "3 מגנטים", desc: "מושך מטבעות גם מהנתיבים השכנים לאורך כל הריצה", price: 45 },
   ],
   storeGroups: [{ slot: "runner", title: "דמויות" }, { slot: "world", title: "עולמות" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  boards: [{ id: "best", title: "המרחק הכי רחוק", unit: "מ׳", bots: [["קוואזר", "🛸", 1100], ["אוריון", "👾", 600], ["ניצוץ", "🤖", 250]] }, { id: "coins", title: "הכי הרבה מטבעות בריצה", bots: [["קוואזר", "🛸", 120], ["אוריון", "👾", 60], ["ניצוץ", "🤖", 20]] }],
+  duel: {
+    mode: "score", unit: "מ׳", barTop: true,
+    target: r => [250, 500, 850][r.level],
+    start: r => { mode = "free"; view = "game"; nav = ["menu"]; render(); },
+    progress: () => R && R.running ? R.dist / CFG.duel.target(Hub.duelRival) : 0,
+    over: () => !!R?.over, lose: () => {},
+    active: () => view === "game", menu: () => { stopLoop(); view = "menu"; nav = []; render(); },
+  },
   preview: it => it.consumable ? `<span class="emo">${it.stockId === "shield" ? "🛡" : "🧲"}</span>` : it.slot === "runner" ? `<span class="emo">${it.emo}</span>` : `<img alt="" src="${previewImage(it)}">`,
 };
 
@@ -199,6 +208,9 @@ function previewImage(wd) {
 // ---------- The run ----------
 let W, view = "menu", nav = [], R = null, raf = 0, cv, ctx;
 const P = () => { const p = W.progress; p.best = p.best || 0; p.runs = p.runs || 0; return p; };
+const COUNT = 30; let mode = "free", LV = 0;
+const goalOf = L => 100 + (L - 1) * 40;
+const kOf = () => mode === "level" ? .85 + .5 * (LV - 1) / (COUNT - 1) : 1;
 const BOX = ["#C2804B", "#B4664B", "#8E6F4E"], TRAINS = ["#3C78B0", "#C95468", "#4E9A6A", "#E0A43A", "#7A5C99"];
 function measure() {
   const stage = $("#stage"); if (!stage) return;
@@ -210,6 +222,7 @@ function measure() {
 }
 function newRun(shield = false, magnet = false) {
   R = { lane: 0, x: 0, jy: 0, jt: -1, slide: 0, dist: 0, coins: 0, objs: [], gap: 14, t: 0, v: 0, over: false, running: false, paused: false, count: 2.2, shield, magnet, inv: 0, trainEnd: { "-1": 0, 0: 0, 1: 0 }, safe: 0, time: 0 };
+  R.goal = mode === "level" ? goalOf(LV) : 0; R.k = kOf(); R.hits = 0;
 }
 // One row of obstacles far ahead. A train keeps its lane busy for a while.
 // There is always a "safe lane" with no crate or train. It moves at most one lane per row, and both the old
@@ -256,9 +269,10 @@ function update(dt) {
   if (!R.running || R.paused || R.over) return;
   if (R.count > 0) { R.count -= dt; if (R.count <= 0) Hub.sound("good"); return; }
   R.t += dt;
-  R.v = Math.min(9 + R.t * .17, 23);
+  R.v = Math.min(9 + R.t * .17, 23) * R.k;
   const d = R.v * dt;
   R.dist += d;
+  if (R.goal && R.dist >= R.goal) return levelWin();
   R.x += (R.lane - R.x) * Math.min(1, dt * 14);
   if (R.jt >= 0) { R.jt += dt / .62; if (R.jt >= 1) { R.jt = -1; R.jy = 0; } else R.jy = 4 * 1.5 * R.jt * (1 - R.jt); }
   R.slide = Math.max(0, R.slide - dt); R.inv = Math.max(0, R.inv - dt);
@@ -279,7 +293,7 @@ function update(dt) {
     if (!blocked) continue;
     o.done = true;
     if (R.inv > 0) continue;
-    if (R.shield) { R.shield = false; R.inv = 1.4; o.gone = true; Hub.sound("hint"); Hub.toast("המגן הציל אותך! 🛡"); continue; }
+    if (R.shield) { R.shield = false; R.inv = 1.4; o.gone = true; Hub.sound("hint"); R.hits++; Hub.toast("המגן הציל אותך! 🛡"); continue; }
     return crash();
   }
   R.objs = R.objs.filter(o => o.z + (o.len || 0) > zBottom() - 1 && !(o.type === "coin" && o.done) && !o.gone);
@@ -309,12 +323,14 @@ function frame(t) {
   update(dt); draw(t);
   raf = requestAnimationFrame(frame);
 }
-function hud() { const d = $("#hDist"), c = $("#hCoins"); if (d) { d.textContent = Math.floor(R.dist); c.textContent = R.coins; } }
+function hud() { const d = $("#hDist"), c = $("#hCoins"); if (d) { d.textContent = Math.floor(R.dist); c.textContent = R.coins; }  const g = $("#hDist"); if (g && R && R.goal) g.textContent = `${Math.min(R.goal, Math.floor(R.dist))}/${R.goal}`; }
 function crash() {
+  if (mode === "level") return levelFail();
   R.over = true; Hub.sound("crash");
   const st = $("#stage"); st.classList.remove("shake"); void st.offsetWidth; st.classList.add("shake");
   const p = P(), dist = Math.floor(R.dist), record = dist > p.best;
   p.runs++; if (record) p.best = dist;
+  Hub.submitScore(dist, "best"); Hub.submitScore(R.coins, "coins");
   const coins = R.coins + Math.floor(dist / 30);
   Hub.save(); Hub.earn(coins);
   setTimeout(() => {
@@ -323,10 +339,24 @@ function crash() {
   }, 800);
 }
 let useShield = false, useMagnet = false;
+// ---------- Levels: reach a distance; later levels start faster ----------
+function levelWin() {
+  R.over = true; R.boost = R.brake = false;
+  const stars = R.hits === 0 ? 3 : R.hits === 1 ? 2 : 1, first = Hub.levelDone(LV, stars);
+  const coins = R.coins + (first ? 10 + LV * 3 : 5);
+  Hub.save(); Hub.earn(coins); Hub.sound("win"); Hub.confetti();
+  setTimeout(() => Hub.levelResult({ L: LV, count: COUNT, won: true, stars, coins, sub: `הגעת ל-${R.goal} מטר ואספת ${R.coins} מטבעות` }), 500);
+}
+function levelFail() {
+  R.over = true; R.boost = R.brake = false; Hub.sound("crash");
+  const st = $("#stage"); st.classList.remove("shake"); void st.offsetWidth; st.classList.add("shake");
+  Hub.save(); if (R.coins) Hub.earn(R.coins);
+  setTimeout(() => Hub.levelResult({ L: LV, count: COUNT, won: false, coins: R.coins, sub: `הגעת ל-${Math.floor(R.dist)} מתוך ${R.goal} מטר` }), 700);
+}
 function readyCard() {
   const s = Hub.stock("shield"), m = Hub.stock("magnet");
   useShield = s > 0; useMagnet = false;
-  Hub.overlay(`<div class="ready"><h2 class="display sm">מוכנים לרוץ?</h2>
+  Hub.overlay(`<div class="ready"><h2 class="display sm">${mode === "level" ? `שלב ${LV}` : "מוכנים לרוץ?"}</h2>${mode === "level" ? `<p class="earned">🎯 ${goalOf(LV)} מטר</p>` : ""}
     <p class="lede">קפצו מעל מחסומים אדומים, החליקו מתחת לשלטים כחולים, ועקפו קרונות וארגזים.</p>
     <div class="toggles">
       <button class="toggle ${useShield ? "on" : ""}" data-act="tog" data-k="shield" ${s ? "" : "disabled"}>🛡 מגן · יש ${s}</button>
@@ -342,12 +372,12 @@ function back() { stopLoop(); view = nav.pop() || "menu"; render(); }
 function stopLoop() { cancelAnimationFrame(raf); raf = 0; }
 function render() {
   Hub.closeOverlay();
-  $("#app").innerHTML = ({ menu: menuView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+  $("#app").innerHTML = ({ menu: menuView, levels: () => `${Hub.topbar("שלבים")}${Hub.levelMap({ count: COUNT })}`, game: gameView, store: () => Hub.store(), help: helpView })[view]();
   if (view === "game") startStage();
 }
 function menuView() {
   const p = P();
-  return Hub.menu({ tagline: `שלושה נתיבים ודמות שלא מפסיקה לרוץ. קפצו, החליקו והחליפו נתיב, ואספו כמה שיותר מטבעות.${p.best ? `<br><b>השיא שלך: ${p.best} מטר</b>` : ""}`, buttons: [["play", "לרוץ", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+  return Hub.menu({ tagline: `שלושה נתיבים ודמות שלא מפסיקה לרוץ. קפצו, החליקו והחליפו נתיב, ואספו כמה שיותר מטבעות.${p.best ? `<br><b>השיא שלך: ${p.best} מטר</b>` : ""}`, buttons: [["levels", "שלבים", true], ["play", "♾ ריצה חופשית"], ["store", "החנות"], ["help", "איך משחקים"]] });
 }
 function gameView() {
   return `${Hub.topbar("ריצת הנתיבים")}
@@ -414,7 +444,11 @@ document.addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   const a = b.dataset.act;
   if (a === "back") return back();
-  if (a === "play") return go("game");
+  if (a === "play") { mode = "free"; return go("game"); }
+  if (a === "levels") return go("levels");
+  if (a === "lvl") { mode = "level"; LV = +b.dataset.level; return go("game"); }
+  if (a === "lvnext" || a === "lvagain") { Hub.closeOverlay(); if (a === "lvnext") LV = Math.min(COUNT, LV + 1); newRun(); hud(); readyCard(); return; }
+  if (a === "lvmap") { Hub.closeOverlay(); stopLoop(); view = "levels"; nav = ["menu"]; return render(); }
   if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
   if (a === "help") return go("help");
   if (a === "buy") { Hub.buy(b.dataset.item); return render(); }

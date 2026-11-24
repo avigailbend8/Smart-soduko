@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>מיון צבעים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/puzzle.js"></script>
+<style>
+.tubes { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(10px, 3vw, 18px) clamp(8px, 2.6vw, 16px); max-width: 560px; margin: 10px auto 0; direction: ltr; }
+.tube { width: clamp(40px, 11vw, 54px); height: clamp(150px, 40vw, 200px); border: 3px solid color-mix(in srgb, var(--ink) 30%, transparent); border-top: 0; border-radius: 0 0 26px 26px; padding: 4px; display: flex; flex-direction: column-reverse; gap: 3px; cursor: pointer; background: color-mix(in srgb, var(--card) 55%, transparent); transition: transform .2s; position: relative; }
+.tube.sel { transform: translateY(-16px); border-color: var(--accent); box-shadow: 0 10px 20px -10px var(--accent); }
+.tube.full { border-color: var(--gold); box-shadow: 0 0 16px -2px var(--gold); }
+.tube .ly { flex: 0 0 calc(25% - 3px); border-radius: 6px; box-shadow: inset 0 2px 0 rgba(255,255,255,.35), inset 0 -3px 0 rgba(0,0,0,.12); }
+.tube .ly:first-child { border-radius: 6px 6px 20px 20px; }
+.tube .ly.e { font-size: clamp(16px, 5vw, 24px); display: grid; place-items: center; background: color-mix(in srgb, var(--card) 85%, transparent) !important; box-shadow: none; }
+.tube .ly.in { animation: pour .3s; }
+@keyframes pour { from { transform: translateY(-30px); opacity: 0; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const PALS = [
+  { id: "sp-bright", name: "צבעוני", price: 0, cols: ["#E0435A", "#F4A23A", "#F5D547", "#4CB86B", "#2F9BD8", "#7A5CD8", "#E06CB8", "#3FC7C0", "#A0522D", "#8D99AE"] },
+  { id: "sp-pastel", name: "פסטל", price: 100, cols: ["#FFADAD", "#FFD6A5", "#FDFFB6", "#CAFFBF", "#9BF6FF", "#A0C4FF", "#BDB2FF", "#FFC6FF", "#E9C46A", "#D4D4D4"] },
+  { id: "sp-gems", name: "אבני חן", price: 130, cols: ["#9B1D3A", "#C8641E", "#C9A227", "#1E7B4F", "#1E5AA0", "#4B2D8F", "#A0207A", "#13827C", "#5C3A1E", "#4A4E69"] },
+  { id: "sp-emoji", name: "פירות", price: 160, cols: ["#FFCDD2", "#FFE0B2", "#FFF9C4", "#DCEDC8", "#B3E5FC", "#D1C4E9", "#F8BBD0", "#B2DFDB", "#D7CCC8", "#CFD8DC"], emo: ["🍓", "🍊", "🍋", "🍏", "🫐", "🍇", "🍑", "🥝", "🥥", "🍐"] },
+];
+const CFG = {
+  id: "sort", title: "מיון צבעים", startCoins: 40, startStock: { tube: 2 },
+  items: [Hub.theme("rose", 0), Hub.theme("ocean", 100), Hub.theme("sage", 100), Hub.theme("night", 160), ...PALS.map(x => ({ ...x, slot: "pal" })),
+    { id: "tube3", consumable: true, stockId: "tube", amount: 3, name: "3 מבחנות", desc: "מוסיף מבחנה ריקה לפאזל", price: 35 }],
+  storeGroups: [{ slot: "pal", title: "צבעים" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span style="font-size:38px">🧪</span>` : `<div style="display:flex;gap:4px">${it.cols.slice(0, 5).map((c, i) => `<i style="width:18px;height:40px;border-radius:4px 4px 10px 10px;background:${c};display:grid;place-items:end center;font-style:normal;font-size:12px">${it.emo ? it.emo[i] : ""}</i>`).join("")}</div>`,
+};
+const CAP = 4, colorsOf = L => Math.min(12, 3 + Math.floor((L - 1) / 3));
+const topOf = t => t[t.length - 1];
+const runLen = t => { let n = 0; for (let i = t.length - 1; i >= 0 && t[i] === topOf(t); i--) n++; return n; };
+const isFull = t => t.length === CAP && t.every(v => v === t[0]);
+
+Puzzle.run(CFG, {
+  tagline: "שפכו צבע ממבחנה למבחנה עד שבכל מבחנה יש צבע אחד בלבד. אפשר לשפוך רק על אותו צבע, או למבחנה ריקה.",
+  play: "למיין",
+  worlds: ["מבחנות ראשונות", "מעבדה צבעונית", "מאסטר הצבעים"], par: G => G.n * 22, goal: G => `${G.n} צבעים · ${G.n + 2} מבחנות`,
+  help: `<h2>המטרה</h2><p>שבכל מבחנה יהיה צבע אחד בלבד (או שתהיה ריקה).</p><h2>איך משחקים</h2><ul><li>לוחצים על מבחנה ואז על מבחנה אחרת — השכבה העליונה נשפכת (כל השכבות הזהות שמעליה ביחד, כמה שנכנס).</li><li>מותר לשפוך רק על אותו צבע או למבחנה ריקה. בכל מבחנה יש מקום ל-4 שכבות.</li><li>↩ ביטול חינם. 🧪 מבחנה נוספת מהחנות עוזרת כשנתקעים.</li></ul>`,
+  newGame(G, d) {
+    const n = colorsOf(G.L), balls = Hub.shuffle([...Array(n).keys()].flatMap(c => Array(CAP).fill(c)));
+    G.t = Array.from({ length: n }, (_, i) => balls.slice(i * CAP, i * CAP + CAP)); G.t.push([], []);
+    if (G.t.some(isFull)) return this.newGame(G, d); // don't start with a finished tube
+    G.sel = -1; G.hist = []; G.n = n; G.poured = -1;
+  },
+  click(G, el) {
+    const i = +el.dataset.i, t = G.t;
+    if (G.sel < 0) { if (t[i].length && !isFull(t[i])) { G.sel = i; Hub.sound("tap"); } return false; }
+    if (G.sel === i) { G.sel = -1; return false; }
+    const a = t[G.sel], b = t[i];
+    if (b.length >= CAP || (b.length && topOf(b) !== topOf(a))) { G.sel = t[i].length && !isFull(t[i]) ? i : -1; Hub.sound("wrong"); return false; }
+    G.hist.push(t.map(x => x.slice()));
+    const k = Math.min(runLen(a), CAP - b.length); for (let n = 0; n < k; n++) b.push(a.pop());
+    G.moves++; G.poured = i; G.sel = -1; Hub.sound(isFull(b) ? "good" : "flip");
+    return true;
+  },
+  board(G) {
+    const p = Hub.equipped("pal");
+    return `<div class="tubes">${G.t.map((t, i) => `<div class="tube ${i === G.sel ? "sel" : ""} ${isFull(t) ? "full" : ""}" data-act="cell" data-i="${i}" role="button" aria-label="מבחנה ${i + 1}">${t.map((c, k) => `<span class="ly ${p.emo ? "e" : ""} ${i === G.poured && k >= t.length - 1 ? "in" : ""}" style="background:${p.cols[c]}">${p.emo ? p.emo[c] : ""}</span>`).join("")}</div>`).join("")}</div>`;
+  },
+  tools: G => G.done ? "" : `<button class="btn" data-act="x-undo">↩ ביטול</button><button class="btn" data-act="x-tube">🧪 מבחנה · ${Hub.stock("tube")}</button><button class="btn" data-act="x-reset">↺ מההתחלה</button>`,
+  act(G, a) {
+    if (a === "x-undo" && G.hist.length) { G.t = G.hist.pop(); G.sel = -1; G.poured = -1; }
+    if (a === "x-reset" && G.hist.length) { G.t = G.hist[0]; G.hist = []; G.sel = -1; G.poured = -1; }
+    if (a === "x-tube") { if (G.t.length >= G.n + 4) { G.msg = "יש כבר מספיק מבחנות"; return; } if (!Hub.useStock("tube")) { G.msg = "נגמרו המבחנות — יש עוד בחנות"; return; } G.t.push([]); Hub.sound("hint"); }
+  },
+  progress: G => G.t.filter(isFull).length / G.n,
+  solved: G => G.t.every(t => !t.length || isFull(t)),
+  stars: G => G.moves <= G.n * 2.6 ? 3 : G.moves <= G.n * 4 ? 2 : 1,
+  winTitle: "הכול ממוין! 🎉", resultText: G => `${G.moves} שפיכות`,
+});
+</script>
+</body>
+</html>

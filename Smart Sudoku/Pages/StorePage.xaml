@@ -7,9 +7,12 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="Transparent">
+    <!-- אובייקט: StorePage — עמוד החנות. יורש מ-BasePage, והרקע שלו שקוף. -->
 
     <local:BasePage.Resources>
+    <!-- אובייקט: Resources — סגנונות שרק העמוד הזה משתמש בהם. -->
         <Style x:Key="SectionTitle" TargetType="TextBlock">
+        <!-- אובייקט: SectionTitle — הסגנון של כותרת של כל קטגוריה בחנות. -->
             <Setter Property="FontSize" Value="24" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Foreground" Value="{StaticResource RoseBrush}" />
@@ -17,130 +20,175 @@
     </local:BasePage.Resources>
 
     <Grid>
+    <!-- אובייקט: Grid — "מגש" שמחזיק את החנות הנגללת, את כפתור החזרה ואת המטבעות. -->
         <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <!-- אובייקט: ScrollViewer — מאפשר לגלול לאורך כל החנות. -->
             <StackPanel Margin="24,96,24,32" Spacing="20" MaxWidth="760">
+            <!-- אובייקט: StackPanel — עמודה שבה כל הכרטיסים של החנות מסודרים זה מתחת לזה. -->
                 <TextBlock Text="חנות 🛍️" Style="{StaticResource TitleText}" />
+                <!-- אובייקט: TextBlock — הכותרת "חנות". -->
                 <TextBlock Text="מרוויחים מטבעות על כל שלב — וכמה שיותר כוכבים, יותר מטבעות!"
                            Style="{StaticResource SubtitleText}" />
+                           <!-- אובייקט: TextBlock — הסבר קצר איך מרוויחים מטבעות. -->
 
                 <TextBlock x:Name="MessageText"
                            Style="{StaticResource SubtitleText}"
                            Foreground="{StaticResource BerryBrush}"
                            FontWeight="SemiBold"
                            Visibility="Collapsed" />
+                           <!-- אובייקט: MessageText — שורה להודעות כמו "קנית!" או "אין מספיק מטבעות" (מוסתרת עד שיש הודעה). -->
 
                 <!-- Hints -->
                 <Border Style="{StaticResource Card}" FlowDirection="RightToLeft">
+                <!-- אובייקט: Border — כרטיס חבילת הרמזים. -->
                     <Grid ColumnSpacing="20">
+                    <!-- אובייקט: Grid — שלוש עמודות: אימוג'י, הסבר וכפתור. -->
                         <Grid.ColumnDefinitions>
+                        <!-- אובייקט: ColumnDefinitions — העמודה האמצעית תופסת את כל המקום הפנוי, והשתיים בצדדים לפי התוכן. -->
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="💡" FontSize="44" VerticalAlignment="Center" />
+                        <!-- אובייקט: TextBlock — האימוג'י של הרמז. -->
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                        <!-- אובייקט: StackPanel — הכותרת וההסבר, זה מתחת לזה. -->
                             <TextBlock Text="חבילת 3 רמזים" Style="{StaticResource SectionTitle}" />
+                            <!-- אובייקט: TextBlock — הכותרת "חבילת 3 רמזים". -->
                             <TextBlock x:Name="BonusHintsText"
                                        FontSize="16"
                                        Foreground="{StaticResource MutedTextBrush}"
                                        TextWrapping="Wrap" />
+                                       <!-- אובייקט: BonusHintsText — הסבר על הרמזים, וכמה יש לך עכשיו (הקוד כותב). -->
                         </StackPanel>
                         <Button x:Name="BuyHintsButton"
                                 Grid.Column="2"
                                 MinWidth="140"
                                 Click="BuyHintsButton_Click" />
+                                <!-- אובייקט: BuyHintsButton — כפתור הקנייה של הרמזים, עם המחיר (BuyHintsButton_Click). -->
                     </Grid>
                 </Border>
 
                 <!-- Hearts -->
                 <Border Style="{StaticResource Card}" FlowDirection="RightToLeft">
+                <!-- אובייקט: Border — כרטיס הלב הנוסף. -->
                     <Grid ColumnSpacing="20">
+                    <!-- אובייקט: Grid — שלוש עמודות: אימוג'י, הסבר וכפתור. -->
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Text="💖" FontSize="44" VerticalAlignment="Center" />
+                        <!-- אובייקט: TextBlock — האימוג'י של הלב. -->
                         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="4">
+                        <!-- אובייקט: StackPanel — הכותרת וההסבר. -->
                             <TextBlock Text="לב נוסף" Style="{StaticResource SectionTitle}" />
+                            <!-- אובייקט: TextBlock — הכותרת "לב נוסף". -->
                             <TextBlock x:Name="BonusLivesText"
                                        FontSize="16"
                                        Foreground="{StaticResource MutedTextBrush}"
                                        TextWrapping="Wrap" />
+                                       <!-- אובייקט: BonusLivesText — הסבר על הלב הנוסף, וכמה יש לך עכשיו. -->
                         </StackPanel>
                         <Button x:Name="BuyLifeButton"
                                 Grid.Column="2"
                                 MinWidth="140"
                                 Click="BuyLifeButton_Click" />
+                                <!-- אובייקט: BuyLifeButton — כפתור הקנייה של לב, עם המחיר (BuyLifeButton_Click). -->
                     </Grid>
                 </Border>
 
                 <!-- Color themes -->
                 <Border Style="{StaticResource Card}" FlowDirection="RightToLeft">
+                <!-- אובייקט: Border — כרטיס ערכות הצבעים. -->
                     <StackPanel Spacing="16">
+                    <!-- אובייקט: StackPanel — הכותרת והטבלה. -->
                         <TextBlock Text="🎨 ערכות צבעים" Style="{StaticResource SectionTitle}" />
+                        <!-- אובייקט: TextBlock — הכותרת "ערכות צבעים". -->
                         <Grid x:Name="ThemesGrid" ColumnSpacing="14" RowSpacing="14" />
+                        <!-- אובייקט: ThemesGrid — הטבלה שבה הקוד מסדר משבצת לכל ערכת עיצוב. -->
                     </StackPanel>
                 </Border>
 
                 <!-- Symbol sets -->
                 <Border Style="{StaticResource Card}" FlowDirection="RightToLeft">
+                <!-- אובייקט: Border — כרטיס הסמלים ללוח. -->
                     <StackPanel Spacing="16">
                         <TextBlock Text="🍓 סמלים בלוח" Style="{StaticResource SectionTitle}" />
+                        <!-- אובייקט: TextBlock — הכותרת "סמלים בלוח". -->
                         <Grid x:Name="SymbolsGrid" ColumnSpacing="14" RowSpacing="14" />
+                        <!-- אובייקט: SymbolsGrid — הטבלה שבה הקוד מסדר משבצת לכל ערכת סמלים. -->
                     </StackPanel>
                 </Border>
 
                 <!-- Board frames -->
                 <Border Style="{StaticResource Card}" FlowDirection="RightToLeft">
+                <!-- אובייקט: Border — כרטיס המסגרות ללוח. -->
                     <StackPanel Spacing="16">
                         <TextBlock Text="🖼️ מסגרות ללוח" Style="{StaticResource SectionTitle}" />
+                        <!-- אובייקט: TextBlock — הכותרת "מסגרות ללוח". -->
                         <Grid x:Name="FramesGrid" ColumnSpacing="14" RowSpacing="14" />
+                        <!-- אובייקט: FramesGrid — הטבלה שבה הקוד מסדר משבצת לכל מסגרת. -->
                     </StackPanel>
                 </Border>
 
                 <!-- Mascots -->
                 <Border Style="{StaticResource Card}" FlowDirection="RightToLeft">
+                <!-- אובייקט: Border — כרטיס הקמעות. -->
                     <StackPanel Spacing="16">
                         <TextBlock Text="🐱 קמעות למשחק" Style="{StaticResource SectionTitle}" />
+                        <!-- אובייקט: TextBlock — הכותרת "קמעות למשחק". -->
                         <TextBlock Text="הדמות הקטנה ליד השעון, שמגיבה לכל מהלך"
                                    FontSize="15"
                                    Foreground="{StaticResource MutedTextBrush}" />
+                                   <!-- אובייקט: TextBlock — הסבר מה זה קמע. -->
                         <Grid x:Name="MascotsGrid" ColumnSpacing="14" RowSpacing="14" />
+                        <!-- אובייקט: MascotsGrid — הטבלה שבה הקוד מסדר משבצת לכל קמע. -->
                     </StackPanel>
                 </Border>
 
                 <!-- Profile picture frames -->
                 <Border Style="{StaticResource Card}" FlowDirection="RightToLeft">
+                <!-- אובייקט: Border — כרטיס המסגרות לתמונת הפרופיל. -->
                     <StackPanel Spacing="16">
                         <TextBlock Text="👑 מסגרות לתמונת הפרופיל" Style="{StaticResource SectionTitle}" />
+                        <!-- אובייקט: TextBlock — הכותרת "מסגרות לתמונת הפרופיל". -->
                         <TextBlock Text="כולם יראו אותה בטבלת השיאים ובחברים"
                                    FontSize="15"
                                    Foreground="{StaticResource MutedTextBrush}" />
+                                   <!-- אובייקט: TextBlock — הסבר איפה רואים את המסגרת. -->
                         <Grid x:Name="AvatarFramesGrid" ColumnSpacing="14" RowSpacing="14" />
+                        <!-- אובייקט: AvatarFramesGrid — הטבלה שבה הקוד מסדר משבצת לכל מסגרת תמונה. -->
                     </StackPanel>
                 </Border>
 
                 <!-- Secret gift code -->
                 <StackPanel HorizontalAlignment="Center" Spacing="10" FlowDirection="RightToLeft">
+                <!-- אובייקט: StackPanel — האזור של הקוד הסודי בתחתית החנות. -->
                     <Button Content="🍫 טוויקס לבן"
                             HorizontalAlignment="Center"
                             FontSize="14"
                             Padding="16,6"
                             Click="GiftButton_Click" />
+                            <!-- אובייקט: Button — הכפתור הקטן "טוויקס לבן" שפותח את תיבת הקוד (GiftButton_Click). -->
                     <StackPanel x:Name="GiftPanel" Orientation="Horizontal" Spacing="10" Visibility="Collapsed">
+                    <!-- אובייקט: GiftPanel — שורת הקוד: תיבה וכפתור (מוסתרת עד שלוחצים על הכפתור). -->
                         <PasswordBox x:Name="GiftCodeBox"
                                      PlaceholderText="סיסמה"
                                      Width="160"
                                      CornerRadius="12"
                                      KeyDown="GiftCodeBox_KeyDown" />
+                                     <!-- אובייקט: GiftCodeBox — תיבה להקלדת הקוד הסודי (התווים מוסתרים). Enter = בדיקה. -->
                         <Button Content="אישור" Padding="20,6" FontSize="15" Click="RedeemGift_Click" />
+                        <!-- אובייקט: Button — כפתור "אישור" שבודק את הקוד (RedeemGift_Click). -->
                     </StackPanel>
                     <TextBlock x:Name="GiftResultText"
                                HorizontalAlignment="Center"
                                FontSize="16"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource BerryBrush}" />
+                               <!-- אובייקט: GiftResultText — שורה שמראה אם הקוד נכון וכמה מטבעות התקבלו. -->
                 </StackPanel>
             </StackPanel>
         </ScrollViewer>
@@ -152,7 +200,9 @@
                 ToolTipService.ToolTip="חזרה"
                 AutomationProperties.Name="חזרה"
                 Click="BackButton_Click">
+                <!-- אובייקט: Button — כפתור "חזרה" עגול בפינה (BackButton_Click). -->
             <FontIcon Glyph="&#xE72B;" FontSize="20" />
+            <!-- אובייקט: FontIcon — האייקון של החץ שבתוך כפתור החזרה. -->
         </Button>
 
         <TextBlock x:Name="CoinsText"
@@ -163,5 +213,6 @@
                    FontWeight="SemiBold"
                    Foreground="{StaticResource BerryBrush}"
                    Text="🪙 0" />
+                   <!-- אובייקט: CoinsText — הטקסט בפינה שמראה כמה מטבעות יש. -->
     </Grid>
 </local:BasePage>

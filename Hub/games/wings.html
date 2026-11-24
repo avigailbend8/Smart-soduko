@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>כנפיים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/arcade.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const FLYERS = [
+  { id: "fl-bird", name: "ציפור", price: 0, e: "🐦" },
+  { id: "fl-bee", name: "דבורה", price: 80, e: "🐝" },
+  { id: "fl-butterfly", name: "פרפר", price: 100, e: "🦋" },
+  { id: "fl-owl", name: "ינשוף", price: 120, e: "🦉" },
+  { id: "fl-dragon", name: "דרקון", price: 200, e: "🐉" },
+  { id: "fl-rocket", name: "טיל", price: 240, e: "🚀" },
+];
+const SKIES = [
+  { id: "sky-day", name: "שמיים כחולים", price: 0, top: "#7EC8F2", bot: "#DDF2FF", pillar: "#7BC47F", cap: "#5A9E5E", night: false },
+  { id: "sky-sunset", name: "שקיעה", price: 110, top: "#F58A6C", bot: "#FFD8A8", pillar: "#B9688A", cap: "#8E4A6A", night: false },
+  { id: "sky-galaxy", name: "גלקסיה", price: 160, top: "#0B0820", bot: "#3A1E6A", pillar: "#6E5BD8", cap: "#B49CFF", night: true },
+  { id: "sky-candy", name: "ארץ הממתקים", price: 140, top: "#FFC4DD", bot: "#FFF1F8", pillar: "#FF8FB8", cap: "#FFFFFF", night: false, stripes: true },
+];
+const CFG = {
+  id: "wings", title: "כנפיים", startCoins: 40, startStock: { shield: 2 },
+  items: [
+    Hub.theme("ocean", 0), Hub.theme("sage", 100), Hub.theme("coral", 100), Hub.theme("night", 160),
+    ...FLYERS.map(f => ({ ...f, slot: "flyer" })), ...SKIES.map(s => ({ ...s, slot: "sky" })),
+    { id: "shield3", consumable: true, stockId: "shield", amount: 3, name: "3 מגנים", desc: "מגן סופג פגיעה אחת", price: 40 },
+  ],
+  storeGroups: [{ slot: "flyer", title: "דמויות" }, { slot: "sky", title: "שמיים" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span style="font-size:38px">🛡</span>` : it.slot === "flyer" ? `<span style="font-size:44px">${it.e}</span>`
+    : `<div style="width:100%;height:100%;position:relative;background:linear-gradient(${it.top},${it.bot})"><i style="position:absolute;left:30%;bottom:0;width:18px;height:40%;background:${it.pillar};border-radius:4px 4px 0 0"></i><i style="position:absolute;left:60%;top:0;width:18px;height:30%;background:${it.pillar};border-radius:0 0 4px 4px"></i></div>`,
+};
+const { rr, stars, drawStars } = Arcade;
+
+Arcade.run(CFG, {
+  tagline: "לחיצה = משק כנפיים. עברו בין העמודים, כל מעבר שווה נקודה. נשמע פשוט?",
+  play: "להמריא", ratio: 1.45, unit: "מעברים", stageBg: "#7EC8F2", targets: [8, 20, 40],
+  bots: [["קוואזר", "🛸", 64], ["אוריון", "👾", 28], ["ניצוץ", "🤖", 9]],
+  powers: [{ id: "shield", label: "🛡 מגן" }], pointerDown: true, pad: [["up", "▲", "משק כנפיים"]],
+  keysText: "רווח / ↑ / הקשה על המסך = משק כנפיים", spaceIsAction: true,
+  keys: { " ": "up", ArrowUp: "up", w: "up", W: "up", Enter: "up" },
+  readyText: "כל לחיצה מעיפה למעלה, וכוח המשיכה מושך למטה.",
+  help: `<h2>המטרה</h2><p>לעבור כמה שיותר מרווחים בין העמודים.</p><h2>שליטה</h2><ul><li>רווח, ↑, הכפתור או הקשה על המסך = משק כנפיים.</li><li>🛡 מגן מהחנות סופג פגיעה אחת.</li><li>המרווחים מצטמצמים ככל שמתקדמים.</li></ul>`,
+  init(S, w, h) {
+    S.x = w * .3; S.y = h * .45; S.vy = 0; S.score = 0; S.pipes = []; S.next = 0; S.shield = !!S.power.shield; S.inv = 0; S.sky = stars(60, w, h); S.scroll = 0; S.clouds = Array.from({ length: 5 }, (_, i) => ({ x: i * w / 4, y: 30 + Math.random() * h * .4, s: .6 + Math.random() * .7 }));
+    S.flapT = 0;
+  },
+  update(S, dt, w, h) {
+    const speed = 150 + Math.min(90, S.score * 3);
+    S.vy += 1150 * dt; S.y += S.vy * dt; S.scroll += speed * dt; S.flapT = Math.max(0, S.flapT - dt); S.inv = Math.max(0, S.inv - dt);
+    S.next -= speed * dt;
+    if (S.next <= 0) { const gap = Math.max(118, 175 - S.score * 2.5), y = 70 + Math.random() * (h - 140 - gap); S.pipes.push({ x: w + 40, gapY: y, gap, scored: false }); S.next = 210; }
+    for (const p of S.pipes) {
+      p.x -= speed * dt;
+      if (!p.scored && p.x + 30 < S.x) { p.scored = true; S.score++; Hub.sound("coin"); }
+      const inX = S.x + 14 > p.x - 30 && S.x - 14 < p.x + 30, inGap = S.y - 12 > p.gapY && S.y + 12 < p.gapY + p.gap;
+      if (inX && !inGap && S.inv <= 0) { if (S.shield) { S.shield = false; S.inv = 1; Hub.sound("hint"); } else { S.over = true; return; } }
+    }
+    for (const cl of S.clouds) { cl.x -= speed * .25 * cl.s * dt; if (cl.x < -100) { cl.x = w + 60; cl.y = 30 + Math.random() * h * .4; } }
+    S.pipes = S.pipes.filter(p => p.x > -60);
+    if (S.y > h - 18 || S.y < -40) { if (S.shield && S.y > h - 18) { S.shield = false; S.vy = -420; S.inv = 1; Hub.sound("hint"); } else S.over = true; }
+  },
+  draw(c, S, w, h, t) {
+    const sk = Hub.equipped("sky"), fl = Hub.equipped("flyer");
+    const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, sk.top); g.addColorStop(1, sk.bot); c.fillStyle = g; c.fillRect(0, 0, w, h);
+    if (sk.night) drawStars(c, S.sky, w, h, 0, t);
+    for (const cl of S.clouds) { c.fillStyle = sk.night ? "rgba(180,150,255,.12)" : "rgba(255,255,255,.75)"; for (const [dx, dy, r] of [[0, 0, 22], [20, -8, 26], [44, 0, 20]]) { c.beginPath(); c.arc(cl.x + dx * cl.s, cl.y + dy * cl.s, r * cl.s, 0, 7); c.fill(); } }
+    for (const p of S.pipes) {
+      for (const [y0, y1, top] of [[0, p.gapY, true], [p.gapY + p.gap, h, false]]) {
+        const gr = c.createLinearGradient(p.x - 30, 0, p.x + 30, 0); gr.addColorStop(0, sk.pillar); gr.addColorStop(.5, `color-mix(in srgb, ${sk.pillar} 70%, #fff)`); gr.addColorStop(1, sk.pillar);
+        c.fillStyle = gr; c.fillRect(p.x - 26, y0, 52, y1 - y0);
+        if (sk.stripes) { c.fillStyle = "rgba(255,255,255,.5)"; for (let y = y0; y < y1; y += 22) c.fillRect(p.x - 26, y, 52, 8); }
+        c.fillStyle = sk.cap; rr(c, p.x - 32, top ? y1 - 18 : y0, 64, 18, 6); c.fill();
+        if (sk.night) { c.shadowColor = sk.cap; c.shadowBlur = 12; c.fillRect(p.x - 32, top ? y1 - 2 : y0, 64, 2); c.shadowBlur = 0; }
+      }
+    }
+    c.fillStyle = sk.night ? "#241A45" : "#E8D7A6"; c.fillRect(0, h - 14, w, 14);
+    c.fillStyle = sk.night ? "#3A2C6A" : "#C8B27A"; for (let x = -(S.scroll % 24); x < w; x += 24) c.fillRect(x, h - 14, 12, 4);
+    c.save(); c.translate(S.x, S.y); c.rotate(Math.max(-.5, Math.min(1.1, S.vy / 600)));
+    if (S.inv > 0 && Math.floor(t / 90) % 2) c.globalAlpha = .45;
+    c.scale(-1, 1); // emoji face the way we fly
+    c.font = `34px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(fl.e, 0, 0);
+    c.restore();
+    if (S.shield) { c.strokeStyle = "rgba(120,200,255,.85)"; c.lineWidth = 2; c.beginPath(); c.arc(S.x, S.y, 24, 0, 7); c.stroke(); }
+    c.fillStyle = "#fff"; c.strokeStyle = "rgba(0,0,0,.25)"; c.lineWidth = 4; c.font = `700 ${Math.round(w * .13)}px "Frank Ruhl Libre", serif`; c.textAlign = "center"; c.textBaseline = "top";
+    c.strokeText(S.score, w / 2, 56); c.fillText(S.score, w / 2, 56);
+  },
+  input(S, name, down) { if (down && (name === "up" || name === "tap" || name === "action")) { S.vy = -360; S.flapT = .15; Hub.sound("jump"); } },
+  hud: S => [["🌀", S.score], ["🛡", S.shield ? 1 : 0]],
+  score: S => S.score, coins: S => S.score * 2,
+  resultTitle: () => "אוי! התנגשת",
+});
+</script>
+</body>
+</html>

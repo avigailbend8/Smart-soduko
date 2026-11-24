@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 
 namespace Smart_Sudoku
@@ -6,13 +6,17 @@ namespace Smart_Sudoku
     /// <param name="ThemeId">The theme this set matches. Buying that theme also gives the set,
     /// and choosing the theme switches the board to it.</param>
     public sealed record SymbolSet(string Id, string Name, int Price, string[] Symbols, string? ThemeId = null);
+    // אובייקט: SymbolSet — ערכת סמלים: 9 סמלים שמופיעים על הלוח במקום הספרות 1–9, עם שם ומחיר.
+    // ThemeId = ערכת העיצוב שהסמלים שייכים לה (קנייה של העיצוב נותנת גם את הסמלים).
 
     /// <summary>
     /// What is shown on the board instead of the digits 1-9.
     /// </summary>
     public static class SymbolSets
+    // אובייקט: SymbolSets — כל ערכות הסמלים במשחק.
     {
         public static readonly IReadOnlyList<SymbolSet> All = new[]
+        // אובייקט: All — הרשימה של כל ערכות הסמלים: מספרים, פירות, חיות, ממתקים, ועוד ערכות שמגיעות עם עיצובים.
         {
             new SymbolSet("numbers", "מספרים", 0, new[] { "1", "2", "3", "4", "5", "6", "7", "8", "9" }),
             new SymbolSet("fruits", "פירות", 80, new[] { "🍓", "🍒", "🍑", "🍋", "🍏", "🍇", "🍉", "🥝", "🍊" }),
@@ -37,10 +41,13 @@ namespace Smart_Sudoku
         };
 
         public static SymbolSet Get(string id) => All.FirstOrDefault(s => s.Id == id) ?? All[0];
+        // פעולה: Get — מחזירה ערכת סמלים לפי השם שלה. אם לא נמצאה — מחזירה את המספרים הרגילים.
 
         public static SymbolSet Current => Get(GameData.SymbolsId);
+        // אובייקט: Current — ערכת הסמלים שהשחקן בחר עכשיו.
 
         /// <summary>The set that matches a theme, if it has one.</summary>
         public static SymbolSet? ForTheme(string themeId) => All.FirstOrDefault(s => s.ThemeId == themeId);
+        // פעולה: ForTheme — מחזירה את ערכת הסמלים שמתאימה לעיצוב מסוים (אם יש כזאת).
     }
 }

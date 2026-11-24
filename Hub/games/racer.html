@@ -45,6 +45,15 @@ const CFG = {
     { id: "shield10", consumable: true, stockId: "shield", amount: 10, name: "10 מגנים", desc: "חבילה משתלמת", price: 110 },
   ],
   storeGroups: [{ slot: "car", title: "מכוניות" }, { slot: "road", title: "כבישים" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  boards: [{ id: "best", title: "המרחק הכי רחוק", unit: "מ׳", bots: [["קוואזר", "🛸", 1200], ["אוריון", "👾", 650], ["ניצוץ", "🤖", 280]] }, { id: "coins", title: "הכי הרבה מטבעות בנסיעה", bots: [["קוואזר", "🛸", 60], ["אוריון", "👾", 30], ["ניצוץ", "🤖", 12]] }],
+  duel: {
+    mode: "score", unit: "מ׳", barTop: true,
+    target: r => [250, 550, 950][r.level],
+    start: r => { mode = "free"; view = "game"; nav = ["menu"]; render(); },
+    progress: () => R && R.running ? R.dist / CFG.duel.target(Hub.duelRival) : 0,
+    over: () => !!R?.over, lose: () => {},
+    active: () => view === "game", menu: () => { stopLoop(); view = "menu"; nav = []; render(); },
+  },
   preview: it => it.consumable ? `<span style="font-size:40px">🛡</span>` : `<img alt="" src="${previewImage(it)}">`,
 };
 const TRAFFIC = ["#4F86B8", "#E0A43A", "#8E9AA8", "#C95468", "#4E9A6A", "#F1EEE8", "#3A3F4B", "#B07AC9"];
@@ -133,6 +142,9 @@ function previewImage(it) {
 const LANES = 4;
 let W, view = "menu", nav = [], R = null, raf = 0, cv, ctx, dims;
 const P = () => { const p = W.progress; p.best = p.best || 0; p.runs = p.runs || 0; return p; };
+const COUNT = 30; let mode = "free", LV = 0;
+const goalOf = L => 120 + (L - 1) * 45;
+const kOf = () => mode === "level" ? .85 + .5 * (LV - 1) / (COUNT - 1) : 1;
 
 function measure() {
   const stage = $("#stage"); if (!stage) return;
@@ -148,6 +160,7 @@ const laneX = l => dims.rx + dims.lw * (l + .5);
 
 function newRun(useShield) {
   R = { lane: 1, x: 0, speed: 0, dist: 0, coins: 0, objs: [], next: 200, t: 0, over: false, running: false, paused: false, count: 2.2, shield: useShield, inv: 0, scroll: 0, spin: 0, boost: false, brake: false, time: 0 };
+  R.goal = mode === "level" ? goalOf(LV) : 0; R.k = kOf(); R.hits = 0;
   R.x = laneX(1);
 }
 function spawnRow() {
@@ -177,10 +190,11 @@ function update(dt) {
   if (!R.running || R.paused || R.over) return;
   if (R.count > 0) { R.count -= dt; if (R.count <= 0) Hub.sound("good"); return; }
   R.t += dt;
-  const target = Math.min(250 + R.t * 8, 760) * (R.boost ? 1.4 : R.brake ? .55 : 1);
+  const target = Math.min(250 + R.t * 8, 760) * R.k * (R.boost ? 1.4 : R.brake ? .55 : 1);
   R.speed += (target - R.speed) * Math.min(1, dt * 2.6);
   const d = R.speed * dt;
   R.scroll += d; R.dist += d / 28;
+  if (R.goal && R.dist >= R.goal) return levelWin();
   R.x += (laneX(R.lane) - R.x) * Math.min(1, dt * 13);
   R.spin = Math.max(0, R.spin - dt); R.inv = Math.max(0, R.inv - dt);
   R.next -= d;
@@ -193,7 +207,7 @@ function update(dt) {
     if (o.type === "coin") { o.gone = true; R.coins++; Hub.sound("coin"); continue; }
     if (o.type === "oil") { o.gone = true; R.spin = .7; const d2 = R.lane === 0 ? 1 : R.lane === LANES - 1 ? -1 : Math.random() < .5 ? -1 : 1; R.lane += d2; Hub.sound("wrong"); continue; }
     if (R.inv > 0) continue;
-    if (R.shield) { R.shield = false; R.inv = 1.4; o.gone = true; o.burst = .5; Hub.sound("hint"); Hub.toast("המגן הציל אותך! 🛡"); continue; }
+    if (R.shield) { R.shield = false; R.inv = 1.4; o.gone = true; o.burst = .5; Hub.sound("hint"); R.hits++; Hub.toast("המגן הציל אותך! 🛡"); continue; }
     return crash();
   }
   R.objs = R.objs.filter(o => o.y < dims.h + 80 && !(o.gone && o.type !== "car" && o.type !== "cone"));
@@ -249,14 +263,16 @@ function frame(t) {
 }
 function hud() {
   const d = $("#hDist"), c = $("#hCoins"); if (!d) return;
-  d.textContent = Math.floor(R.dist); c.textContent = R.coins;
+  d.textContent = R.goal ? `${Math.min(R.goal, Math.floor(R.dist))}/${R.goal}` : Math.floor(R.dist); c.textContent = R.coins;
 }
 function crash() {
+  if (mode === "level") return levelFail();
   R.over = true; R.boost = R.brake = false;
   Hub.sound("crash");
   const st = $("#stage"); st.classList.remove("shake"); void st.offsetWidth; st.classList.add("shake");
   const p = P(), dist = Math.floor(R.dist), record = dist > p.best;
   p.runs++; if (record) p.best = dist;
+  Hub.submitScore(dist, "best"); Hub.submitScore(R.coins, "coins");
   const coins = R.coins + Math.floor(dist / 40);
   Hub.save(); Hub.earn(coins);
   setTimeout(() => {
@@ -264,9 +280,23 @@ function crash() {
     Hub.result({ title: record ? "שיא חדש! 🏁" : "התנגשות!", sub: `נסעת <b>${dist}</b> מטר ואספת ${R.coins} מטבעות${record ? "" : ` · השיא שלך: ${p.best} מ׳`}`, coins, buttons: [["again", "עוד נסיעה", true], ["tomenu", "לתפריט"]] });
   }, 800);
 }
+// ---------- Levels: reach a distance; later levels start faster ----------
+function levelWin() {
+  R.over = true; R.boost = R.brake = false;
+  const stars = R.hits === 0 ? 3 : R.hits === 1 ? 2 : 1, first = Hub.levelDone(LV, stars);
+  const coins = R.coins + (first ? 10 + LV * 3 : 5);
+  Hub.save(); Hub.earn(coins); Hub.sound("win"); Hub.confetti();
+  setTimeout(() => Hub.levelResult({ L: LV, count: COUNT, won: true, stars, coins, sub: `הגעת ל-${R.goal} מטר ואספת ${R.coins} מטבעות` }), 500);
+}
+function levelFail() {
+  R.over = true; R.boost = R.brake = false; Hub.sound("crash");
+  const st = $("#stage"); st.classList.remove("shake"); void st.offsetWidth; st.classList.add("shake");
+  Hub.save(); if (R.coins) Hub.earn(R.coins);
+  setTimeout(() => Hub.levelResult({ L: LV, count: COUNT, won: false, coins: R.coins, sub: `הגעת ל-${Math.floor(R.dist)} מתוך ${R.goal} מטר` }), 700);
+}
 function readyCard() {
   const s = Hub.stock("shield");
-  Hub.overlay(`<div class="ready"><h2 class="display sm">מוכנים לנסיעה?</h2>
+  Hub.overlay(`<div class="ready"><h2 class="display sm">${mode === "level" ? `שלב ${LV}` : "מוכנים לנסיעה?"}</h2>${mode === "level" ? `<p class="earned">🎯 ${goalOf(LV)} מטר</p>` : ""}
     <p class="lede">התחמקו ממכוניות ומקונוסים, ואספו מטבעות. כתם שמן מחליק אתכם לנתיב אחר.</p>
     <div class="toggles"><button class="toggle ${s ? "on" : ""}" data-act="toggleShield" ${s ? "" : "disabled"} aria-pressed="${!!s}">🛡 מגן לנסיעה · יש ${s}</button></div>
     <button class="btn primary big" data-act="go">יוצאים! 🏁</button>
@@ -279,12 +309,12 @@ function back() { stopLoop(); view = nav.pop() || "menu"; render(); }
 function stopLoop() { cancelAnimationFrame(raf); raf = 0; }
 function render() {
   Hub.closeOverlay();
-  $("#app").innerHTML = ({ menu: menuView, game: gameView, store: () => Hub.store(), help: helpView })[view]();
+  $("#app").innerHTML = ({ menu: menuView, levels: () => `${Hub.topbar("שלבים")}${Hub.levelMap({ count: COUNT })}`, game: gameView, store: () => Hub.store(), help: helpView })[view]();
   if (view === "game") startStage();
 }
 function menuView() {
   const p = P();
-  return Hub.menu({ tagline: `דהרו בכביש, התחמקו מכל מה שבדרך ואספו מטבעות. ככל שנוסעים, הכביש נהיה מהיר יותר.${p.best ? `<br><b>השיא שלך: ${p.best} מטר</b>` : ""}`, buttons: [["play", "לנסוע", true], ["store", "החנות"], ["help", "איך משחקים"]] });
+  return Hub.menu({ tagline: `דהרו בכביש, התחמקו מכל מה שבדרך ואספו מטבעות. ככל שנוסעים, הכביש נהיה מהיר יותר.${p.best ? `<br><b>השיא שלך: ${p.best} מטר</b>` : ""}`, buttons: [["levels", "שלבים", true], ["play", "♾ נסיעה חופשית"], ["store", "החנות"], ["help", "איך משחקים"]] });
 }
 function gameView() {
   return `${Hub.topbar("כביש מהיר")}
@@ -362,7 +392,11 @@ document.addEventListener("click", e => {
   const b = e.target.closest("[data-act]"); if (!b) return;
   const a = b.dataset.act;
   if (a === "back") return back();
-  if (a === "play") return go("game");
+  if (a === "play") { mode = "free"; return go("game"); }
+  if (a === "levels") return go("levels");
+  if (a === "lvl") { mode = "level"; LV = +b.dataset.level; return go("game"); }
+  if (a === "lvnext" || a === "lvagain") { Hub.closeOverlay(); if (a === "lvnext") LV = Math.min(COUNT, LV + 1); newRun(); hud(); readyCard(); return; }
+  if (a === "lvmap") { Hub.closeOverlay(); stopLoop(); view = "levels"; nav = ["menu"]; return render(); }
   if (a === "store") { Hub.clearStoreMsg(); return go("store"); }
   if (a === "help") return go("help");
   if (a === "buy") { Hub.buy(b.dataset.item); Object.keys(previews).forEach(k => delete previews[k]); return render(); }

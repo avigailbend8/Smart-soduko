@@ -1,4 +1,4 @@
-using Windows.UI.Xaml;
+﻿using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
 
@@ -6,26 +6,33 @@ namespace Smart_Sudoku.Pages
 {
     /// <summary>The player level (XP), this week's league, and today's 3 missions with their prize chest.</summary>
     public sealed partial class MissionsPage : BasePage
+    // אובייקט: MissionsPage — עמוד המשימות: רמת השחקן (XP), הליגה של השבוע, ושלוש המשימות של היום עם תיבת ההפתעה.
     {
         public MissionsPage()
+        // פעולה: MissionsPage (בנאי) — טוענת את העיצוב של העמוד מקובץ ה-XAML.
         {
             this.InitializeComponent();
         }
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
+        // פעולה: OnNavigatedTo — רצה כשנכנסים לעמוד, ובונה את התוכן שלו.
         {
             base.OnNavigatedTo(e);
             Refresh();
         }
 
         private void Refresh()
+        // פעולה: Refresh — בונה מחדש את כל העמוד: כרטיס רמת השחקן, כרטיס הליגה, כרטיס לכל משימה, ותיבת ההפתעה.
+        // היא רצה שוב אחרי כל לחיצה על "לאסוף", כדי שהמסך יתעדכן.
         {
             SubtitleText.Text = "כל משחק נותן נקודות ניסיון (XP). משימות חדשות מחכות כל יום!";
             ContentPanel.Children.Clear();
 
             // Player level
             int level = Progression.PlayerLevel, xp = Progression.Xp;
+            // אובייקט: level, xp — רמת השחקן, וכמה נקודות ניסיון יש לו.
             int from = Progression.XpAtLevel(level), to = Progression.XpAtLevel(level + 1);
+            // אובייקט: from, to — כמה נקודות צריך לרמה הנוכחית ולרמה הבאה, כדי לצייר את פס ההתקדמות.
             ContentPanel.Children.Add(Ui.Card(new StackPanel
             {
                 Spacing = 8,
@@ -39,9 +46,13 @@ namespace Smart_Sudoku.Pages
 
             // Weekly league
             var league = Progression.CurrentLeague;
+            // אובייקט: league — הליגה של השחקן השבוע.
             var next = Progression.NextLeague;
+            // אובייקט: next — הליגה הבאה (או null אם הוא כבר בהכי גבוהה).
             int points = Progression.WeekPoints;
+            // אובייקט: points — כמה נקודות השחקן צבר השבוע.
             var leagueInfo = new StackPanel
+            // אובייקט: leagueInfo — התוכן של כרטיס הליגה: שם, נקודות, ופס התקדמות לליגה הבאה.
             {
                 Spacing = 8,
                 Children =
@@ -67,10 +78,14 @@ namespace Smart_Sudoku.Pages
             foreach (var mission in Progression.TodaysMissions)
             {
                 int progress = System.Math.Min(mission.Target, Progression.MissionProgress(mission.Id));
+                // אובייקט: progress — כמה השחקן התקדם במשימה (לא יותר מהיעד).
                 bool done = Progression.MissionDone(mission);
+                // אובייקט: done — אמת אם המשימה הושלמה.
                 bool claimed = Progression.MissionClaimed(mission.Id);
+                // אובייקט: claimed — אמת אם השחקן כבר לקח את הפרס על המשימה.
 
                 var claim = new Button
+                // אובייקט: claim — הכפתור "לאסוף" שנותן את המטבעות על המשימה.
                 {
                     Content = claimed ? "✓ נאסף" : $"+{Progression.MissionReward} 🪙",
                     IsEnabled = done && !claimed,
@@ -101,7 +116,9 @@ namespace Smart_Sudoku.Pages
 
             // The chest for finishing all three
             bool allDone = Progression.AllMissionsDone;
+            // אובייקט: allDone — אמת אם כל שלוש המשימות הושלמו.
             var open = new Button
+            // אובייקט: open — הכפתור "לפתוח!" של תיבת ההפתעה.
             {
                 Content = Progression.ChestClaimed ? "✓ נפתח" : "לפתוח!",
                 IsEnabled = allDone && !Progression.ChestClaimed,

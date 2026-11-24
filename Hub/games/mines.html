@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>שדה מוקשים · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/puzzle.js"></script>
+<style>
+.mf { width: min(100%, 520px); margin: 0 auto; padding: 8px; border-radius: 18px; background: color-mix(in srgb, var(--ink) 10%, var(--card)); display: grid; gap: 3px; direction: ltr; box-shadow: var(--shadow); }
+.mf button { aspect-ratio: 1; border: 0; border-radius: 6px; padding: 0; cursor: pointer; font: 700 clamp(11px, 3.8vw, 19px) var(--body); display: grid; place-items: center;
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tile) 80%, #fff), var(--tile)); box-shadow: inset 0 -3px 0 rgba(0,0,0,.15); }
+.mf button.open { background: color-mix(in srgb, var(--card) 85%, var(--tile)); box-shadow: none; cursor: default; animation: open .18s; }
+.mf button.boom { background: #E0435A; }
+@keyframes open { from { transform: scale(.8); } }
+.n1 { color: #3B7DD8; } .n2 { color: #3E9A5E; } .n3 { color: #D8433B; } .n4 { color: #6B4FD8; } .n5 { color: #B0582A; } .n6 { color: #2A9D9D; } .n7 { color: #333; } .n8 { color: #888; }
+.mode { display: flex; justify-content: center; gap: 8px; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const FIELDS = [
+  { id: "mf-meadow", name: "אחו", price: 0, tile: "#7BC47F", mine: "💣", flag: "🚩" },
+  { id: "mf-sand", name: "חוף", price: 90, tile: "#E3C58E", mine: "🦀", flag: "⛱️" },
+  { id: "mf-space", name: "חלל", price: 140, tile: "#6E5BD8", mine: "☄️", flag: "🛰️" },
+  { id: "mf-snow", name: "שלג", price: 110, tile: "#A9CCE3", mine: "❄️", flag: "⛄" },
+];
+const CFG = {
+  id: "mines", title: "שדה מוקשים", startCoins: 40, startStock: { radar: 2 },
+  items: [Hub.theme("sage", 0), Hub.theme("slate", 100), Hub.theme("coral", 100), Hub.theme("night", 160), ...FIELDS.map(x => ({ ...x, slot: "field" })),
+    { id: "radar3", consumable: true, stockId: "radar", amount: 3, name: "3 גלאים", desc: "מסמן בבטחה מוקש אחד", price: 30 }],
+  storeGroups: [{ slot: "field", title: "שדות" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span style="font-size:38px">📡</span>` : `<div style="display:grid;grid-template-columns:repeat(3,24px);gap:3px">${["", "1", it.flag, "2", "", it.mine].map(v => `<i style="height:24px;border-radius:5px;display:grid;place-items:center;font-style:normal;font-size:13px;background:${v === "" ? it.tile : "#fff"}">${v}</i>`).join("")}</div>`,
+};
+function diffOf(L) { if (L <= 10) return { c: 8, r: 8, m: Math.round(6 + (L - 1) * .5) }; if (L <= 20) return { c: 10, r: 11, m: Math.round(13 + (L - 11) * .6) }; return { c: 10, r: 14, m: Math.round(20 + (L - 21) * 1) }; }
+const around = (G, i) => { const out = [], r = Math.floor(i / G.c), c = i % G.c; for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) { if (!dr && !dc) continue; const R = r + dr, C = c + dc; if (R >= 0 && R < G.r && C >= 0 && C < G.c) out.push(R * G.c + C); } return out; };
+function plant(G, safe) { // the first click and its neighbours are never mines
+  const keep = new Set([safe, ...around(G, safe)]), spots = Hub.shuffle([...Array(G.c * G.r).keys()].filter(i => !keep.has(i)));
+  spots.slice(0, G.m).forEach(i => { G.mine[i] = true; });
+  G.num = G.mine.map((_, i) => around(G, i).filter(j => G.mine[j]).length); G.planted = true;
+}
+function reveal(G, i) {
+  const stack = [i];
+  while (stack.length) { const j = stack.pop(); if (G.open[j] || G.flag[j]) continue; G.open[j] = true; if (!G.num[j]) stack.push(...around(G, j).filter(k => !G.open[k] && !G.mine[k])); }
+}
+const safeLeft = G => G.open.filter((o, i) => !o && !G.mine[i]).length;
+
+Puzzle.run(CFG, {
+  tagline: "מתחת לחלק מהמשבצות מסתתרים מוקשים. כל מספר אומר כמה מוקשים נוגעים בו. פתחו את כל המשבצות הבטוחות!",
+  play: "לצאת לשדה",
+  worlds: ["שדה קטן", "שדה רחב", "שדה ענק"], par: G => G.m * 7, goal: G => `${G.c}×${G.r} · ${G.m} מוקשים`,
+  help: `<h2>המטרה</h2><p>לפתוח את כל המשבצות שאין בהן מוקש.</p><h2>איך משחקים</h2><ul><li>לחיצה פותחת משבצת. מספר = כמה מוקשים יש בשמונה המשבצות שסביבה.</li><li>דגל: מצב 🚩 למעלה, או לחיצה ימנית בעכבר. לחיצה על מספר שכבר יש סביבו מספיק דגלים פותחת את כל השאר.</li><li>הלחיצה הראשונה תמיד בטוחה. 📡 גלאי מסמן מוקש אחד בבטחה.</li></ul>`,
+  newGame(G) { const D = diffOf(G.L); Object.assign(G, D); G.mine = Array(D.c * D.r).fill(false); G.open = Array(D.c * D.r).fill(false); G.flag = Array(D.c * D.r).fill(false); G.num = []; G.planted = false; G.flagMode = false; G.boom = -1; },
+  click(G, el) {
+    const i = +el.dataset.i;
+    if (G.flagMode && !G.open[i]) { G.flag[i] = !G.flag[i]; Hub.sound("tap"); return true; }
+    if (G.flag[i]) return false;
+    if (!G.planted) plant(G, i);
+    if (G.open[i]) { // open the neighbours when enough flags are around a number
+      const nb = around(G, i); if (G.num[i] && nb.filter(j => G.flag[j]).length === G.num[i]) { for (const j of nb) if (!G.flag[j] && !G.open[j]) { if (G.mine[j]) { G.boom = j; G.open[j] = true; return true; } reveal(G, j); } G.moves++; Hub.sound("flip"); return true; }
+      return false;
+    }
+    G.moves++;
+    if (G.mine[i]) { G.boom = i; G.open[i] = true; return true; }
+    reveal(G, i); Hub.sound("flip"); return true;
+  },
+  rightClick(G, el) { const i = +el.dataset.i; if (G.open[i]) return false; G.flag[i] = !G.flag[i]; Hub.sound("tap"); return true; },
+  board(G) {
+    const f = Hub.equipped("field");
+    return `<div class="mode"><button class="toggle ${G.flagMode ? "" : "on"}" data-act="x-dig">⛏ לחפור</button><button class="toggle ${G.flagMode ? "on" : ""}" data-act="x-flag">${f.flag} דגל</button><span class="chip">${f.mine} ${G.m - G.flag.filter(Boolean).length}</span></div>
+      <div class="mf" style="grid-template-columns:repeat(${G.c},1fr);--tile:${f.tile}">${G.open.map((o, i) => {
+        const showMine = G.mine[i] && (o || G.failed);
+        return `<button data-act="cell" data-i="${i}" class="${o || showMine ? "open" : ""} ${i === G.boom ? "boom" : ""}" aria-label="משבצת ${i + 1}">${showMine ? f.mine : o ? (G.num[i] ? `<span class="n${G.num[i]}">${G.num[i]}</span>` : "") : G.flag[i] ? f.flag : ""}</button>`;
+      }).join("")}</div>`;
+  },
+  tools: G => G.done || G.failed ? "" : `<button class="btn" data-act="x-radar">📡 גלאי · ${Hub.stock("radar")}</button>`,
+  act(G, a) {
+    if (a === "x-dig") G.flagMode = false;
+    if (a === "x-flag") G.flagMode = true;
+    if (a === "x-radar") { if (!G.planted) { G.msg = "פתחו משבצת ראשונה קודם"; return; } const hid = G.mine.map((m, i) => m && !G.flag[i] ? i : -1).filter(i => i >= 0); if (!hid.length) return; if (!Hub.useStock("radar")) { G.msg = "נגמרו הגלאים"; return; } G.flag[hid[Math.floor(Math.random() * hid.length)]] = true; Hub.sound("hint"); G.msg = "📡 מוקש סומן בדגל"; }
+  },
+  progress: G => G.planted ? 1 - safeLeft(G) / (G.c * G.r - G.m) : 0,
+  solved: G => G.planted && G.boom < 0 && safeLeft(G) === 0,
+  failed: G => G.boom >= 0,
+  failTitle: "בום! 💥", winTitle: "השדה נוקה! 🎉",
+  stars: G => G.secs <= [40, 90, 160][G.d] ? 3 : G.secs <= [90, 180, 320][G.d] ? 2 : 1,
+});
+</script>
+</body>
+</html>

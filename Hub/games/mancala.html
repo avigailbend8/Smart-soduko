@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>מנקלה · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/duo.js"></script>
+<style>
+.mk { width: min(100%, 640px); margin: 0 auto; padding: 14px; border-radius: 60px; background: linear-gradient(160deg, color-mix(in srgb, var(--wood) 75%, #fff), var(--wood) 55%, color-mix(in srgb, var(--wood) 80%, #000)); box-shadow: inset 0 3px 0 rgba(255,255,255,.3), 0 24px 40px -20px rgba(0,0,0,.55); display: grid; grid-template-columns: 1fr 6fr 1fr; gap: 10px; align-items: stretch; direction: ltr; }
+.mk .row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.mk .rows { display: grid; gap: 10px; }
+.pit, .store { border-radius: 999px; background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--wood) 55%, #000), color-mix(in srgb, var(--wood) 35%, #000)); box-shadow: inset 0 6px 12px rgba(0,0,0,.5); position: relative; display: grid; place-items: center; border: 0; padding: 0; }
+.pit { aspect-ratio: 1; cursor: pointer; }
+.pit.ok { box-shadow: inset 0 6px 12px rgba(0,0,0,.5), 0 0 0 3px var(--gold); }
+.pit.lastp { box-shadow: inset 0 6px 12px rgba(0,0,0,.5), 0 0 0 3px rgba(255,255,255,.6); }
+.store { min-height: 100%; }
+.seeds { position: absolute; inset: 14%; pointer-events: none; }
+.seeds i { position: absolute; width: 22%; aspect-ratio: 1; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, var(--seed)); box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.num { position: absolute; bottom: -2px; font-weight: 700; font-size: 13px; color: #fff; text-shadow: 0 1px 2px #000; pointer-events: none; }
+.store .num { font: 500 22px var(--display); bottom: auto; }
+.labels { display: flex; justify-content: space-between; width: min(100%, 640px); margin: 8px auto; font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const WOODS = [
+  { id: "mw-walnut", name: "אגוז", price: 0, c: "#8B5A3C", seed: "#7FC8A9" },
+  { id: "mw-olive", name: "זית", price: 100, c: "#7A6A3A", seed: "#F2C14E" },
+  { id: "mw-ebony", name: "הובנה", price: 140, c: "#3A2E2A", seed: "#E8A0BF" },
+  { id: "mw-sand", name: "חול", price: 110, c: "#C9A26B", seed: "#4F86C6" },
+];
+const CFG = {
+  id: "mancala", title: "מנקלה", startCoins: 40,
+  items: [Hub.theme("terracotta", 0), Hub.theme("sage", 100), Hub.theme("amber", 100), Hub.theme("night", 160), ...WOODS.map(x => ({ ...x, slot: "wood" }))],
+  storeGroups: [{ slot: "wood", title: "לוח ואבנים" }, { slot: "theme", title: "ערכות צבע" }],
+  preview: it => `<div style="display:flex;gap:6px;padding:10px 14px;border-radius:30px;background:${it.c}">${[0, 1, 2].map(() => `<i style="width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#fff,${it.seed})"></i>`).join("")}</div>`,
+};
+// Pits 0–5 are yours (left to right), 6 is your store; 7–12 are the computer's (right to left on top), 13 its store
+const STORE = { 1: 6, 2: 13 };
+const mine = (i, p) => p === 1 ? i >= 0 && i <= 5 : i >= 7 && i <= 12;
+function sow(b, i, p) {
+  b = b.slice(); let n = b[i], k = i; b[i] = 0;
+  while (n) { k = (k + 1) % 14; if (k === STORE[3 - p]) continue; b[k]++; n--; }
+  let again = k === STORE[p];
+  if (mine(k, p) && b[k] === 1 && b[12 - k] > 0) { b[STORE[p]] += b[k] + b[12 - k]; b[k] = 0; b[12 - k] = 0; }
+  const side1 = b.slice(0, 6).every(v => !v), side2 = b.slice(7, 13).every(v => !v);
+  if (side1 || side2) { for (let j = 0; j < 6; j++) { b[6] += b[j]; b[j] = 0; b[13] += b[j + 7]; b[j + 7] = 0; } again = false; }
+  return { b, again, last: k };
+}
+const legal = (b, p) => (p === 1 ? [0, 1, 2, 3, 4, 5] : [7, 8, 9, 10, 11, 12]).filter(i => b[i] > 0);
+const ended = b => legal(b, 1).length === 0 || legal(b, 2).length === 0;
+function search(b, p, depth, alpha, beta) {
+  if (!depth || ended(b)) return (b[13] - b[6]) * (p === 2 ? 1 : -1);
+  for (const i of legal(b, p)) { const r = sow(b, i, p); const s = r.again ? search(r.b, p, depth - 1, alpha, beta) : -search(r.b, 3 - p, depth - 1, -beta, -alpha); if (s > alpha) alpha = s; if (alpha >= beta) break; }
+  return alpha;
+}
+function aiMove(b, d) { let bi = -1, bs = -Infinity; for (const i of legal(b, 2)) { const r = sow(b, i, 2); const s = (r.again ? search(r.b, 2, d - 1, -Infinity, Infinity) : -search(r.b, 1, d - 1, -Infinity, Infinity)) + Math.random() * (d < 2 ? 3 : .1); if (s > bs) { bs = s; bi = i; } } return bi; }
+function move(G, i, p) { const r = sow(G.b, i, p); G.b = r.b; G.lastP = r.last; G.who = r.again ? p : 3 - p; if (r.again) G.msg = p === 1 ? "האבן האחרונה נחתה במחסן — עוד תור!" : "המחשב מקבל עוד תור"; Hub.sound(r.again ? "good" : "move"); }
+function seeds(n) { const out = []; for (let k = 0; k < Math.min(n, 14); k++) { const a = k * 2.4, rad = 8 + (k % 5) * 7; out.push(`<i style="left:${39 + Math.cos(a) * rad}%;top:${39 + Math.sin(a) * rad}%"></i>`); } return `<span class="seeds">${out.join("")}</span>`; }
+
+Duo.run(CFG, {
+  tagline: "משחק אבנים עתיק: מפזרים את האבנים מגומה אחת לגומות הבאות, ומנסים לצבור כמה שיותר במחסן שלכם.",
+  worlds: ["גומות ראשונות", "לוכדים", "שליט המחסן"],
+  randomMove(G) { const l = legal(G.b, 2); move(G, l[Math.floor(Math.random() * l.length)], 2); },
+  help: `<h2>המטרה</h2><p>לצבור במחסן שלכם (מימין) יותר אבנים מהמחשב.</p><h2>איך משחקים</h2><ul><li>בוחרים גומה בשורה התחתונה. כל האבנים בה מתפזרות אחת-אחת נגד כיוון השעון — כולל למחסן שלכם, אבל לא למחסן של המחשב.</li><li><b>עוד תור:</b> האבן האחרונה נחתה במחסן שלכם.</li><li><b>לכידה:</b> האבן האחרונה נחתה בגומה ריקה שלכם — היא והאבנים שמולה עוברות למחסן.</li><li>כשצד אחד מתרוקן, כל אחד מקבל את מה שנשאר בצד שלו.</li></ul>`,
+  newGame(G) { G.b = [4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0]; G.who = 1; G.lastP = -1; },
+  turn: G => G.who === 1 ? "me" : "ai",
+  click(G, el) { const i = +el.dataset.i; if (!mine(i, 1) || !G.b[i]) { G.msg = "בחרו גומה שלכם (בשורה התחתונה) שיש בה אבנים"; return false; } move(G, i, 1); return true; },
+  ai(G) { move(G, aiMove(G.b, [1, 4, 8][G.d]), 2); },
+  result: G => ended(G.b) ? (G.b[6] > G.b[13] ? "win" : G.b[6] < G.b[13] ? "lose" : "draw") : null,
+  resultText: G => `במחסן שלך ${G.b[6]} · אצל המחשב ${G.b[13]}`,
+  aiDelay: 700,
+  beforeRender() { const w = Hub.equipped("wood"), st = document.documentElement.style; st.setProperty("--wood", w.c); st.setProperty("--seed", w.seed); },
+  board(G) {
+    const ok = G.who === 1 && !G.over ? legal(G.b, 1) : [];
+    const pit = i => `<button class="pit ${ok.includes(i) ? "ok" : ""} ${i === G.lastP ? "lastp" : ""}" data-act="cell" data-i="${i}" aria-label="גומה עם ${G.b[i]} אבנים">${seeds(G.b[i])}<span class="num">${G.b[i]}</span></button>`;
+    return `<div class="labels"><span>🤖 המחשב</span><span>${Hub.user.avatar} את/ה</span></div>
+      <div class="mk"><div class="store">${seeds(G.b[13])}<span class="num">${G.b[13]}</span></div>
+        <div class="rows"><div class="row">${[12, 11, 10, 9, 8, 7].map(pit).join("")}</div><div class="row">${[0, 1, 2, 3, 4, 5].map(pit).join("")}</div></div>
+        <div class="store">${seeds(G.b[6])}<span class="num">${G.b[6]}</span></div></div>`;
+  },
+});
+</script>
+</body>
+</html>

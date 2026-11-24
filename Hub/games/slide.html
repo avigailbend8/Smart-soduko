@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>פאזל הזזה · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/puzzle.js"></script>
+<style>
+.sl { width: min(100%, 440px); aspect-ratio: 1; margin: 0 auto; padding: 8px; border-radius: 20px; background: color-mix(in srgb, var(--ink) 14%, var(--card)); position: relative; box-shadow: var(--shadow); direction: ltr; }
+.sl .tile { position: absolute; border: 0; padding: 0; border-radius: 10px; cursor: pointer; transition: left .15s ease-out, top .15s ease-out; background-image: var(--img); box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), 0 4px 8px -4px rgba(0,0,0,.4); display: grid; place-items: center; }
+.sl .tile b { font: 700 clamp(14px, 5vw, 26px) var(--body); color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
+.sl .tile.ok { box-shadow: inset 0 0 0 2px rgba(255,255,255,.7), 0 4px 8px -4px rgba(0,0,0,.4); }
+.peek { width: 90px; aspect-ratio: 1; border-radius: 10px; margin: 0 auto 10px; background-image: var(--img); background-size: cover; box-shadow: var(--shadow); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const PICS = [
+  { id: "pic-sunset", name: "שקיעה", price: 0, img: "radial-gradient(circle at 70% 30%, #FFE29A 0 12%, transparent 13%), linear-gradient(180deg, #FF9A8B 0%, #FF6A88 40%, #7B3F8C 70%, #2E2A4F 100%)" },
+  { id: "pic-galaxy", name: "גלקסיה", price: 120, img: "radial-gradient(ellipse at 40% 50%, rgba(255,200,255,.9) 0 5%, transparent 25%), radial-gradient(ellipse at 40% 50%, #B05CFF 0, transparent 55%), radial-gradient(circle at 80% 20%, #4FD1C5 0, transparent 35%), linear-gradient(135deg, #0B0820, #2B1B5A)" },
+  { id: "pic-ocean", name: "ים", price: 100, img: "radial-gradient(circle at 25% 25%, #FFF6C8 0 9%, transparent 10%), linear-gradient(180deg, #8EE3F5 0 45%, #2C7A91 45% 60%, #1F4E79 100%)" },
+  { id: "pic-rainbow", name: "קשת", price: 140, img: "conic-gradient(from 0deg at 50% 50%, #FF6B6B, #FFD93D, #6BCB77, #4D96FF, #9B5DE5, #FF6B6B)" },
+];
+const CFG = {
+  id: "slide", title: "פאזל הזזה", startCoins: 40,
+  items: [Hub.theme("slate", 0), Hub.theme("coral", 100), Hub.theme("plum", 100), Hub.theme("night", 160), ...PICS.map(x => ({ ...x, slot: "pic" }))],
+  storeGroups: [{ slot: "pic", title: "תמונות" }, { slot: "theme", title: "ערכות צבע" }],
+  preview: it => `<div style="width:70px;height:70px;border-radius:10px;background:${it.img}"></div>`,
+};
+const sizeOf = L => L <= 10 ? 3 : L <= 22 ? 4 : 5;
+const shuffleOf = (L, n) => n === 3 ? 10 + (L - 1) * 8 : n === 4 ? 60 + (L - 11) * 15 : 200 + (L - 23) * 40;
+function neighbours(G, i) { const r = Math.floor(i / G.n), c = i % G.n, out = []; if (r > 0) out.push(i - G.n); if (r < G.n - 1) out.push(i + G.n); if (c > 0) out.push(i - 1); if (c < G.n - 1) out.push(i + 1); return out; }
+// Shuffle with random legal moves from the solved picture, so it can always be solved
+function shuffle(G) { let blank = G.n * G.n - 1, prev = -1; for (let k = 0; k < G.mix; k++) { const opts = neighbours(G, blank).filter(x => x !== prev); const j = opts[Math.floor(Math.random() * opts.length)]; [G.b[blank], G.b[j]] = [G.b[j], G.b[blank]]; prev = blank; blank = j; } G.blank = blank; }
+function slideTo(G, i) { // slide a whole row/column towards the gap
+  const n = G.n, br = Math.floor(G.blank / n), bc = G.blank % n, r = Math.floor(i / n), c = i % n;
+  if (r !== br && c !== bc || i === G.blank) return false;
+  const step = r === br ? (c > bc ? 1 : -1) : (r > br ? n : -n);
+  while (G.blank !== i) { const j = G.blank + step; G.b[G.blank] = G.b[j]; G.b[j] = -1; G.blank = j; G.moves++; }
+  Hub.sound("flip"); return true;
+}
+const inPlace = G => G.b.filter((v, i) => v === i).length;
+
+Puzzle.run(CFG, {
+  tagline: "התמונה התפרקה לחתיכות. הזיזו חתיכות אל המשבצת הריקה עד שהתמונה חוזרת להיות שלמה.",
+  play: "לסדר",
+  worlds: ["3×3", "4×4", "5×5"], par: G => Math.round(G.mix * 1.1 + 20), goal: G => `לוח ${G.n}×${G.n}`,
+  help: `<h2>המטרה</h2><p>להחזיר כל חתיכה למקום שלה (המספרים עוזרים: 1 בפינה השמאלית העליונה).</p><h2>איך משחקים</h2><ul><li>לוחצים על חתיכה באותה שורה או באותו טור של המשבצת הריקה — היא (וכל מה שביניהן) זזה.</li><li>אפשר גם חצים במקלדת.</li></ul>`,
+  newGame(G) { G.n = sizeOf(G.L); G.mix = shuffleOf(G.L, G.n); do { G.b = [...Array(G.n * G.n).keys()]; G.b[G.n * G.n - 1] = -1; shuffle(G); } while (inPlace(G) === G.n * G.n - 1); },
+  click: (G, el) => slideTo(G, +el.dataset.i),
+  key(G, e) { const n = G.n, br = Math.floor(G.blank / n), bc = G.blank % n; const t = { ArrowUp: br < n - 1 ? G.blank + n : -1, ArrowDown: br > 0 ? G.blank - n : -1, ArrowLeft: bc < n - 1 ? G.blank + 1 : -1, ArrowRight: bc > 0 ? G.blank - 1 : -1 }[e.key]; return t !== undefined && t >= 0 && slideTo(G, t); },
+  board(G) {
+    const img = Hub.equipped("pic").img, n = G.n, gap = 1.2, cell = (100 - gap * (n + 1)) / n;
+    return `<div class="peek" style="--img:${img}" title="התמונה המלאה"></div><div class="sl" style="--img:${img}">${G.b.map((v, i) => v < 0 ? "" : (() => { const r = Math.floor(i / n), c = i % n, vr = Math.floor(v / n), vc = v % n;
+      return `<button class="tile ${v === i ? "ok" : ""}" data-act="cell" data-i="${i}" style="left:${gap + c * (cell + gap)}%;top:${gap + r * (cell + gap)}%;width:${cell}%;height:${cell}%;background-size:${n * 100}% ${n * 100}%;background-position:${vc * 100 / (n - 1)}% ${vr * 100 / (n - 1)}%"><b>${v + 1}</b></button>`; })()).join("")}</div>`;
+  },
+  progress: G => inPlace(G) / (G.n * G.n - 1),
+  solved: G => G.b.every((v, i) => v === i || (v === -1 && i === G.n * G.n - 1)),
+  stars: G => G.moves <= [40, 150, 400][G.d] ? 3 : G.moves <= [80, 300, 800][G.d] ? 2 : 1,
+  winTitle: "התמונה שלמה! 🖼", resultText: G => `${G.moves} הזזות`,
+});
+</script>
+</body>
+</html>

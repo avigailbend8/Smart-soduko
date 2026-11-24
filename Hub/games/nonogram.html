@@ -83,6 +83,15 @@ const CFG = {
     { id: "hints10", consumable: true, stockId: "hint", amount: 10, name: "10 רמזים", desc: "חבילה משתלמת", price: 85 },
   ],
   storeGroups: [{ slot: "theme", title: "ערכות צבע" }, { slot: "fill", title: "צורת המילוי" }, { consumable: true, title: "עזרים" }],
+  boards: [{ id: "solved", title: "לוחות שנפתרו", bots: [["קוואזר", "🛸", 60], ["אוריון", "👾", 24], ["ניצוץ", "🤖", 7]] }, { id: "stars", title: "כוכבים", bots: [["קוואזר", "🛸", 45], ["אוריון", "👾", 20], ["ניצוץ", "🤖", 6]] }],
+  duel: {
+    mode: "race",
+    start: r => { stopTimer(); newGame(null, [5, 10, 10][r.level]); view = "game"; nav = ["menu"]; render(); },
+    seconds: r => [45, 150, 130][r.level],
+    progress: () => { if (!G) return 0; if (G.done) return G.lost ? 0 : 1; let ok = 0, bad = 0, tot = 0; G.sol.forEach((row, r) => row.forEach((v, c) => { if (v) { tot++; if (G.cells[r][c] === 1) ok++; } else if (G.cells[r][c] === 1) bad++; })); return Math.min(.97, Math.max(0, (ok - bad) / tot)); },
+    over: () => !!G?.lost, lose: () => { G.done = true; G.lost = true; stopTimer(); },
+    active: () => view === "game", menu: () => { stopTimer(); view = "menu"; nav = []; render(); },
+  },
   preview: it => `<div class="mini ${it.id}">${[1, 0, 1, 1, 1, 1, 0, 1, 0].map(v => `<div class="nc ${v ? "f" : ""}"></div>`).join("")}</div>`,
 };
 
@@ -217,6 +226,7 @@ function finish() {
     p.done[G.level] = Math.max(p.done[G.level] || 0, stars);
   }
   p.solved = (p.solved || 0) + 1;
+  Hub.submitScore(p.solved, "solved"); Hub.submitScore(Object.values(p.done).reduce((a, b) => a + b, 0), "stars");
   Hub.save(); Hub.earn(coins); Hub.sound("win"); Hub.confetti();
   const pic = `<div class="reveal" style="grid-template-columns:repeat(${G.n},14px)">${G.cells.flat().map(v => `<i class="${v === 1 ? "f" : ""}"></i>`).join("")}</div>`;
   const hasNext = G.level !== null && G.level < PICS.length - 1;

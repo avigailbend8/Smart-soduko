@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Smart_Sudoku.Duel;
@@ -17,23 +17,32 @@ namespace Smart_Sudoku.Pages
     /// and start a game for everyone in the room.
     /// </summary>
     public sealed partial class DuelLobbyPage : BasePage
+    // אובייקט: DuelLobbyPage — חדר ההמתנה של הדו-קרב ברשת: מתחברים לשרת ולחדר, רואים מי בחדר, מדברים בצ'אט,
+    // רואים את טבלת האלופים, ומתחילים משחק לכל מי שבחדר.
     {
         private const string ServerSettingKey = "duel.server";
+        // אובייקט: ServerSettingKey — השם שתחתיו נשמרת כתובת השרת האחרונה.
         private const string RoomSettingKey = "duel.room";
+        // אובייקט: RoomSettingKey — השם שתחתיו נשמר קוד החדר האחרון.
 
         private static int selectedDifficulty;
+        // אובייקט: selectedDifficulty — רמת הקושי שנבחרה לדו-קרב.
 
         public DuelLobbyPage()
+        // פעולה: DuelLobbyPage (בנאי) — טוענת את העיצוב של העמוד מקובץ ה-XAML.
         {
             this.InitializeComponent();
         }
 
         private string PlayerName => Session.PlayerName ?? "אורח";
+        // אובייקט: PlayerName — השם שבו השחקן מופיע בדו-קרב ("אורח" אם אין חשבון).
 
         protected override void OnNavigatedTo(NavigationEventArgs e)
+        // פעולה: OnNavigatedTo — רצה כשנכנסים לעמוד: ממלאת את הכתובת והחדר האחרונים, ואם כבר מחוברים — מציגה את החדר.
         {
             base.OnNavigatedTo(e);
             var settings = ApplicationData.Current.LocalSettings.Values;
+            // אובייקט: settings — ההגדרות המקומיות של האפליקציה.
             ServerBox.Text = settings[ServerSettingKey] as string ?? "127.0.0.1";
             RoomBox.Text = settings[RoomSettingKey] as string ?? "";
             BuildDifficultyButtons();
@@ -46,6 +55,7 @@ namespace Smart_Sudoku.Pages
         }
 
         protected override void OnNavigatedFrom(NavigationEventArgs e)
+        // פעולה: OnNavigatedFrom — רצה כשיוצאים מהעמוד: מפסיקה להקשיב להודעות מהשרת.
         {
             base.OnNavigatedFrom(e);
             if (Client.Current is Client client)
@@ -53,6 +63,7 @@ namespace Smart_Sudoku.Pages
         }
 
         private void Subscribe(Client client)
+        // פעולה: Subscribe — מתחילה להקשיב ל"פעמונים" של הלקוח: שחקנים, תחילת משחק, ניתוק, טבלת אלופים, צ'אט והזמנות.
         {
             client.PlayersUpdated += OnPlayersUpdated;
             client.GameStarted += OnGameStarted;
@@ -63,6 +74,7 @@ namespace Smart_Sudoku.Pages
         }
 
         private void Unsubscribe(Client client)
+        // פעולה: Unsubscribe — מפסיקה להקשיב ל"פעמונים" של הלקוח.
         {
             client.PlayersUpdated -= OnPlayersUpdated;
             client.GameStarted -= OnGameStarted;
@@ -73,9 +85,13 @@ namespace Smart_Sudoku.Pages
         }
 
         private async void Connect_Click(object sender, RoutedEventArgs e)
+        // פעולה: Connect_Click — כפתור "התחברות": מתחברת לשרת ולחדר, שומרת את הכתובת והחדר לפעם הבאה, ומציגה את החדר.
+        // אם החיבור נכשל — מציגה הודעת שגיאה.
         {
             string host = ServerBox.Text.Trim();
+            // אובייקט: host — כתובת השרת שהוקלדה.
             string room = RoomBox.Text.Trim();
+            // אובייקט: room — קוד החדר שהוקלד (ריק = החדר הראשי).
             if (host.Length == 0)
             {
                 ShowError("צריך להקליד את כתובת השרת");
@@ -88,6 +104,7 @@ namespace Smart_Sudoku.Pages
             try
             {
                 var client = await Client.ConnectAsync(host, Client.DefaultPort, PlayerName, room);
+                // אובייקט: client — החיבור החדש לשרת.
                 var settings = ApplicationData.Current.LocalSettings.Values;
                 settings[ServerSettingKey] = host;
                 settings[RoomSettingKey] = room;
@@ -106,10 +123,12 @@ namespace Smart_Sudoku.Pages
         }
 
         private void ShowRoom()
+        // פעולה: ShowRoom — מסתירה את כרטיס ההתחברות ומציגה את החדר: השחקנים, הצ'אט וההודעות הקודמות.
         {
             ConnectCard.Visibility = Visibility.Collapsed;
             RoomCard.Visibility = Visibility.Visible;
             string room = Client.Current?.Room ?? "";
+            // אובייקט: room — קוד החדר.
             RoomTitle.Text = room.Length > 0 ? $"השחקנים בחדר \"{room}\"" : "השחקנים בחדר הראשי";
             ChatCard.Visibility = Visibility.Visible;
             ChatList.Children.Clear();
@@ -119,12 +138,15 @@ namespace Smart_Sudoku.Pages
         }
 
         private void BuildDifficultyButtons()
+        // פעולה: BuildDifficultyButtons — בונה כפתור לכל רמת קושי של הדו-קרב. הכפתור שנבחר מודגש.
         {
             DifficultyPanel.Children.Clear();
             foreach (var difficulty in Levels.Difficulties)
             {
                 bool selected = difficulty.Index == selectedDifficulty;
+                // אובייקט: selected — אמת אם זו הרמה שנבחרה.
                 var button = new Button
+                // אובייקט: button — כפתור רמת קושי.
                 {
                     Content = $"{difficulty.Emoji} {difficulty.Name}",
                     FontSize = 16,
@@ -144,14 +166,18 @@ namespace Smart_Sudoku.Pages
         }
 
         private void RefreshPlayers()
+        // פעולה: RefreshPlayers — בונה מחדש את רשימת השחקנים בחדר (מה כל אחד עושה), וקובעת אם אפשר ללחוץ Start.
         {
             var players = Client.Current?.Players ?? new List<Player>();
+            // אובייקט: players — השחקנים בחדר.
             PlayersList.Children.Clear();
 
             foreach (var player in players)
             {
                 bool me = player.Name == PlayerName;
+                // אובייקט: me — אמת אם השורה היא שלי.
                 var row = new Grid
+                // אובייקט: row — שורה של שחקן אחד: השם והמצב.
                 {
                     Background = Res(me ? "SelectedCellBrush" : "RelatedCellBrush"),
                     CornerRadius = new CornerRadius(12),
@@ -168,6 +194,7 @@ namespace Smart_Sudoku.Pages
                     Foreground = Res("BerryBrush"),
                 });
                 var status = new TextBlock
+                // אובייקט: status — הטקסט של מצב השחקן.
                 {
                     Text = StatusText(player.Status),
                     FontSize = 16,
@@ -180,6 +207,7 @@ namespace Smart_Sudoku.Pages
             }
 
             bool someonePlaying = players.Any(p => p.Status == PlayerStatus.Playing);
+            // אובייקט: someonePlaying — אמת אם כבר רץ משחק בחדר.
             StartButton.IsEnabled = players.Count >= 2 && !someonePlaying;
             if (someonePlaying)
                 RoomHint.Text = "משחק כבר רץ בחדר — חכו שייגמר ואז תוכלו להצטרף לסיבוב הבא.";
@@ -190,6 +218,7 @@ namespace Smart_Sudoku.Pages
         }
 
         private static string StatusText(string status)
+        // פעולה: StatusText — הופכת מצב של שחקן לטקסט עם אימוג'י: משחק, סיים או מחכה.
         {
             if (status == PlayerStatus.Playing)
                 return "משחק/ת 🎮";
@@ -199,6 +228,7 @@ namespace Smart_Sudoku.Pages
         }
 
         private void ShowLeaderboard(List<LeaderboardEntry> top)
+        // פעולה: ShowLeaderboard — מציגה את טבלת האלופים של השרת, עם מדליות לשלושת הראשונים.
         {
             LeaderboardList.Children.Clear();
             if (top.Count == 0)
@@ -212,9 +242,11 @@ namespace Smart_Sudoku.Pages
             }
 
             int place = 1;
+            // אובייקט: place — המקום בטבלה.
             foreach (var entry in top)
             {
                 string medal = Medal(place);
+                // אובייקט: medal — המדליה או מספר המקום.
                 LeaderboardList.Children.Add(new TextBlock
                 {
                     Text = $"{medal}  {entry.Name} — {entry.Wins} ניצחונות מתוך {entry.GamesPlayed} · שיא {entry.BestScore}",
@@ -229,6 +261,7 @@ namespace Smart_Sudoku.Pages
         }
 
         private async void Start_Click(object sender, RoutedEventArgs e)
+        // פעולה: Start_Click — כפתור Start: מבקשת מהשרת להתחיל דו-קרב לכל מי שבחדר (ובקבוצות אם סימנו).
         {
             if (Client.Current is Client client)
             {
@@ -238,12 +271,14 @@ namespace Smart_Sudoku.Pages
         }
 
         private async void Leaderboard_Click(object sender, RoutedEventArgs e)
+        // פעולה: Leaderboard_Click — כפתור "טבלת אלופים": מבקשת אותה מהשרת.
         {
             if (Client.Current is Client client)
                 await client.GetLeaderboardAsync();
         }
 
         private void Leave_Click(object sender, RoutedEventArgs e)
+        // פעולה: Leave_Click — כפתור "יציאה": מתנתקת מהשרת וחוזרת לכרטיס ההתחברות.
         {
             if (Client.Current is Client client)
             {
@@ -259,9 +294,12 @@ namespace Smart_Sudoku.Pages
         // ---------- Chat ----------
 
         private void AddChatLine(ChatMessage line)
+        // פעולה: AddChatLine — מוסיפה שורת צ'אט: השם מודגש (שלי בצבע אחר), ואחריו ההודעה. גוללת למטה.
         {
             bool me = line.Name == PlayerName;
+            // אובייקט: me — אמת אם אני כתבתי את ההודעה.
             var text = new TextBlock { FontSize = 16, TextWrapping = TextWrapping.Wrap, Foreground = Res("BerryBrush") };
+            // אובייקט: text — שורת הטקסט של ההודעה.
             text.Inlines.Add(new Windows.UI.Xaml.Documents.Run { Text = line.Name + ": ", FontWeight = FontWeights.Bold, Foreground = Res(me ? "RoseBrush" : "BerryBrush") });
             text.Inlines.Add(new Windows.UI.Xaml.Documents.Run { Text = line.Text });
             ChatList.Children.Add(text);
@@ -269,8 +307,10 @@ namespace Smart_Sudoku.Pages
         }
 
         private async void SendChat_Click(object sender, RoutedEventArgs e)
+        // פעולה: SendChat_Click — כפתור "שליחה": שולחת את מה שהוקלד לצ'אט.
         {
             string text = ChatBox.Text.Trim();
+            // אובייקט: text — מה שהוקלד, בלי רווחים מיותרים.
             if (text.Length == 0 || Client.Current is not Client client)
                 return;
             ChatBox.Text = "";
@@ -278,6 +318,7 @@ namespace Smart_Sudoku.Pages
         }
 
         private void ChatBox_KeyDown(object sender, Windows.UI.Xaml.Input.KeyRoutedEventArgs e)
+        // פעולה: ChatBox_KeyDown — כשלוחצים Enter בתיבת הצ'אט — שולחים.
         {
             if (e.Key == Windows.System.VirtualKey.Enter)
                 SendChat_Click(sender, e);
@@ -286,8 +327,10 @@ namespace Smart_Sudoku.Pages
         // ---------- Invitations ----------
 
         private InviteMessage? pendingInvite;
+        // אובייקט: pendingInvite — הזמנה שהגיעה ועוד לא ענו עליה.
 
         private void JoinInvite_Click(object sender, RoutedEventArgs e)
+        // פעולה: JoinInvite_Click — כפתור "להצטרף": עוברת לחדר של החבר שהזמין.
         {
             if (pendingInvite == null)
                 return;
@@ -304,6 +347,7 @@ namespace Smart_Sudoku.Pages
         }
 
         private void DismissInvite_Click(object sender, RoutedEventArgs e)
+        // פעולה: DismissInvite_Click — כפתור "לא עכשיו": סוגרת את ההזמנה.
         {
             InviteBanner.Visibility = Visibility.Collapsed;
             pendingInvite = null;
@@ -311,6 +355,7 @@ namespace Smart_Sudoku.Pages
 
         // Overrides the back button of BasePage: leave the room first, then go back
         protected override void BackButton_Click(object sender, RoutedEventArgs e)
+        // פעולה: BackButton_Click — משנה את כפתור "חזרה" של BasePage: קודם יוצאים מהחדר, ואז חוזרים.
         {
             Leave_Click(sender, e);
             base.BackButton_Click(sender, e);
@@ -319,12 +364,16 @@ namespace Smart_Sudoku.Pages
         // ---------- Server events (background thread -> UI thread) ----------
 
         private async void OnPlayersUpdated() =>
+        // פעולה: OnPlayersUpdated — כשמגיעה רשימת שחקנים מהשרת: מעדכנת את הרשימה במסך.
+        // (הודעות מהשרת מגיעות "ברקע", ולכן מעבירים אותן למסך בעזרת Dispatcher.)
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, RefreshPlayers);
 
         private async void OnChatReceived(ChatMessage line) =>
+        // פעולה: OnChatReceived — כשמגיעה הודעת צ'אט: מוסיפה אותה למסך.
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => AddChatLine(line));
 
         private async void OnInviteReceived(InviteMessage invite) =>
+        // פעולה: OnInviteReceived — כשמגיעה הזמנה: מציגה פס הזמנה עם צליל.
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
             {
                 pendingInvite = invite;
@@ -334,12 +383,15 @@ namespace Smart_Sudoku.Pages
             });
 
         private async void OnLeaderboardReceived(List<LeaderboardEntry> top) =>
+        // פעולה: OnLeaderboardReceived — כשמגיעה טבלת האלופים: מציגה אותה.
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => ShowLeaderboard(top));
 
         private async void OnGameStarted(DuelGame game) =>
+        // פעולה: OnGameStarted — כשהדו-קרב מתחיל: עוברת למסך המשחק עם הלוח.
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () => Frame.Navigate(typeof(GamePage), game));
 
         private async void OnDisconnected() =>
+        // פעולה: OnDisconnected — כשהחיבור לשרת נותק: חוזרת לכרטיס ההתחברות ומציגה הודעה.
             await Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
             {
                 RoomCard.Visibility = Visibility.Collapsed;
@@ -348,6 +400,7 @@ namespace Smart_Sudoku.Pages
             });
 
         private void ShowError(string message)
+        // פעולה: ShowError — מציגה הודעת שגיאה בכרטיס ההתחברות.
         {
             ConnectError.Text = message;
             ConnectError.Visibility = Visibility.Visible;

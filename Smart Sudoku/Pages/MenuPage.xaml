@@ -7,9 +7,12 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="Transparent">
+    <!-- אובייקט: MenuPage — התפריט הראשי (מסך הפתיחה). יורש מ-BasePage, והרקע שלו שקוף. -->
 
     <local:BasePage.Resources>
+    <!-- אובייקט: Resources — סגנונות ואנימציות שרק המסך הזה משתמש בהם. -->
         <Style x:Key="Deco" TargetType="TextBlock">
+        <!-- אובייקט: Deco — הסגנון של הקישוטים הקטנים (לבבות, פרחים ונצנוצים). -->
             <Setter Property="FontFamily" Value="Segoe UI Symbol" />
             <Setter Property="Foreground" Value="{StaticResource RoseBrush}" />
             <Setter Property="VerticalAlignment" Value="Center" />
@@ -17,62 +20,84 @@
 
         <!-- "Let's play" panel pops in -->
         <Storyboard x:Name="ShowPlayStoryboard">
+        <!-- אובייקט: ShowPlayStoryboard — האנימציה שבה אזור "בואו נשחק" מופיע: מתבהר וגדל עם קפיצה קטנה. -->
             <DoubleAnimation Storyboard.TargetName="PlayPanel" Storyboard.TargetProperty="Opacity"
                              From="0" To="1" Duration="0:0:0.45" />
+                             <!-- אובייקט: DoubleAnimation — משנה את השקיפות של PlayPanel מ-0 (שקוף) ל-1 (גלוי). -->
             <DoubleAnimation Storyboard.TargetName="PlayScale" Storyboard.TargetProperty="ScaleX"
                              From="0.8" To="1" Duration="0:0:0.6">
+                             <!-- אובייקט: DoubleAnimation — מגדילה את הרוחב (ScaleX) מ-80% ל-100%. -->
                 <DoubleAnimation.EasingFunction>
                     <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                    <!-- אובייקט: BackEase — "קפיצה" קטנה בסוף ההגדלה. -->
                 </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
             <DoubleAnimation Storyboard.TargetName="PlayScale" Storyboard.TargetProperty="ScaleY"
                              From="0.8" To="1" Duration="0:0:0.6">
+                             <!-- אובייקט: DoubleAnimation — מגדילה את הגובה (ScaleY) מ-80% ל-100%. -->
                 <DoubleAnimation.EasingFunction>
                     <BackEase EasingMode="EaseOut" Amplitude="0.4" />
+                    <!-- אובייקט: BackEase — "קפיצה" קטנה בסוף ההגדלה. -->
                 </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
         </Storyboard>
 
         <!-- Hearts float gently and sparkles twinkle -->
         <Storyboard x:Name="DecorStoryboard" RepeatBehavior="Forever">
+        <!-- אובייקט: DecorStoryboard — אנימציה שחוזרת לנצח: הלבבות מרחפים והנצנוצים מהבהבים. -->
             <DoubleAnimation Storyboard.TargetName="LeftHeartMove" Storyboard.TargetProperty="Y"
                              From="0" To="-10" Duration="0:0:1.2" AutoReverse="True">
+                             <!-- אובייקט: DoubleAnimation — הלב השמאלי עולה ויורד. -->
                 <DoubleAnimation.EasingFunction>
                     <SineEase EasingMode="EaseInOut" />
+                    <!-- אובייקט: SineEase — תנועה רכה (לאט בהתחלה ובסוף). -->
                 </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
             <DoubleAnimation Storyboard.TargetName="RightHeartMove" Storyboard.TargetProperty="Y"
                              From="-10" To="0" Duration="0:0:1.2" AutoReverse="True">
+                             <!-- אובייקט: DoubleAnimation — הלב הימני עולה ויורד (הפוך לשמאלי). -->
                 <DoubleAnimation.EasingFunction>
                     <SineEase EasingMode="EaseInOut" />
+                    <!-- אובייקט: SineEase — תנועה רכה. -->
                 </DoubleAnimation.EasingFunction>
             </DoubleAnimation>
             <DoubleAnimation Storyboard.TargetName="TopSparkles" Storyboard.TargetProperty="Opacity"
                              From="1" To="0.45" Duration="0:0:1.2" AutoReverse="True" />
+                             <!-- אובייקט: DoubleAnimation — שורת הנצנוצים העליונה מהבהבת. -->
             <DoubleAnimation Storyboard.TargetName="BottomSparkles" Storyboard.TargetProperty="Opacity"
                              From="0.45" To="1" Duration="0:0:1.2" AutoReverse="True" />
+                             <!-- אובייקט: DoubleAnimation — שורת הנצנוצים התחתונה מהבהבת (הפוך לעליונה). -->
         </Storyboard>
     </local:BasePage.Resources>
 
     <ScrollViewer VerticalScrollBarVisibility="Auto">
+    <!-- אובייקט: ScrollViewer — מאפשר לגלול כשהחלון קטן. -->
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="24,40" Spacing="16" MaxWidth="560">
+        <!-- אובייקט: StackPanel — העמודה של כל התפריט, במרכז המסך. -->
 
             <Image Source="ms-appx:///Assets/Square150x150Logo.png" Width="130" Height="130" />
+            <!-- אובייקט: Image — הלוגו של המשחק. -->
 
             <TextBlock Text="Smart Sudoku" Style="{StaticResource TitleText}" FontSize="46" />
+            <!-- אובייקט: TextBlock — שם המשחק "Smart Sudoku". -->
             <TextBlock Text="סודוקו חכם ומתוק 💕" Style="{StaticResource SubtitleText}" Margin="0,0,0,16" />
+            <!-- אובייקט: TextBlock — כותרת משנה מתוקה. -->
 
             <!-- Step 1: choose how to play -->
             <StackPanel x:Name="ChoicePanel" Spacing="16" Width="380">
+            <!-- אובייקט: ChoicePanel — שלב 1: שלושת הכפתורים לבחירה איך לשחק. -->
                 <Button Content="התחבר למשתמש קיים"
                         HorizontalAlignment="Stretch"
                         Click="SignInButton_Click" />
+                        <!-- אובייקט: Button — כפתור "התחבר למשתמש קיים" (SignInButton_Click). -->
                 <Button Content="הרשמה למשתמש חדש"
                         HorizontalAlignment="Stretch"
                         Click="RegisterButton_Click" />
+                        <!-- אובייקט: Button — כפתור "הרשמה למשתמש חדש" (RegisterButton_Click). -->
                 <Button Content="המשך כאורח"
                         HorizontalAlignment="Stretch"
                         Click="GuestButton_Click" />
+                        <!-- אובייקט: Button — כפתור "המשך כאורח" (GuestButton_Click). -->
             </StackPanel>
 
             <!-- Step 2: "Let's play" with cute pink decorations -->
@@ -81,26 +106,37 @@
                         Visibility="Collapsed"
                         Opacity="0"
                         RenderTransformOrigin="0.5,0.5">
+                        <!-- אובייקט: PlayPanel — שלב 2: כל מה שמופיע אחרי הבחירה (מוסתר בהתחלה, ומופיע עם אנימציה). -->
                 <StackPanel.RenderTransform>
+                <!-- אובייקט: RenderTransform — האפשרות להגדיל ולהקטין את האזור. -->
                     <ScaleTransform x:Name="PlayScale" />
+                    <!-- אובייקט: PlayScale — ההגדלה של האזור, שהאנימציה משנה. -->
                 </StackPanel.RenderTransform>
 
                 <StackPanel x:Name="TopSparkles" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="18">
+                <!-- אובייקט: TopSparkles — שורת קישוטים מעל הברכה. -->
                     <TextBlock Text="✿" FontSize="22" Style="{StaticResource Deco}" Foreground="{StaticResource DecoBrush}" />
+                    <!-- אובייקט: TextBlock — קישוט: פרח. -->
                     <TextBlock Text="✦" FontSize="16" Style="{StaticResource Deco}" Foreground="{StaticResource SoftPinkBrush}" />
+                    <!-- אובייקט: TextBlock — קישוט: נצנוץ. -->
                     <TextBlock Text="♥" FontSize="26" Style="{StaticResource Deco}" />
+                    <!-- אובייקט: TextBlock — קישוט: לב. -->
                     <TextBlock Text="✦" FontSize="16" Style="{StaticResource Deco}" Foreground="{StaticResource SoftPinkBrush}" />
+                    <!-- אובייקט: TextBlock — קישוט: נצנוץ. -->
                     <TextBlock Text="✿" FontSize="22" Style="{StaticResource Deco}" Foreground="{StaticResource DecoBrush}" />
+                    <!-- אובייקט: TextBlock — קישוט: פרח. -->
                 </StackPanel>
 
                 <!-- The player's profile picture (filled in code) -->
                 <ContentControl x:Name="AvatarHolder" HorizontalAlignment="Center" />
+                <!-- אובייקט: AvatarHolder — המקום של תמונת הפרופיל. הקוד שם בו את העיגול עם התמונה. -->
 
                 <TextBlock x:Name="GreetingText"
                            Style="{StaticResource SubtitleText}"
                            Foreground="{StaticResource BerryBrush}"
                            FontSize="22"
                            FontWeight="SemiBold" />
+                           <!-- אובייקט: GreetingText — הברכה ("שלום, ..." או "משחקים כאורח"). -->
 
                 <!-- Player level and this week's league -->
                 <Border HorizontalAlignment="Center"
@@ -109,17 +145,29 @@
                         BorderThickness="1"
                         CornerRadius="16"
                         Padding="16,6">
+                        <!-- אובייקט: Border — "תווית" מעוגלת לרמה ולליגה. -->
                     <TextBlock x:Name="LevelChip"
                                FontSize="16"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource BerryBrush}"
                                FlowDirection="RightToLeft" />
+                               <!-- אובייקט: LevelChip — הטקסט של הרמה והליגה של השבוע. -->
                 </Border>
 
+                <Button x:Name="SignOutButton"
+                        HorizontalAlignment="Center"
+                        FontSize="15"
+                        Padding="20,6"
+                        Click="SwitchUserButton_Click" />
+                        <!-- אובייקט: SignOutButton — כפתור "התנתקות" (או "יציאה ממצב אורח"): מנתק וחוזר למסך הבחירה (SwitchUserButton_Click). -->
+
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="18">
+                <!-- אובייקט: StackPanel — שורה של שני לבבות מרחפים ובאמצע כפתור "בואו נשחק". -->
                     <TextBlock Text="♥" FontSize="34" Style="{StaticResource Deco}" Foreground="{StaticResource DecoBrush}">
+                    <!-- אובייקט: TextBlock — הלב השמאלי. -->
                         <TextBlock.RenderTransform>
                             <TranslateTransform x:Name="LeftHeartMove" />
+                            <!-- אובייקט: LeftHeartMove — ההזזה של הלב השמאלי למעלה ולמטה (האנימציה משנה אותה). -->
                         </TextBlock.RenderTransform>
                     </TextBlock>
 
@@ -132,20 +180,29 @@
                             BorderBrush="{StaticResource RoseBrush}"
                             Foreground="{StaticResource RoseBrush}"
                             Click="LetsPlayButton_Click" />
+                            <!-- אובייקט: Button — כפתור "Let's play" הגדול שעובר לבחירת השלבים (LetsPlayButton_Click). -->
 
                     <TextBlock Text="♥" FontSize="34" Style="{StaticResource Deco}" Foreground="{StaticResource DecoBrush}">
+                    <!-- אובייקט: TextBlock — הלב הימני. -->
                         <TextBlock.RenderTransform>
                             <TranslateTransform x:Name="RightHeartMove" />
+                            <!-- אובייקט: RightHeartMove — ההזזה של הלב הימני. -->
                         </TextBlock.RenderTransform>
                     </TextBlock>
                 </StackPanel>
 
                 <StackPanel x:Name="BottomSparkles" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="14">
+                <!-- אובייקט: BottomSparkles — שורת קישוטים מתחת לכפתור. -->
                     <TextBlock Text="✦" FontSize="14" Style="{StaticResource Deco}" Foreground="{StaticResource SoftPinkBrush}" />
+                    <!-- אובייקט: TextBlock — קישוט: נצנוץ. -->
                     <TextBlock Text="❀" FontSize="20" Style="{StaticResource Deco}" />
+                    <!-- אובייקט: TextBlock — קישוט: פרח. -->
                     <TextBlock Text="✦" FontSize="14" Style="{StaticResource Deco}" Foreground="{StaticResource SoftPinkBrush}" />
+                    <!-- אובייקט: TextBlock — קישוט: נצנוץ. -->
                     <TextBlock Text="❀" FontSize="20" Style="{StaticResource Deco}" Foreground="{StaticResource DecoBrush}" />
+                    <!-- אובייקט: TextBlock — קישוט: פרח. -->
                     <TextBlock Text="✦" FontSize="14" Style="{StaticResource Deco}" Foreground="{StaticResource SoftPinkBrush}" />
+                    <!-- אובייקט: TextBlock — קישוט: נצנוץ. -->
                 </StackPanel>
 
                 <Button x:Name="ContinueButton"
@@ -154,22 +211,28 @@
                         Padding="26,10"
                         Visibility="Collapsed"
                         Click="ContinueButton_Click" />
+                        <!-- אובייקט: ContinueButton — כפתור "להמשיך" משחק שמור (מופיע רק כשיש משחק שמור) (ContinueButton_Click). -->
 
                 <!-- Everything else to play, three in a row -->
                 <Grid FlowDirection="RightToLeft" ColumnSpacing="10" RowSpacing="10" Width="520">
+                <!-- אובייקט: Grid — טבלה של כל שאר הכפתורים, 3 בכל שורה. -->
                     <Grid.Resources>
+                    <!-- אובייקט: Resources — סגנון שחל רק על הכפתורים שבטבלה הזאת. -->
                         <Style TargetType="Button" BasedOn="{StaticResource WhiteButton}">
+                        <!-- אובייקט: Style — כפתורים קצת קטנים יותר, שנמתחים לכל רוחב העמודה. -->
                             <Setter Property="FontSize" Value="17" />
                             <Setter Property="Padding" Value="10,10" />
                             <Setter Property="HorizontalAlignment" Value="Stretch" />
                         </Style>
                     </Grid.Resources>
                     <Grid.ColumnDefinitions>
+                    <!-- אובייקט: ColumnDefinitions — שלוש עמודות ברוחב שווה. -->
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
+                    <!-- אובייקט: RowDefinitions — חמש שורות בגובה לפי התוכן. -->
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -179,38 +242,50 @@
 
                     <!-- Duel against the computer: the menu lets the player pick an opponent -->
                     <Button Grid.Row="4" Grid.ColumnSpan="3" Content="🤖 דו-קרב נגד המחשב">
+                    <!-- אובייקט: Button — כפתור "דו-קרב נגד המחשב" ברוחב כל השורה. לחיצה פותחת תפריט קטן לבחירת יריב. -->
                         <Button.Flyout>
+                        <!-- אובייקט: Flyout — התפריט הקטן שנפתח מתחת לכפתור. -->
                             <MenuFlyout Placement="Bottom">
+                            <!-- אובייקט: MenuFlyout — רשימת שלושת היריבים. -->
                                 <MenuFlyoutItem Text="🐣 רובי המתחיל · לוח קל" Tag="easy" Click="AiOpponent_Click" FlowDirection="RightToLeft" />
+                                <!-- אובייקט: MenuFlyoutItem — היריב הקל. ה-Tag="easy" אומר לקוד איזה יריב נבחר (AiOpponent_Click). -->
                                 <MenuFlyoutItem Text="🤖 רובוטית · לוח בינוני" Tag="medium" Click="AiOpponent_Click" FlowDirection="RightToLeft" />
+                                <!-- אובייקט: MenuFlyoutItem — היריב הבינוני (Tag="medium"). -->
                                 <MenuFlyoutItem Text="🧠 המוח · לוח קשה" Tag="hard" Click="AiOpponent_Click" FlowDirection="RightToLeft" />
+                                <!-- אובייקט: MenuFlyoutItem — היריב הקשה (Tag="hard"). -->
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
 
                     <Button x:Name="DailyButton" Click="DailyButton_Click" />
+                    <!-- אובייקט: DailyButton — כפתור "אתגר יומי". הקוד כותב עליו גם את הרצף (DailyButton_Click). -->
                     <Button Grid.Column="1" Content="🗺️ מסע הרפתקאות" Click="AdventureButton_Click" />
+                    <!-- אובייקט: Button — כפתור "מסע הרפתקאות" (AdventureButton_Click). -->
                     <Button Grid.Column="2" Content="⚔️ דו-קרב ברשת" Click="DuelButton_Click" />
+                    <!-- אובייקט: Button — כפתור "דו-קרב ברשת" (DuelButton_Click). -->
 
                     <Button Grid.Row="1" Content="🧩 סודוקו קטן" Click="MiniButton_Click" />
+                    <!-- אובייקט: Button — כפתור "סודוקו קטן" (MiniButton_Click). -->
                     <Button Grid.Row="1" Grid.Column="1" Content="🧘 מצב זן" Click="ZenButton_Click" />
+                    <!-- אובייקט: Button — כפתור "מצב זן" (ZenButton_Click). -->
                     <Button Grid.Row="1" Grid.Column="2" x:Name="WheelButton" Click="WheelButton_Click" />
+                    <!-- אובייקט: WheelButton — כפתור "גלגל מזל". הקוד כותב עליו אם כבר סובבו היום (WheelButton_Click). -->
 
                     <Button Grid.Row="2" x:Name="MissionsButton" Click="MissionsButton_Click" />
+                    <!-- אובייקט: MissionsButton — כפתור "משימות". הקוד כותב עליו כמה פרסים מחכים (MissionsButton_Click). -->
                     <Button Grid.Row="2" Grid.Column="1" Content="🏅 הישגים" Click="AchievementsButton_Click" />
+                    <!-- אובייקט: Button — כפתור "הישגים" (AchievementsButton_Click). -->
                     <Button Grid.Row="2" Grid.Column="2" Content="📊 סטטיסטיקות" Click="StatsButton_Click" />
+                    <!-- אובייקט: Button — כפתור "סטטיסטיקות" (StatsButton_Click). -->
 
                     <Button Grid.Row="3" Content="🏆 טבלת שיאים" Click="LeaderboardButton_Click" />
+                    <!-- אובייקט: Button — כפתור "טבלת שיאים" (LeaderboardButton_Click). -->
                     <Button Grid.Row="3" Grid.Column="1" x:Name="FriendsButton" Content="👭 חברים" Click="FriendsButton_Click" />
+                    <!-- אובייקט: FriendsButton — כפתור "חברים". פעיל רק למשתמש רשום (FriendsButton_Click). -->
                     <Button Grid.Row="3" Grid.Column="2" Content="⚙️ הגדרות" Click="SettingsButton_Click" />
+                    <!-- אובייקט: Button — כפתור "הגדרות" (SettingsButton_Click). -->
                 </Grid>
 
-                <Button Content="החלף משתמש"
-                        HorizontalAlignment="Center"
-                        FontSize="16"
-                        Padding="22,8"
-                        Margin="0,12,0,0"
-                        Click="SwitchUserButton_Click" />
             </StackPanel>
         </StackPanel>
     </ScrollViewer>

@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>פונג גלקטי · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/arcade.js"></script>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const COURTS = [
+  { id: "ct-neon", name: "ניאון", price: 0, hue: 265, me: "#5CF2FF", ai: "#FF5CC8", ball: "#FFFFFF" },
+  { id: "ct-sunset", name: "שקיעה", price: 100, hue: 330, me: "#FFD166", ai: "#EF476F", ball: "#FFF4E0" },
+  { id: "ct-mint", name: "מנטה", price: 100, hue: 170, me: "#80ED99", ai: "#57CC99", ball: "#F1FFF5" },
+  { id: "ct-gold", name: "זהב שחור", price: 180, hue: 40, me: "#FFD86B", ai: "#C0C0C0", ball: "#FFE9A8" },
+];
+const CFG = {
+  id: "pong", title: "פונג גלקטי", startCoins: 40, startStock: { big: 1 },
+  items: [Hub.theme("indigo", 0), Hub.theme("night", 120), Hub.theme("rose", 100), ...COURTS.map(c => ({ ...c, slot: "court" })),
+    { id: "big3", consumable: true, stockId: "big", amount: 3, name: "3 מחבטים רחבים", desc: "מחבט רחב יותר לכל המשחק", price: 35 }],
+  storeGroups: [{ slot: "court", title: "מגרשים" }, { slot: "theme", title: "ערכות צבע" }, { consumable: true, title: "עזרים" }],
+  preview: it => it.consumable ? `<span style="font-size:38px">↔</span>` : `<div style="width:100%;height:100%;display:grid;place-items:center;background:hsl(${it.hue},50%,10%)"><i style="width:50px;height:6px;border-radius:4px;background:${it.ai};box-shadow:0 0 8px ${it.ai}"></i><i style="width:8px;height:8px;border-radius:50%;background:${it.ball}"></i><i style="width:50px;height:6px;border-radius:4px;background:${it.me};box-shadow:0 0 8px ${it.me}"></i></div>`,
+};
+const { rr, spaceBg, stars, drawStars } = Arcade;
+const WIN = 7;
+function serve(S, w, h, toMe) { const a = (Math.random() - .5) * .9; S.ball = { x: w / 2, y: h / 2, vx: Math.sin(a) * 260, vy: (toMe ? 1 : -1) * Math.cos(a) * 260, wait: .8 }; S.trail = []; }
+
+Arcade.run(CFG, {
+  tagline: "המחבט שלכם למטה, של ה-AI למעלה. הראשון ל-7 נקודות מנצח. איפה שהכדור פוגע במחבט קובע את הזווית.",
+  play: "להגיש", ratio: 1.45, unit: "נק׳", stageBg: "#0b0820", targets: [30, 60, 100],
+  bots: [["קוואזר", "🛸", 150], ["אוריון", "👾", 90], ["ניצוץ", "🤖", 40]],
+  powers: [{ id: "big", label: "↔ מחבט רחב" }], pointerMove: true,
+  pad: [["left", "◀", "שמאלה"], ["right", "▶", "ימינה"]],
+  keysText: "חצים או A/D · בטלפון: גוררים את האצבע",
+  readyText: "ניקוד: 10 על כל נקודה שלכם, ועוד 50 על ניצחון במשחק.",
+  help: `<h2>המטרה</h2><p>להגיע ל-7 נקודות לפני ה-AI. נקודה = הכדור עבר את המחבט של היריב.</p><h2>שליטה</h2><ul><li>חצים או גרירה. פגיעה בקצה המחבט שולחת את הכדור בזווית חדה.</li><li>הכדור מאיץ בכל חבטה. ה-AI משתפר ככל שהמשחק מתקדם.</li></ul>`,
+  init(S, w, h) {
+    S.pw = w * (S.power.big ? .3 : .22); S.me = w / 2; S.ai = w / 2; S.myPts = 0; S.aiPts = 0; S.sky = stars(80, w, h); S.hits = 0; S.parts = [];
+    serve(S, w, h, Math.random() < .5);
+  },
+  update(S, dt, w, h) {
+    if (S.pointer) S.me += (S.tapX - S.me) * Math.min(1, dt * 18);
+    if (S.left) S.me -= 520 * dt; if (S.right) S.me += 520 * dt;
+    S.me = Math.max(S.pw / 2, Math.min(w - S.pw / 2, S.me));
+    const b = S.ball, skill = Math.min(1, .55 + (S.myPts + S.aiPts) * .04);
+    const aim = b.vy < 0 ? b.x + Math.sin(S.t * 2.3) * S.pw * (.6 - skill * .4) : w / 2; // the AI follows the ball, a little late
+    S.ai += Math.max(-1, Math.min(1, (aim - S.ai) / 30)) * (300 + skill * 160) * dt;
+    S.ai = Math.max(S.pw / 2, Math.min(w - S.pw / 2, S.ai));
+    if (b.wait > 0) { b.wait -= dt; return; }
+    b.x += b.vx * dt; b.y += b.vy * dt;
+    S.trail.push({ x: b.x, y: b.y }); if (S.trail.length > 14) S.trail.shift();
+    if (b.x < 8 || b.x > w - 8) { b.vx = -b.vx; b.x = Math.max(8, Math.min(w - 8, b.x)); Hub.sound("tap"); }
+    const myY = h - 30, aiY = 30;
+    const bounce = (px, toUp) => { const k = (b.x - px) / (S.pw / 2), sp = Math.min(720, Math.hypot(b.vx, b.vy) * 1.06); b.vx = Math.sin(k * 1.05) * sp; b.vy = (toUp ? -1 : 1) * Math.cos(k * 1.05) * sp; Hub.sound("move"); for (let i = 0; i < 10; i++) S.parts.push({ x: b.x, y: b.y, vx: (Math.random() - .5) * 200, vy: (toUp ? -1 : 1) * Math.random() * 160, life: .4 }); };
+    if (b.vy > 0 && b.y > myY - 14 && b.y < myY + 6 && Math.abs(b.x - S.me) < S.pw / 2 + 8) { b.y = myY - 14; bounce(S.me, true); S.hits++; }
+    if (b.vy < 0 && b.y < aiY + 14 && b.y > aiY - 6 && Math.abs(b.x - S.ai) < S.pw / 2 + 8) { b.y = aiY + 14; bounce(S.ai, false); }
+    if (b.y > h + 20) { S.aiPts++; Hub.sound("wrong"); if (S.aiPts >= WIN) { S.over = true; return; } serve(S, w, h, false); }
+    if (b.y < -20) { S.myPts++; Hub.sound("coin"); if (S.myPts >= WIN) { S.won = true; S.over = true; return; } serve(S, w, h, true); }
+    for (const p of S.parts) { p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; } S.parts = S.parts.filter(p => p.life > 0);
+  },
+  draw(c, S, w, h, t) {
+    const ct = Hub.equipped("court");
+    spaceBg(c, w, h, ct.hue); drawStars(c, S.sky, w, h, 0, t);
+    c.setLineDash([10, 12]); c.strokeStyle = "rgba(255,255,255,.18)"; c.lineWidth = 2; c.beginPath(); c.moveTo(0, h / 2); c.lineTo(w, h / 2); c.stroke(); c.setLineDash([]);
+    c.strokeStyle = "rgba(255,255,255,.1)"; c.beginPath(); c.arc(w / 2, h / 2, 50, 0, 7); c.stroke();
+    c.fillStyle = "rgba(255,255,255,.14)"; c.font = `700 ${Math.round(w * .2)}px "Frank Ruhl Libre", serif`; c.textAlign = "center"; c.textBaseline = "middle";
+    c.fillText(S.aiPts, w / 2, h * .28); c.fillText(S.myPts, w / 2, h * .72);
+    for (const [x, y, col] of [[S.ai, 30, ct.ai], [S.me, h - 30, ct.me]]) { c.shadowColor = col; c.shadowBlur = 18; c.fillStyle = col; rr(c, x - S.pw / 2, y - 6, S.pw, 12, 6); c.fill(); }
+    c.shadowBlur = 0;
+    S.trail.forEach((p, i) => { c.globalAlpha = i / S.trail.length * .4; c.fillStyle = ct.ball; c.beginPath(); c.arc(p.x, p.y, 7 * i / S.trail.length, 0, 7); c.fill(); });
+    c.globalAlpha = 1; c.shadowColor = ct.ball; c.shadowBlur = 16; c.fillStyle = ct.ball; c.beginPath(); c.arc(S.ball.x, S.ball.y, 8, 0, 7); c.fill(); c.shadowBlur = 0;
+    for (const p of S.parts) { c.globalAlpha = p.life / .4; c.fillStyle = ct.ball; c.fillRect(p.x, p.y, 3, 3); } c.globalAlpha = 1;
+    c.font = "500 13px Heebo"; c.fillStyle = "rgba(255,255,255,.6)"; c.fillText("🤖 AI", 40, 56); c.fillText(Hub.user.avatar + " את/ה", 48, h - 56);
+  },
+  input(S, name, down) { if (name === "left") S.left = down; if (name === "right") S.right = down; },
+  hud: S => [["את/ה", S.myPts], ["AI", S.aiPts]],
+  score: S => S.myPts * 10 + (S.won ? 50 : 0), coins: S => S.myPts * 3 + (S.won ? 25 : 0),
+  resultTitle: S => S.won ? `ניצחת ${S.myPts}:${S.aiPts}! 🏓` : `ה-AI ניצח ${S.aiPts}:${S.myPts}`,
+});
+</script>
+</body>
+</html>

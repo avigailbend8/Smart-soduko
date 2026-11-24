@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>איקס עיגול על · Mind Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="../shared/hub.css">
+<script src="../shared/hub.js"></script>
+<script src="../shared/duo.js"></script>
+<style>
+.ut { width: min(100%, 520px, 72vh); margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px; border-radius: 22px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow); direction: ltr; }
+.sb { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 5px; border-radius: 12px; background: color-mix(in srgb, var(--soft) 60%, transparent); position: relative; transition: box-shadow .25s, opacity .25s; }
+.sb.live { box-shadow: 0 0 0 2.5px var(--accent), 0 0 18px -4px var(--accent); }
+.sb.dim { opacity: .55; }
+.sb button { aspect-ratio: 1; border: 0; border-radius: 6px; background: var(--card); padding: 0; cursor: pointer; display: grid; place-items: center; font: 700 clamp(12px, 4.4vw, 24px) var(--body); }
+.sb button:disabled { cursor: default; }
+.x { color: var(--xc); } .o { color: var(--oc); }
+.sb .big { position: absolute; inset: 0; display: grid; place-items: center; font: 700 clamp(48px, 18vw, 110px) var(--body); border-radius: 12px; background: color-mix(in srgb, var(--card) 70%, transparent); backdrop-filter: blur(1px); animation: pop .35s cubic-bezier(.3,1.6,.5,1); pointer-events: none; }
+.sb .last { box-shadow: inset 0 0 0 2px var(--gold); }
+@keyframes pop { from { transform: scale(.3); opacity: 0; } }
+.who { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const MARKS = [
+  { id: "mk-classic", name: "קלאסי", price: 0, x: "#E0435A", o: "#2F7DD1", xs: "✕", os: "◯" },
+  { id: "mk-space", name: "חלל", price: 100, x: "#9B7BFF", o: "#FFB86B", xs: "★", os: "☾" },
+  { id: "mk-garden", name: "גינה", price: 110, x: "#E06C9F", o: "#4E9A6A", xs: "✿", os: "❀" },
+  { id: "mk-fire", name: "אש ומים", price: 130, x: "#FF6B35", o: "#2EC4B6", xs: "▲", os: "●" },
+];
+const CFG = {
+  id: "ultimate", title: "איקס עיגול על", startCoins: 40,
+  items: [Hub.theme("slate", 0), Hub.theme("rose", 100), Hub.theme("indigo", 100), Hub.theme("night", 160), ...MARKS.map(x => ({ ...x, slot: "marks" }))],
+  storeGroups: [{ slot: "marks", title: "סימנים" }, { slot: "theme", title: "ערכות צבע" }],
+  preview: it => `<span style="font:700 34px Heebo;color:${it.x}">${it.xs}</span><span style="font:700 34px Heebo;color:${it.o};margin-inline-start:8px">${it.os}</span>`,
+};
+const LINES = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
+const winner = a => { for (const [x, y, z] of LINES) if (a[x] && a[x] < 3 && a[x] === a[y] && a[x] === a[z]) return a[x]; return a.every(Boolean) ? 3 : 0; };
+function legal(s) { const out = []; const boards = s.next >= 0 && !s.big[s.next] ? [s.next] : [0, 1, 2, 3, 4, 5, 6, 7, 8].filter(b => !s.big[b]); for (const b of boards) for (let c = 0; c < 9; c++) if (!s.cells[b][c]) out.push([b, c]); return out; }
+function apply(s, [b, c], p) { const cells = s.cells.map(x => x.slice()); cells[b][c] = p; const big = s.big.slice(); big[b] = winner(cells[b]); return { cells, big, next: c, last: [b, c] }; }
+// Lines on the big board that are still open count, small boards half-won count, the centre matters
+function score(s, p) {
+  const o = 3 - p; let v = 0;
+  const bw = winner(s.big); if (bw === p) return 1e6; if (bw === o) return -1e6;
+  for (const L of LINES) {
+    const m = L.filter(i => s.big[i] === p).length, t = L.filter(i => s.big[i] === o).length, dead = L.some(i => s.big[i] === 3);
+    if (!dead && !t) v += [0, 60, 400][m] || 0; if (!dead && !m) v -= [0, 60, 400][t] || 0;
+  }
+  for (let b = 0; b < 9; b++) { if (s.big[b]) { if (s.big[b] === p) v += b === 4 ? 120 : 80; else if (s.big[b] === o) v -= b === 4 ? 120 : 80; continue; }
+    for (const L of LINES) { const m = L.filter(i => s.cells[b][i] === p).length, t = L.filter(i => s.cells[b][i] === o).length; if (!t && m === 2) v += 10; if (!m && t === 2) v -= 10; } }
+  return v;
+}
+function search(s, p, depth, alpha, beta) {
+  const ms = legal(s); if (!depth || !ms.length || winner(s.big)) return score(s, p);
+  for (const m of ms) { const v = -search(apply(s, m, p), 3 - p, depth - 1, -beta, -alpha); if (v > alpha) alpha = v; if (alpha >= beta) break; }
+  return alpha;
+}
+function aiPick(s, d) { const ms = legal(s); if (d === 0 && Math.random() < .5) return ms[Math.floor(Math.random() * ms.length)]; let bm = ms[0], bs = -Infinity; const depth = [1, 2, ms.length > 20 ? 3 : 4][d]; for (const m of ms) { const v = -search(apply(s, m, 2), 1, depth - 1, -Infinity, Infinity) + Math.random() * 3; if (v > bs) { bs = v; bm = m; } } return bm; }
+
+Duo.run(CFG, {
+  tagline: "תשעה לוחות איקס-עיגול בתוך לוח אחד גדול. כל משבצת שבוחרים שולחת את היריב ללוח המתאים — אסטרטגיה אמיתית!",
+  worlds: ["לוח ראשון", "שליחות חכמות", "אמן ה-81"],
+  randomMove(G) { const ms = legal(G.s); const m = ms[Math.floor(Math.random() * ms.length)]; G.s = apply(G.s, m, 2); G.who = 1; Hub.sound("move"); },
+  help: `<h2>המטרה</h2><p>לנצח בשלושה לוחות קטנים בשורה על הלוח הגדול.</p><h2>החוק המיוחד</h2><ul><li>המשבצת שבחרתם בלוח הקטן קובעת לאיזה לוח קטן היריב חייב לשחק. למשל: בחרתם בפינה הימנית העליונה — היריב משחק בלוח הימני העליון.</li><li>הלוח שמותר לשחק בו מואר. אם הוא כבר הוכרע, מותר לשחק בכל לוח פתוח.</li></ul>`,
+  newGame(G) { G.s = { cells: Array.from({ length: 9 }, () => Array(9).fill(0)), big: Array(9).fill(0), next: -1, last: null }; G.who = 1; },
+  turn: G => G.who === 1 ? "me" : "ai",
+  click(G, el) { const [b, c] = el.dataset.i.split(",").map(Number); if (!legal(G.s).some(([x, y]) => x === b && y === c)) { G.msg = "צריך לשחק בלוח המואר"; Hub.sound("wrong"); return false; } const before = G.s.big[b]; G.s = apply(G.s, [b, c], 1); G.who = 2; Hub.sound(!before && G.s.big[b] === 1 ? "good" : "move"); return true; },
+  ai(G) { const m = aiPick(G.s, G.d); const before = G.s.big[m[0]]; G.s = apply(G.s, m, 2); G.who = 1; Hub.sound(!before && G.s.big[m[0]] === 2 ? "wrong" : "move"); },
+  result(G) { const w = winner(G.s.big); if (w === 1) return "win"; if (w === 2) return "lose"; if (w === 3 || !legal(G.s).length) return "draw"; return null; },
+  beforeRender() { const m = Hub.equipped("marks"), st = document.documentElement.style; st.setProperty("--xc", m.x); st.setProperty("--oc", m.o); },
+  board(G) {
+    const m = Hub.equipped("marks"), ok = G.who === 1 && !G.over ? new Set(legal(G.s).map(([b]) => b)) : new Set(), sym = p => p === 1 ? `<span class="x">${m.xs}</span>` : p === 2 ? `<span class="o">${m.os}</span>` : "";
+    return `<div class="who"><span class="chip">${Hub.user.avatar} את/ה ${sym(1)}</span><span class="chip">🤖 מחשב ${sym(2)}</span></div>
+      <div class="ut">${G.s.cells.map((cells, b) => `<div class="sb ${ok.has(b) ? "live" : G.who === 1 && !G.over && !G.s.big[b] ? "dim" : ""}">${cells.map((v, c) => `<button data-act="cell" data-i="${b},${c}" class="${G.s.last && G.s.last[0] === b && G.s.last[1] === c ? "last" : ""}" ${v || G.s.big[b] ? "disabled" : ""} aria-label="לוח ${b + 1} משבצת ${c + 1}">${sym(v)}</button>`).join("")}${G.s.big[b] ? `<span class="big">${G.s.big[b] === 3 ? "—" : sym(G.s.big[b])}</span>` : ""}</div>`).join("")}</div>`;
+  },
+});
+</script>
+</body>
+</html>

@@ -183,3 +183,77 @@ h1, h2, h3 { font-family: var(--display); font-weight: 500; margin: 0; line-heig
 .diff { display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: right; padding: 16px 20px; border-radius: 22px; }
 .diff b { font: 500 21px var(--display); display: block; }
 .diff span.small { display: block; }
+
+/* ---------- Animated backgrounds ---------- */
+#bgfx { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: -3; pointer-events: none; }
+.fx body { background: transparent; }
+.fx body::before, .fx body::after { display: none; }
+.fx.dark .card, .fx.dark .item, .fx.dark .game, .fx.dark .btn:not(.primary), .fx.dark .chip, .fx.dark .icon-btn, .fx.dark .pill-link, .fx.dark .seat, .fx.dark .pad button, .fx.dark .toggle {
+  backdrop-filter: blur(10px) saturate(1.2); -webkit-backdrop-filter: blur(10px) saturate(1.2);
+}
+.fx.dark .display { text-shadow: 0 0 28px color-mix(in srgb, var(--accent) 45%, transparent); }
+.fx.dark .btn.primary { box-shadow: 0 0 0 1px rgba(255,255,255,.15) inset, 0 10px 30px -8px var(--accent); }
+.bg-sw { width: 100%; height: 100%; border-radius: 10px; }
+
+/* ---------- Richer look everywhere ---------- */
+.menu-art .art { animation: floaty 6s ease-in-out infinite; filter: drop-shadow(0 18px 24px color-mix(in srgb, var(--accent) 30%, transparent)); }
+@keyframes floaty { 50% { transform: translateY(-8px) rotate(-1deg); } }
+.btn { position: relative; overflow: hidden; }
+.btn.primary::after { content: ""; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%); transform: translateX(-120%); transition: transform .7s; }
+.btn.primary:hover::after { transform: translateX(120%); }
+.menu-duo { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.menu-duo .btn { min-width: 0 !important; flex: 1 1 140px; max-width: 240px; }
+.duel-btn { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)), var(--card)); }
+.item { transition: transform .2s, box-shadow .2s; }
+.item:hover { transform: translateY(-3px); box-shadow: 0 16px 30px -18px color-mix(in srgb, var(--accent) 60%, transparent); }
+@media (prefers-reduced-motion: reduce) { .menu-art .art { animation: none; } }
+
+/* ---------- Leaderboard ---------- */
+.lb-tabs { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.lb { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 52vh; overflow: auto; text-align: right; }
+.lb li { display: grid; grid-template-columns: 34px 30px 1fr auto; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 14px; background: color-mix(in srgb, var(--soft) 45%, transparent); border: 1px solid var(--line); }
+.lb li.me { background: color-mix(in srgb, var(--accent) 20%, var(--card)); border-color: var(--accent); }
+.lb li.bot .nm small { font-size: 10.5px; padding: 1px 6px; border-radius: 6px; background: var(--ink); color: var(--card); vertical-align: 2px; }
+.lb .rk { font-weight: 700; text-align: center; font-size: 17px; }
+.lb .av { font-size: 20px; }
+.lb .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb li.empty { display: block; text-align: center; color: var(--muted); }
+
+/* ---------- Duel ---------- */
+.rivals { display: flex; flex-direction: column; gap: 8px; }
+.rival { display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 10px; text-align: right; padding: 10px 12px; border-radius: 18px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; font: inherit; transition: transform .15s, box-shadow .2s; }
+.rival:hover { transform: translateY(-2px); box-shadow: 0 0 0 2px var(--rc), 0 12px 26px -14px var(--rc); }
+.rv-av { font-size: 30px; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--rc) 40%, #fff), var(--rc)); box-shadow: 0 0 18px -2px var(--rc); }
+.rv-tx b { display: block; font: 500 19px var(--display); }
+.rv-tx small { color: var(--muted); display: block; }
+.rv-tx i { font-size: 13px; color: var(--muted); }
+#duelBar { position: fixed; left: 50%; bottom: max(12px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 15; width: min(440px, calc(100% - 24px)); padding: 10px 14px; border-radius: 20px;
+  background: color-mix(in srgb, var(--card) 88%, transparent); backdrop-filter: blur(12px); border: 1px solid var(--line); box-shadow: 0 16px 40px -16px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 6px; animation: rise .4s both; }
+.db-row { display: grid; grid-template-columns: 26px 1fr 64px; align-items: center; gap: 8px; }
+.db-row b { font-size: 13px; text-align: left; font-variant-numeric: tabular-nums; direction: ltr; }
+.db-av { font-size: 20px; }
+.db-track { height: 10px; border-radius: 99px; background: color-mix(in srgb, var(--ink) 10%, transparent); overflow: hidden; direction: rtl; }
+.db-track i { display: block; height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 60%, #fff), var(--accent)); transition: width .25s; }
+.db-row.ai .db-track i { background: linear-gradient(90deg, color-mix(in srgb, var(--rc) 60%, #fff), var(--rc)); transition: width .1s linear; }
+.db-vs { text-align: center; font-weight: 500; font-size: 14px; }
+#duelBar.match .db-row { display: none; }
+.duel-note { margin: 0; padding: 8px 12px; border-radius: 14px; font-weight: 500; background: color-mix(in srgb, var(--muted) 15%, transparent); }
+.duel-note.win { background: color-mix(in srgb, var(--gold) 30%, transparent); }
+body:has(#duelBar) #app { padding-bottom: 140px; }
+#duelBar.top { bottom: auto; top: max(10px, env(safe-area-inset-top)); }
+body:has(#duelBar.top) #app { padding-bottom: 64px; padding-top: 110px; }
+
+/* ---------- Level map ---------- */
+.lv-total { text-align: center; margin: 0 0 16px; font-size: 16px; }
+.lv-total .hide { display: none; }
+.world { margin-bottom: 22px; padding: 14px; border-radius: 26px; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) calc(6% + var(--wi) * 5%), var(--card)), var(--card)); border: 1px solid var(--line); box-shadow: var(--shadow); animation: rise .5s both; animation-delay: calc(var(--wi) * 80ms); }
+.world.locked { opacity: .7; }
+.world-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.world-head > div { flex: 1; }
+.world-head small { color: var(--muted); letter-spacing: .12em; font-size: 12px; }
+.world-head h2 { font-size: 22px; }
+.w-ico { width: 46px; height: 46px; border-radius: 16px; display: grid; place-items: center; font-size: 24px; background: color-mix(in srgb, var(--accent) 18%, var(--card)); box-shadow: 0 6px 16px -8px var(--accent); }
+.lvl.next { border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent), 0 8px 20px -10px var(--accent); animation: nextGlow 2s ease-in-out infinite; }
+@keyframes nextGlow { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 25%, transparent), 0 8px 24px -8px var(--accent); } }
+.lvl-goal { text-align: center; margin: -8px 0 14px; }
+@media (prefers-reduced-motion: reduce) { .lvl.next { animation: none; } }
