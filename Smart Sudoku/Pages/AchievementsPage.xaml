@@ -1,4 +1,4 @@
-<local:BasePage
+﻿<local:BasePage
     x:Class="Smart_Sudoku.Pages.AchievementsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -7,13 +7,20 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="Transparent">
+    <!-- אובייקט: AchievementsPage — העמוד עצמו. הוא יורש מ-BasePage, ולכן יש לו את כל מה שמשותף לכל העמודים. הרקע שקוף, כדי שיראו את רקע ערכת העיצוב. -->
 
     <Grid>
+    <!-- אובייקט: Grid — "מגש" שמחזיק את כל העמוד: את התוכן הנגלל ואת כפתור החזרה שמעליו. -->
         <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <!-- אובייקט: ScrollViewer — מאפשר לגלול למטה כשהתוכן ארוך מהמסך. -->
             <StackPanel Margin="24,96,24,32" Spacing="18" MaxWidth="760" FlowDirection="RightToLeft">
+            <!-- אובייקט: StackPanel — עמודה שבה כל הרכיבים מסודרים זה מתחת לזה, מימין לשמאל (עברית), ברוחב מוגבל. -->
                 <TextBlock Text="🏅 הישגים" Style="{StaticResource TitleText}" />
+                <!-- אובייקט: TextBlock — הכותרת הגדולה של העמוד (🏅 הישגים). -->
                 <TextBlock x:Name="ProgressText" Style="{StaticResource SubtitleText}" />
+                <!-- אובייקט: ProgressText — כותרת המשנה. הקוד כותב בה כמה הישגים נפתחו. -->
                 <Grid x:Name="BadgesGrid" ColumnSpacing="14" RowSpacing="14" />
+                <!-- אובייקט: BadgesGrid — טבלה שבה הקוד מסדר את כרטיסי ההישגים, 3 בכל שורה. -->
             </StackPanel>
         </ScrollViewer>
 
@@ -24,7 +31,9 @@
                 ToolTipService.ToolTip="חזרה"
                 AutomationProperties.Name="חזרה"
                 Click="BackButton_Click">
+                <!-- אובייקט: Button — כפתור "חזרה" עגול בפינה. לחיצה עליו (Click) מפעילה את הפעולה BackButton_Click וחוזרת לעמוד הקודם. -->
             <FontIcon Glyph="&#xE72B;" FontSize="20" />
+            <!-- אובייקט: FontIcon — האייקון של החץ שבתוך כפתור החזרה. -->
         </Button>
     </Grid>
 </local:BasePage>

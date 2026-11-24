@@ -7,21 +7,33 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="Transparent">
+    <!-- אובייקט: MiniSudokuPage — עמוד הסודוקו הקטן. יורש מ-BasePage, והרקע שלו שקוף. -->
 
     <Grid>
+    <!-- אובייקט: Grid — "מגש" שמחזיק את כל העמוד, את שכבת החגיגה ואת כפתור החזרה. -->
         <Viewbox Margin="24,90,24,24" Stretch="Uniform" StretchDirection="DownOnly">
+        <!-- אובייקט: Viewbox — מקטין את כל התוכן כשהחלון קטן, כדי שהכול ייכנס (אבל אף פעם לא מגדיל). -->
             <StackPanel Spacing="16" Width="560">
+            <!-- אובייקט: StackPanel — עמודה שבה כל חלקי העמוד מסודרים זה מתחת לזה. -->
                 <TextBlock Text="🧩 סודוקו קטן" Style="{StaticResource TitleText}" />
+                <!-- אובייקט: TextBlock — הכותרת "סודוקו קטן". -->
                 <TextBlock Text="לוח קטן ונחמד — מושלם להתחלה או להפסקה קצרה"
                            Style="{StaticResource SubtitleText}" />
+                           <!-- אובייקט: TextBlock — הסבר קצר מתחת לכותרת. -->
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10">
+                <!-- אובייקט: StackPanel — שורה של שני כפתורי הגודל. -->
                     <Button x:Name="Size4Button" Content="4 × 4" FontSize="20" Padding="26,8" Click="Size4_Click" />
+                    <!-- אובייקט: Size4Button — כפתור "4×4": לוח קטן (Size4_Click). -->
                     <Button x:Name="Size6Button" Content="6 × 6" FontSize="20" Padding="26,8" Click="Size6_Click" />
+                    <!-- אובייקט: Size6Button — כפתור "6×6": לוח בינוני (Size6_Click). -->
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" FlowDirection="RightToLeft">
+                <!-- אובייקט: StackPanel — שורה של כפתורי המצבים המיוחדים. -->
                     <Button x:Name="SpeedButton" Content="⚡ מצב מהירות" FontSize="17" Padding="20,8" Click="Speed_Click" />
+                    <!-- אובייקט: SpeedButton — כפתור "מצב מהירות": 3 דקות לפתור כמה שיותר לוחות (Speed_Click). -->
                     <Button x:Name="ColorButton" Content="🎨 צבעים לילדים" FontSize="17" Padding="20,8" Click="Color_Click" />
+                    <!-- אובייקט: ColorButton — כפתור "צבעים לילדים": עיגולים צבעוניים במקום מספרים (Color_Click). -->
                 </StackPanel>
 
                 <!-- Speed mode: as many boards as possible before the clock runs out -->
@@ -32,26 +44,35 @@
                            Foreground="{StaticResource RoseBrush}"
                            FlowDirection="RightToLeft"
                            Visibility="Collapsed" />
+                           <!-- אובייקט: SpeedText — שורה שמראה במצב מהירות את הזמן, את מספר הלוחות ואת השיא (מוסתרת כשהמצב לא פועל). -->
 
                 <Border Background="{StaticResource CardBrush}"
                         BorderBrush="{StaticResource RoseBrush}"
                         BorderThickness="3"
                         CornerRadius="14"
                         HorizontalAlignment="Center">
+                        <!-- אובייקט: Border — המסגרת הצבעונית סביב הלוח. -->
                     <Grid x:Name="MiniBoard" />
+                    <!-- אובייקט: MiniBoard — הלוח עצמו (Grid). הקוד ממלא אותו במשבצות. -->
                 </Border>
 
                 <TextBlock x:Name="MiniStatus" Style="{StaticResource SubtitleText}" FlowDirection="RightToLeft" />
+                <!-- אובייקט: MiniStatus — שורה שמסבירה את החוקים או מודיעה שהלוח נפתר. -->
                 <StackPanel x:Name="MiniPad" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8" />
+                <!-- אובייקט: MiniPad — שורת כפתורי המספרים (או הצבעים). הקוד ממלא אותה. -->
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                <!-- אובייקט: StackPanel — שורה של כפתורי הכלים. -->
                     <Button Content="⌫ מחק" FontSize="17" Padding="20,8" Click="Erase_Click" />
+                    <!-- אובייקט: Button — כפתור "מחק": מוחק את המספר מהמשבצת שנבחרה (Erase_Click). -->
                     <Button Content="🔀 לוח חדש" FontSize="17" Padding="20,8" Click="NewBoard_Click" />
+                    <!-- אובייקט: Button — כפתור "לוח חדש" (NewBoard_Click). -->
                 </StackPanel>
             </StackPanel>
         </Viewbox>
 
         <Canvas x:Name="Confetti" IsHitTestVisible="False" />
+        <!-- אובייקט: Confetti — שכבה שקופה מעל הכול, שבה נופלים הלבבות של החגיגה. היא לא חוסמת לחיצות. -->
 
         <Button Style="{StaticResource CircleButton}"
                 HorizontalAlignment="Left"
@@ -60,7 +81,9 @@
                 ToolTipService.ToolTip="חזרה"
                 AutomationProperties.Name="חזרה"
                 Click="BackButton_Click">
+                <!-- אובייקט: Button — כפתור "חזרה" עגול בפינה (BackButton_Click). -->
             <FontIcon Glyph="&#xE72B;" FontSize="20" />
+            <!-- אובייקט: FontIcon — האייקון של החץ שבתוך כפתור החזרה. -->
         </Button>
     </Grid>
 </local:BasePage>

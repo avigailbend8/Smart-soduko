@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
@@ -9,27 +9,37 @@ namespace Smart_Sudoku
 {
     /// <summary>One user's line in the leaderboard. UserId 0 is the guest on this computer.</summary>
     public sealed record LeaderboardRow(int UserId, string Name, int Coins, int Solved, int Stars, int FastestSeconds, bool HasAvatar);
+    // אובייקט: LeaderboardRow — שורה אחת בטבלת השיאים של המחשב: מי המשתמש, כמה מטבעות, כמה שלבים, כמה כוכבים, הזמן הכי מהיר, והאם יש לו תמונה.
 
     /// <summary>
     /// SQLite database (smartsudoku.db in the app's local folder) with the registered
     /// users and their progress. Passwords are stored only as salted PBKDF2 hashes.
     /// </summary>
-    public static class Database
+    public static partial class Database
+    // אובייקט: Database — מסד הנתונים של המשחק (הקובץ smartsudoku.db): המשתמשים הרשומים וכל ההתקדמות שלהם.
+    // הסיסמאות לא נשמרות כמו שהן, אלא רק כ"קוד מעורבל" שאי אפשר להחזיר לסיסמה.
     {
         private const int HashIterations = 100_000;
+        // אובייקט: HashIterations — כמה פעמים מערבבים את הסיסמה (100,000), כדי שיהיה מאוד קשה לנחש אותה.
 
         private static string? connectionString;
+        // אובייקט: connectionString — ה"כתובת" של קובץ מסד הנתונים, שבעזרתה פותחים אליו חיבור.
 
         public static bool IsReady => connectionString != null;
+        // אובייקט: IsReady — אמת אם מסד הנתונים כבר הוכן ואפשר להשתמש בו.
 
         public static void Init()
+        // פעולה: Init — מכינה את מסד הנתונים כשהאפליקציה עולה: קובעת איפה הקובץ נמצא, ויוצרת את כל הטבלאות אם הן לא קיימות
+        // (משתמשים, תוצאות שלבים, שלבים פתוחים, קניות, הגדרות, תמונות, חברים ומילת שחזור).
         {
             SQLitePCL.Batteries_V2.Init();
 
             string path = Path.Combine(ApplicationData.Current.LocalFolder.Path, "smartsudoku.db");
+            // אובייקט: path — המיקום של קובץ מסד הנתונים בתיקייה של האפליקציה.
             connectionString = new SqliteConnectionStringBuilder { DataSource = path }.ToString();
 
             using var connection = Open();
+            // אובייקט: connection — חיבור פתוח למסד הנתונים.
             Execute(connection, @"
                 CREATE TABLE IF NOT EXISTS Users (
                     Id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -57,17 +67,6 @@ namespace Smart_Sudoku
                     Level      INTEGER NOT NULL,
                     PRIMARY KEY (UserId, Difficulty)
                 );
-                CREATE TABLE IF NOT EXISTS Purchases (
-                    UserId INTEGER NOT NULL REFERENCES Users(Id) ON DELETE CASCADE,
-                    ItemId TEXT    NOT NULL,
-                    PRIMARY KEY (UserId, ItemId)
-                );
-                CREATE TABLE IF NOT EXISTS UserSettings (
-                    UserId INTEGER NOT NULL REFERENCES Users(Id) ON DELETE CASCADE,
-                    Key    TEXT    NOT NULL,
-                    Value  TEXT    NOT NULL,
-                    PRIMARY KEY (UserId, Key)
-                );
                 CREATE TABLE IF NOT EXISTS Avatars (
                     UserId    INTEGER PRIMARY KEY REFERENCES Users(Id) ON DELETE CASCADE,
                     Image     BLOB    NOT NULL,
@@ -84,14 +83,20 @@ namespace Smart_Sudoku
                     Hash   TEXT    NOT NULL,
                     Salt   TEXT    NOT NULL
                 );");
+
+            // Statistics, preferences, missions, adventure, saved game, store items, purchases and achievements
+            CreateProgressTables(connection);
         }
 
         /// <summary>Creates a user. Returns the new user's id, or null with an error message.</summary>
         public static int? Register(string userName, string password, PlayerProgress startingProgress, out string error)
+        // פעולה: Register — יוצרת משתמש חדש. בודקת שהשם פנוי, מערבלת את הסיסמה ושומרת. מחזירה את המספר של המשתמש, או null עם הודעת שגיאה.
         {
             using var connection = Open();
+            // אובייקט: connection — חיבור למסד הנתונים.
 
             using (var check = connection.CreateCommand())
+            // אובייקט: check — פקודה שבודקת אם שם המשתמש כבר תפוס.
             {
                 check.CommandText = "SELECT 1 FROM Users WHERE UserName = $name";
                 check.Parameters.AddWithValue("$name", userName);
@@ -103,10 +108,14 @@ namespace Smart_Sudoku
             }
 
             byte[] salt = RandomNumberGenerator.GetBytes(16);
+            // אובייקט: salt — "מלח": מספר אקראי שמערבבים עם הסיסמה, כדי שלשני אנשים עם אותה סיסמה יהיה קוד שונה.
             byte[] hash = HashPassword(password, salt);
+            // אובייקט: hash — הסיסמה אחרי הערבול.
 
             int userId;
+            // אובייקט: userId — המספר שמסד הנתונים נתן למשתמש החדש.
             using (var insert = connection.CreateCommand())
+            // אובייקט: insert — פקודה שמוסיפה את המשתמש החדש לטבלה.
             {
                 insert.CommandText = @"
                     INSERT INTO Users (UserName, PasswordHash, Salt, CreatedAt)
@@ -126,13 +135,17 @@ namespace Smart_Sudoku
 
         /// <summary>Checks the user name and password. Returns the user's id, or null.</summary>
         public static int? Login(string userName, string password)
+        // פעולה: Login — בודקת שם משתמש וסיסמה. אם הם נכונים — מחזירה את המספר של המשתמש, ואחרת null.
         {
             using var connection = Open();
+            // אובייקט: connection — חיבור למסד הנתונים.
             using var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id, PasswordHash, Salt FROM Users WHERE UserName = $name";
+            // אובייקט: command — פקודה שמחפשת את המשתמש לפי השם.
+            command.CommandText = "SELECT Id, PasswordHash, Salt FROM Users WHERE UserName = $name AND IsGuest = 0";
             command.Parameters.AddWithValue("$name", userName);
 
             using var reader = command.ExecuteReader();
+            // אובייקט: reader — קורא את התוצאה (המספר, הסיסמה המעורבלת והמלח).
             if (!reader.Read())
                 return null;   // no such user
 
@@ -143,6 +156,7 @@ namespace Smart_Sudoku
 
         /// <summary>The user name as it was registered (keeps the original spelling).</summary>
         public static string GetUserName(int userId)
+        // פעולה: GetUserName — מחזירה את שם המשתמש כפי שנרשם (עם האותיות הגדולות והקטנות המקוריות).
         {
             using var connection = Open();
             using var command = connection.CreateCommand();
@@ -151,148 +165,13 @@ namespace Smart_Sudoku
             return (string?)command.ExecuteScalar() ?? "";
         }
 
-        public static PlayerProgress LoadProgress(int userId)
-        {
-            var progress = new PlayerProgress();
-            using var connection = Open();
-
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText = "SELECT Coins, BonusHints, BonusLives, Theme, Symbols, SoundOn FROM Users WHERE Id = $id";
-                command.Parameters.AddWithValue("$id", userId);
-                using var reader = command.ExecuteReader();
-                if (reader.Read())
-                {
-                    progress.Coins = reader.GetInt32(0);
-                    progress.BonusHints = reader.GetInt32(1);
-                    progress.BonusLives = reader.GetInt32(2);
-                    progress.Theme = reader.GetString(3);
-                    progress.Symbols = reader.GetString(4);
-                    progress.SoundOn = reader.GetInt32(5) != 0;
-                }
-            }
-
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText = "SELECT LevelId, Stars, BestTime FROM LevelResults WHERE UserId = $id";
-                command.Parameters.AddWithValue("$id", userId);
-                using var reader = command.ExecuteReader();
-                while (reader.Read())
-                {
-                    progress.Stars[reader.GetInt32(0)] = reader.GetInt32(1);
-                    progress.BestTimes[reader.GetInt32(0)] = reader.GetInt32(2);
-                }
-            }
-
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText = "SELECT Difficulty, Level FROM UnlockedLevels WHERE UserId = $id";
-                command.Parameters.AddWithValue("$id", userId);
-                using var reader = command.ExecuteReader();
-                while (reader.Read())
-                    progress.Unlocked[reader.GetInt32(0)] = reader.GetInt32(1);
-            }
-
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText = "SELECT ItemId FROM Purchases WHERE UserId = $id";
-                command.Parameters.AddWithValue("$id", userId);
-                using var reader = command.ExecuteReader();
-                while (reader.Read())
-                    progress.Owned.Add(reader.GetString(0));
-            }
-
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText = "SELECT Key, Value FROM UserSettings WHERE UserId = $id";
-                command.Parameters.AddWithValue("$id", userId);
-                using var reader = command.ExecuteReader();
-                while (reader.Read())
-                    progress.Extras[reader.GetString(0)] = reader.GetString(1);
-            }
-
-            return progress;
-        }
-
-        public static void SaveProgress(int userId, PlayerProgress progress)
-        {
-            using var connection = Open();
-            using var transaction = connection.BeginTransaction();
-
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText = @"
-                    UPDATE Users SET Coins = $coins, BonusHints = $hints, BonusLives = $lives,
-                                     Theme = $theme, Symbols = $symbols, SoundOn = $sound
-                    WHERE Id = $id";
-                command.Parameters.AddWithValue("$coins", progress.Coins);
-                command.Parameters.AddWithValue("$hints", progress.BonusHints);
-                command.Parameters.AddWithValue("$lives", progress.BonusLives);
-                command.Parameters.AddWithValue("$theme", progress.Theme);
-                command.Parameters.AddWithValue("$symbols", progress.Symbols);
-                command.Parameters.AddWithValue("$sound", progress.SoundOn ? 1 : 0);
-                command.Parameters.AddWithValue("$id", userId);
-                command.ExecuteNonQuery();
-            }
-
-            foreach (var level in progress.Stars)
-            {
-                using var command = connection.CreateCommand();
-                command.CommandText = @"
-                    INSERT OR REPLACE INTO LevelResults (UserId, LevelId, Stars, BestTime)
-                    VALUES ($id, $level, $stars, $time)";
-                command.Parameters.AddWithValue("$id", userId);
-                command.Parameters.AddWithValue("$level", level.Key);
-                command.Parameters.AddWithValue("$stars", level.Value);
-                command.Parameters.AddWithValue("$time", progress.BestTimes.TryGetValue(level.Key, out int t) ? t : 0);
-                command.ExecuteNonQuery();
-            }
-
-            foreach (var unlocked in progress.Unlocked)
-            {
-                using var command = connection.CreateCommand();
-                command.CommandText = @"
-                    INSERT OR REPLACE INTO UnlockedLevels (UserId, Difficulty, Level)
-                    VALUES ($id, $difficulty, $level)";
-                command.Parameters.AddWithValue("$id", userId);
-                command.Parameters.AddWithValue("$difficulty", unlocked.Key);
-                command.Parameters.AddWithValue("$level", unlocked.Value);
-                command.ExecuteNonQuery();
-            }
-
-            foreach (string item in progress.Owned)
-            {
-                using var command = connection.CreateCommand();
-                command.CommandText = "INSERT OR IGNORE INTO Purchases (UserId, ItemId) VALUES ($id, $item)";
-                command.Parameters.AddWithValue("$id", userId);
-                command.Parameters.AddWithValue("$item", item);
-                command.ExecuteNonQuery();
-            }
-
-            using (var clear = connection.CreateCommand())
-            {
-                clear.CommandText = "DELETE FROM UserSettings WHERE UserId = $id";
-                clear.Parameters.AddWithValue("$id", userId);
-                clear.ExecuteNonQuery();
-            }
-            foreach (var setting in progress.Extras)
-            {
-                using var command = connection.CreateCommand();
-                command.CommandText = "INSERT INTO UserSettings (UserId, Key, Value) VALUES ($id, $key, $value)";
-                command.Parameters.AddWithValue("$id", userId);
-                command.Parameters.AddWithValue("$key", setting.Key);
-                command.Parameters.AddWithValue("$value", setting.Value);
-                command.ExecuteNonQuery();
-            }
-
-            transaction.Commit();
-        }
-
         // ---------- Passwords ----------
 
         private static bool CheckPassword(SqliteConnection connection, int userId, string password)
+        // פעולה: CheckPassword — בודקת אם הסיסמה של משתמש נכונה.
         {
             using var command = connection.CreateCommand();
+            // אובייקט: command — פקודה שקוראת את הסיסמה המעורבלת והמלח של המשתמש.
             command.CommandText = "SELECT PasswordHash, Salt FROM Users WHERE Id = $id";
             command.Parameters.AddWithValue("$id", userId);
             using var reader = command.ExecuteReader();
@@ -302,8 +181,10 @@ namespace Smart_Sudoku
         }
 
         private static void SetPassword(SqliteConnection connection, int userId, string newPassword)
+        // פעולה: SetPassword — שומרת סיסמה חדשה (מעורבלת, עם מלח חדש).
         {
             byte[] salt = RandomNumberGenerator.GetBytes(16);
+            // אובייקט: salt — מלח חדש לסיסמה החדשה.
             using var command = connection.CreateCommand();
             command.CommandText = "UPDATE Users SET PasswordHash = $hash, Salt = $salt WHERE Id = $id";
             command.Parameters.AddWithValue("$hash", Convert.ToBase64String(HashPassword(newPassword, salt)));
@@ -314,6 +195,7 @@ namespace Smart_Sudoku
 
         /// <summary>Changes the password, if the old one is right.</summary>
         public static bool ChangePassword(int userId, string oldPassword, string newPassword)
+        // פעולה: ChangePassword — משנה סיסמה, אבל רק אם הסיסמה הישנה נכונה.
         {
             using var connection = Open();
             if (!CheckPassword(connection, userId, oldPassword))
@@ -324,8 +206,10 @@ namespace Smart_Sudoku
 
         /// <summary>Saves a secret recovery word (hashed, like a password) for "forgot password".</summary>
         public static void SetRecoveryWord(int userId, string word)
+        // פעולה: SetRecoveryWord — שומרת "מילה סודית" (מעורבלת כמו סיסמה), כדי שאפשר יהיה לאפס סיסמה אם שוכחים אותה.
         {
             byte[] salt = RandomNumberGenerator.GetBytes(16);
+            // אובייקט: salt — מלח למילה הסודית.
             using var connection = Open();
             using var command = connection.CreateCommand();
             command.CommandText = "INSERT OR REPLACE INTO Recovery (UserId, Hash, Salt) VALUES ($id, $hash, $salt)";
@@ -336,6 +220,7 @@ namespace Smart_Sudoku
         }
 
         public static bool HasRecoveryWord(int userId)
+        // פעולה: HasRecoveryWord — בודקת אם למשתמש יש מילה סודית.
         {
             using var connection = Open();
             using var command = connection.CreateCommand();
@@ -346,12 +231,15 @@ namespace Smart_Sudoku
 
         /// <summary>"Forgot password": sets a new password if the recovery word is right.</summary>
         public static bool ResetPassword(string userName, string recoveryWord, string newPassword)
+        // פעולה: ResetPassword — "שכחתי סיסמה": קובעת סיסמה חדשה, אם המילה הסודית נכונה.
         {
             using var connection = Open();
             int? userId = FindUser(connection, userName);
+            // אובייקט: userId — המספר של המשתמש (או null אם אין משתמש כזה).
             if (userId == null)
                 return false;
             int id = userId.Value;
+            // אובייקט: id — המספר של המשתמש.
 
             using (var command = connection.CreateCommand())
             {
@@ -371,11 +259,13 @@ namespace Smart_Sudoku
         // ---------- Friends ----------
 
         private static int? FindUser(SqliteConnection connection, string userName)
+        // פעולה: FindUser (הפנימית) — מחפשת משתמש לפי השם ומחזירה את המספר שלו (או null).
         {
             using var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id FROM Users WHERE UserName = $name";
+            command.CommandText = "SELECT Id FROM Users WHERE UserName = $name AND IsGuest = 0";
             command.Parameters.AddWithValue("$name", userName.Trim());
             object? result = command.ExecuteScalar();
+            // אובייקט: result — מה שמסד הנתונים החזיר.
             if (result == null)
                 return null;   // no user with that name
             return Convert.ToInt32(result);
@@ -383,14 +273,17 @@ namespace Smart_Sudoku
 
         /// <summary>The id of a user registered on this computer, or null.</summary>
         public static int? FindUser(string userName)
+        // פעולה: FindUser — מחפשת משתמש שרשום במחשב הזה לפי השם, ומחזירה את המספר שלו (או null).
         {
             using var connection = Open();
             return FindUser(connection, userName);
         }
 
         public static List<string> GetFriends(int userId)
+        // פעולה: GetFriends — מחזירה את רשימת החברים של המשתמש, לפי הסדר שבו הוסיף אותם.
         {
             var friends = new List<string>();
+            // אובייקט: friends — רשימת שמות החברים.
             using var connection = Open();
             using var command = connection.CreateCommand();
             command.CommandText = "SELECT FriendName FROM Friends WHERE UserId = $id ORDER BY AddedAt";
@@ -402,6 +295,7 @@ namespace Smart_Sudoku
         }
 
         public static void AddFriend(int userId, string friendName)
+        // פעולה: AddFriend — מוסיפה חבר לרשימה (אם הוא כבר שם — לא עושה כלום).
         {
             using var connection = Open();
             using var command = connection.CreateCommand();
@@ -413,6 +307,7 @@ namespace Smart_Sudoku
         }
 
         public static void RemoveFriend(int userId, string friendName)
+        // פעולה: RemoveFriend — מוחקת חבר מהרשימה.
         {
             using var connection = Open();
             using var command = connection.CreateCommand();
@@ -424,35 +319,51 @@ namespace Smart_Sudoku
 
         /// <summary>Adds coins to another user on this computer (a gift). Returns false if there's no such user.</summary>
         public static bool GiveCoins(string userName, int amount)
+        // פעולה: GiveCoins — נותנת מטבעות במתנה למשתמש אחר במחשב. מחזירה false אם אין משתמש כזה.
         {
             using var connection = Open();
             using var command = connection.CreateCommand();
-            command.CommandText = "UPDATE Users SET Coins = Coins + $amount WHERE UserName = $name";
+            command.CommandText = "UPDATE Users SET Coins = Coins + $amount WHERE UserName = $name AND IsGuest = 0";
             command.Parameters.AddWithValue("$amount", amount);
             command.Parameters.AddWithValue("$name", userName.Trim());
             return command.ExecuteNonQuery() == 1;
         }
 
-        /// <summary>One saved setting of any user (for example their profile picture frame), or null.</summary>
+        /// <summary>One preference of any user (for example their profile picture frame), or null.</summary>
         public static string? GetSetting(int userId, string key)
+        // פעולה: GetSetting — קוראת העדפה אחת של משתמש כלשהו מהטבלה Preferences (למשל מסגרת התמונה שלו), או null.
         {
+            string? column = null;
+            // אובייקט: column — העמודה בטבלה Preferences שבה נשמרת ההעדפה הזאת.
+            foreach (var preference in PreferenceColumns)
+            {
+                if (preference.Key == key)
+                    column = preference.Column;
+            }
+            if (column == null)
+                return null;
+
             using var connection = Open();
             using var command = connection.CreateCommand();
-            command.CommandText = "SELECT Value FROM UserSettings WHERE UserId = $id AND Key = $key";
+            command.CommandText = $"SELECT {column} FROM Preferences WHERE UserId = $id";
             command.Parameters.AddWithValue("$id", userId);
-            command.Parameters.AddWithValue("$key", key);
-            return command.ExecuteScalar() as string;
+            object? value = command.ExecuteScalar();
+            // אובייקט: value — הערך שנמצא בעמודה (או כלום, אם עוד לא נשמר).
+            return value == null || value is DBNull ? null : Convert.ToString(value, System.Globalization.CultureInfo.InvariantCulture);
         }
 
         /// <summary>Lets go of open database files (needed before restoring a backup over them).</summary>
         public static void CloseAll() => SqliteConnection.ClearAllPools();
+        // פעולה: CloseAll — משחררת את קבצי מסד הנתונים הפתוחים (צריך לפני שמשחזרים גיבוי).
 
         public static string FilePath => Path.Combine(ApplicationData.Current.LocalFolder.Path, "smartsudoku.db");
+        // אובייקט: FilePath — המיקום המלא של קובץ מסד הנתונים.
 
         // ---------- Profile pictures ----------
 
         /// <summary>Saves (or replaces) a user's profile picture. The image is already small (see Avatars).</summary>
         public static void SetAvatar(int userId, byte[] image)
+        // פעולה: SetAvatar — שומרת (או מחליפה) את תמונת הפרופיל של משתמש.
         {
             using var connection = Open();
             using var command = connection.CreateCommand();
@@ -467,6 +378,7 @@ namespace Smart_Sudoku
 
         /// <summary>A user's profile picture, or null if they haven't chosen one.</summary>
         public static byte[]? GetAvatar(int userId)
+        // פעולה: GetAvatar — מחזירה את תמונת הפרופיל של משתמש, או null אם אין לו.
         {
             using var connection = Open();
             using var command = connection.CreateCommand();
@@ -476,6 +388,7 @@ namespace Smart_Sudoku
         }
 
         public static void RemoveAvatar(int userId)
+        // פעולה: RemoveAvatar — מוחקת את תמונת הפרופיל של משתמש.
         {
             using var connection = Open();
             using var command = connection.CreateCommand();
@@ -491,8 +404,11 @@ namespace Smart_Sudoku
         /// Sorted by stars, then levels, then coins.
         /// </summary>
         public static List<LeaderboardRow> GetLeaderboard()
+        // פעולה: GetLeaderboard — מחזירה את כל המשתמשים הרשומים עם הסיכומים שלהם (שלבים, כוכבים, מטבעות, זמן הכי מהיר),
+        // מסודרים לפי כוכבים, אחר כך לפי שלבים, ואחר כך לפי מטבעות.
         {
             var rows = new List<LeaderboardRow>();
+            // אובייקט: rows — השורות של טבלת השיאים.
             using var connection = Open();
             using var command = connection.CreateCommand();
             command.CommandText = @"
@@ -503,6 +419,7 @@ namespace Smart_Sudoku
                        EXISTS (SELECT 1 FROM Avatars a WHERE a.UserId = u.Id) AS HasAvatar
                 FROM Users u
                 LEFT JOIN LevelResults r ON r.UserId = u.Id
+                WHERE u.IsGuest = 0
                 GROUP BY u.Id
                 ORDER BY Stars DESC, Solved DESC, u.Coins DESC";
             using var reader = command.ExecuteReader();
@@ -525,6 +442,7 @@ namespace Smart_Sudoku
         /// The salt is a random value per user, so two users with the same password get different hashes.
         /// </summary>
         private static byte[] HashPassword(string password, byte[] salt)
+        // פעולה: HashPassword — מערבלת סיסמה עם המלח (בשיטת PBKDF2), כך שאי אפשר להחזיר אותה לסיסמה המקורית.
         {
             return Rfc2898DeriveBytes.Pbkdf2(password, salt, HashIterations, HashAlgorithmName.SHA256, 32);
         }
@@ -534,27 +452,34 @@ namespace Smart_Sudoku
         /// Used for signing in, changing the password and the secret recovery word.
         /// </summary>
         private static bool PasswordMatches(string password, string savedHash, string savedSalt)
+        // פעולה: PasswordMatches — בודקת אם הסיסמה שהוקלדה מתאימה לסיסמה המעורבלת השמורה.
         {
             byte[] expected = Convert.FromBase64String(savedHash);
+            // אובייקט: expected — הסיסמה המעורבלת ששמורה במסד הנתונים.
             byte[] actual = HashPassword(password, Convert.FromBase64String(savedSalt));
+            // אובייקט: actual — הסיסמה שהוקלדה, אחרי ערבול עם אותו מלח.
             // Compares every byte even after a difference, so the time taken gives nothing away
             return CryptographicOperations.FixedTimeEquals(expected, actual);
         }
 
         private static SqliteConnection Open()
+        // פעולה: Open — פותחת חיבור חדש למסד הנתונים (ומפעילה את הבדיקה של קשרים בין טבלאות).
         {
             if (connectionString == null)
                 throw new InvalidOperationException("Database.Init was not called");
 
             var connection = new SqliteConnection(connectionString);
+            // אובייקט: connection — החיבור החדש.
             connection.Open();
             Execute(connection, "PRAGMA foreign_keys = ON;");
             return connection;
         }
 
         private static void Execute(SqliteConnection connection, string sql)
+        // פעולה: Execute — מריצה פקודת SQL שלא מחזירה תוצאות.
         {
             using var command = connection.CreateCommand();
+            // אובייקט: command — הפקודה שנשלחת למסד הנתונים.
             command.CommandText = sql;
             command.ExecuteNonQuery();
         }

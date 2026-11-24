@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.Foundation;
@@ -17,12 +17,15 @@ namespace Smart_Sudoku
     /// Provides application-specific behavior to supplement the default <see cref="Application"/> class.
     /// </summary>
     public sealed partial class App : Application
+    // אובייקט: App — האפליקציה עצמה. יוצרת את החלון, את הרקע המשותף לכל העמודים ואת ההודעות הקופצות, ופותחת את התפריט הראשי.
     {
         /// <summary>
         /// Initializes the singleton application object. This is the first line of authored code
         /// executed, and as such is the logical equivalent of main() or WinMain().
         /// </summary>
         public App()
+        // פעולה: App (בנאי) — הקוד הראשון שרץ כשהאפליקציה נפתחת: טוען את העיצוב, קובע את גודל החלון,
+        // ושומר יומן של קריסות (crash-log.txt) כדי שיהיה אפשר לתקן אותן.
         {
             InitializeComponent();
 
@@ -38,6 +41,7 @@ namespace Smart_Sudoku
                 try
                 {
                     string path = System.IO.Path.Combine(Windows.Storage.ApplicationData.Current.LocalFolder.Path, "crash-log.txt");
+                    // אובייקט: path — המיקום של קובץ יומן הקריסות בתיקייה של האפליקציה.
                     System.IO.File.AppendAllText(path, $"{DateTime.Now:o}\n{e.Exception}\n\n");
                 }
                 catch (Exception)
@@ -47,15 +51,22 @@ namespace Smart_Sudoku
         }
 
         private const double DecorWidth = 1600, DecorHeight = 1000;
+        // אובייקט: DecorWidth, DecorHeight — הגודל של "הבד" שעליו מפוזרים הקישוטים של הרקע.
 
         private static Frame? rootFrame;
+        // אובייקט: rootFrame — ה"מסגרת" שבה מוצג העמוד הנוכחי. כשעוברים עמוד — התוכן שלה מתחלף.
         private static Image? patternImage;
+        // אובייקט: patternImage — תמונת הרקע של ערכת העיצוב (למשל כוכבים או קורי עכביש).
         private static Canvas? decorCanvas;
+        // אובייקט: decorCanvas — הבד שעליו מפוזרים האימוג'ים והאיורים של ערכת העיצוב.
         private static Border? toast;
+        // אובייקט: toast — ההודעה הקטנה שקופצת למעלה (הישגים, פרסים).
         private static DispatcherTimer? toastTimer;
+        // אובייקט: toastTimer — שעון שמעלים את ההודעה אחרי 3.5 שניות.
 
         /// <summary>A short message that slides in at the top of any page (achievements, rewards).</summary>
         public static void ShowToast(string message)
+        // פעולה: ShowToast — מציגה הודעה קצרה שמחליקה מלמעלה בכל עמוד, ונעלמת לבד אחרי כמה שניות.
         {
             if (toast == null)
                 return;
@@ -63,7 +74,9 @@ namespace Smart_Sudoku
             ((TextBlock)toast.Child).Text = message;
             toast.Visibility = Visibility.Visible;
             var slide = new Storyboard();
+            // אובייקט: slide — ה"תסריט" של האנימציה.
             var move = new DoubleAnimation
+            // אובייקט: move — האנימציה שמזיזה את ההודעה מלמעלה למקום שלה, עם קפיצה קטנה בסוף.
             {
                 From = -80,
                 To = 0,
@@ -89,6 +102,8 @@ namespace Smart_Sudoku
         /// Shows a theme's picture (from Assets/Patterns) and scattered emoji behind every page.
         /// </summary>
         public static void SetThemeBackground(string? patternFile, string[]? decorations, string[]? pictures = null, string motion = "float")
+        // פעולה: SetThemeBackground — מציגה מאחורי כל העמודים את תמונת הרקע של ערכת העיצוב, איורים ממוסגרים
+        // ואימוג'ים מפוזרים שזזים לפי הערכה (שלג, בועות, נצנוץ או ריחוף).
         {
             if (patternImage == null || decorCanvas == null)
                 return;
@@ -103,10 +118,12 @@ namespace Smart_Sudoku
             if (pictures != null)
             {
                 var spots = new[] { (40.0, 120.0, -6.0), (1290.0, 160.0, 5.0), (60.0, 600.0, 4.0), (1270.0, 620.0, -5.0) };
+                // אובייקט: spots — המקומות (וזוויות ההטיה) של האיורים הממוסגרים בצדי המסך.
                 for (int i = 0; i < spots.Length; i++)
                 {
                     var (left, top, angle) = spots[i];
                     var frame = new Border
+                    // אובייקט: frame — מסגרת לבנה כמו של תמונה מודפסת, שבתוכה האיור.
                     {
                         Background = new SolidColorBrush(Colors.White),
                         Padding = new Thickness(10, 10, 10, 26),
@@ -132,12 +149,17 @@ namespace Smart_Sudoku
 
             // Same seed every time, so the decorations don't jump around between pages
             var random = new Random(42);
+            // אובייקט: random — מחולל אקראי עם "זרע" קבוע (42), כדי שהקישוטים יהיו באותם מקומות בכל עמוד.
             bool animate = new Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
+            // אובייקט: animate — אמת אם ב-Windows מותר להציג אנימציות.
             for (int i = 0; i < 46; i++)
             {
                 double opacity = 0.22 + random.NextDouble() * 0.16;
+                // אובייקט: opacity — כמה שקוף הקישוט (שקוף למדי, כדי לא להפריע).
                 var transform = new CompositeTransform { Rotation = random.Next(-25, 25) };
+                // אובייקט: transform — הסיבוב וההזזה של הקישוט.
                 var piece = new TextBlock
+                // אובייקט: piece — קישוט אחד: אימוג'י בגודל ובזווית אקראיים.
                 {
                     Text = decorations[i % decorations.Length],
                     FontSize = random.Next(30, 64),
@@ -156,19 +178,24 @@ namespace Smart_Sudoku
 
         /// <summary>Gives a background decoration its theme's motion, forever.</summary>
         private static void Move(TextBlock piece, CompositeTransform transform, double opacity, string motion, Random random)
+        // פעולה: Move — נותנת לקישוט תנועה שחוזרת לנצח: שלג יורד, בועות עולות, כוכבים מנצנצים, או ריחוף עדין.
         {
             var storyboard = new Storyboard
+            // אובייקט: storyboard — ה"תסריט" של התנועה, שחוזר שוב ושוב.
             {
                 RepeatBehavior = RepeatBehavior.Forever,
                 BeginTime = TimeSpan.FromSeconds(random.NextDouble() * 4),
             };
 
             DoubleAnimation animation;
+            // אובייקט: animation — האנימציה עצמה (תזוזה או שינוי שקיפות).
             if (motion == "snow" || motion == "bubbles")
             {
                 // Drift all the way down (snow) or up (bubbles), then start again
                 double top = Canvas.GetTop(piece);
+                // אובייקט: top — המקום ההתחלתי של הקישוט מלמעלה.
                 double distance = motion == "snow" ? DecorHeight + 80 - top : -(top + 80);
+                // אובייקט: distance — כמה רחוק הקישוט זז (למטה בשלג, למעלה בבועות).
                 animation = new DoubleAnimation
                 {
                     From = 0,
@@ -212,6 +239,8 @@ namespace Smart_Sudoku
 
         /// <inheritdoc/>
         protected override void OnLaunched(LaunchActivatedEventArgs e)
+        // פעולה: OnLaunched — רצה כשפותחים את האפליקציה: בונה את החלון (רקע, קישוטים, מסגרת עמודים והודעה קופצת),
+        // מכינה את מסד הנתונים, עושה גיבוי יומי, ופותחת את התפריט הראשי.
         {
             // Do not repeat app initialization when the Window already has content,
             // just ensure that the window is active.
@@ -225,7 +254,9 @@ namespace Smart_Sudoku
                 patternImage = new Image { Stretch = Stretch.UniformToFill, IsHitTestVisible = false };
                 decorCanvas = new Canvas { Width = DecorWidth, Height = DecorHeight };
                 var decorLayer = new Viewbox { Stretch = Stretch.UniformToFill, Child = decorCanvas, IsHitTestVisible = false };
+                // אובייקט: decorLayer — שכבה שמגדילה את בד הקישוטים כך שימלא את כל החלון.
                 var root = new Grid { Background = (Brush)Resources["PageBackgroundBrush"] };
+                // אובייקט: root — הבסיס של החלון: הרקע, הקישוטים, העמודים וההודעה — זה מעל זה.
                 root.Children.Add(patternImage);
                 root.Children.Add(decorLayer);
                 root.Children.Add(rootFrame);
@@ -286,6 +317,7 @@ namespace Smart_Sudoku
         /// <param name="sender">The Frame which failed navigation.</param>
         /// <param name="e">Details about the navigation failure.</param>
         private void OnNavigationFailed(object sender, NavigationFailedEventArgs e)
+        // פעולה: OnNavigationFailed — רצה אם מעבר לעמוד נכשל, ומדווחת על השגיאה.
         {
             throw new Exception($"Failed to load page '{e.SourcePageType.FullName}'.");
         }
@@ -294,8 +326,10 @@ namespace Smart_Sudoku
         /// Windows is pausing the app. Nothing to do here: the game already saves after every move.
         /// </summary>
         private void OnSuspending(object sender, SuspendingEventArgs e)
+        // פעולה: OnSuspending — רצה כש-Windows משהה את האפליקציה. אין צורך לשמור כאן, כי המשחק שומר אחרי כל מהלך.
         {
             SuspendingDeferral deferral = e.SuspendingOperation.GetDeferral();
+            // אובייקט: deferral — "בקשת המתנה" מ-Windows, שמסמנים מיד שהסתיימה.
             deferral.Complete();
         }
     }

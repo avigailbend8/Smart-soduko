@@ -1,4 +1,4 @@
-<local:BasePage
+﻿<local:BasePage
     x:Class="Smart_Sudoku.Pages.DuelLobbyPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -7,58 +7,79 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="Transparent">
+    <!-- אובייקט: DuelLobbyPage — חדר ההמתנה של הדו-קרב ברשת. יורש מ-BasePage, והרקע שלו שקוף. -->
 
     <Grid>
+    <!-- אובייקט: Grid — "מגש" שמחזיק את התוכן הנגלל ואת כפתור החזרה. -->
         <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <!-- אובייקט: ScrollViewer — מאפשר לגלול כשיש הרבה כרטיסים. -->
             <StackPanel Margin="24,96,24,32" Spacing="18" MaxWidth="600" FlowDirection="RightToLeft">
+            <!-- אובייקט: StackPanel — עמודה שבה מסודרים כל הכרטיסים, מימין לשמאל. -->
                 <TextBlock Text="דו-קרב ברשת ⚔️" Style="{StaticResource TitleText}" />
+                <!-- אובייקט: TextBlock — הכותרת "דו-קרב ברשת". -->
                 <TextBlock Text="כולם פותרים את אותו לוח באותו הזמן. תא נכון +10, טעות −5, ומי שמסיים ראשון מקבל בונוס. הניקוד הגבוה מנצח! מי שפותר את הלוח מקבל מטבעות כמו בשלב רגיל, והמנצח/ת מקבל/ת עוד 150 🪙"
                            Style="{StaticResource SubtitleText}" />
+                           <!-- אובייקט: TextBlock — הסבר על הניקוד בדו-קרב. -->
 
                 <!-- Step 1: connect to the server and a room -->
                 <Border x:Name="ConnectCard" Style="{StaticResource Card}">
+                <!-- אובייקט: ConnectCard — שלב 1: כרטיס ההתחברות לשרת ולחדר. -->
                     <StackPanel Spacing="14">
+                    <!-- אובייקט: StackPanel — השדות של ההתחברות, זה מתחת לזה. -->
                         <TextBox x:Name="ServerBox"
                                  Header="כתובת השרת"
                                  PlaceholderText="למשל 127.0.0.1 או 192.168.1.20"
                                  FontSize="18"
                                  CornerRadius="12"
                                  FlowDirection="LeftToRight" />
+                                 <!-- אובייקט: ServerBox — תיבה לכתובת השרת (נכתבת משמאל לימין, כמו מספרים). -->
                         <TextBox x:Name="RoomBox"
                                  Header="קוד חדר (לא חובה)"
                                  PlaceholderText="למשל: כיתה-ח או 1234"
                                  MaxLength="20"
                                  FontSize="18"
                                  CornerRadius="12" />
+                                 <!-- אובייקט: RoomBox — תיבה לקוד החדר (לא חובה). -->
                         <TextBlock Text="רק מי שמקליד את אותו קוד חדר ישחק איתך. בלי קוד — כולם בחדר הראשי."
                                    FontSize="14"
                                    Foreground="{StaticResource MutedTextBrush}"
                                    TextWrapping="Wrap" />
+                                   <!-- אובייקט: TextBlock — הסבר מה עושה קוד החדר. -->
                         <TextBlock x:Name="ConnectError"
                                    Foreground="#FFD93A4A"
                                    FontSize="15"
                                    TextWrapping="Wrap"
                                    Visibility="Collapsed" />
+                                   <!-- אובייקט: ConnectError — שורה אדומה להודעות שגיאה בהתחברות (מוסתרת עד שיש שגיאה). -->
                         <Button x:Name="ConnectButton" Content="התחברות" HorizontalAlignment="Stretch" Click="Connect_Click" />
+                        <!-- אובייקט: ConnectButton — כפתור "התחברות" (Connect_Click). -->
                     </StackPanel>
                 </Border>
 
                 <!-- Step 2: the room -->
                 <Border x:Name="RoomCard" Style="{StaticResource Card}" Visibility="Collapsed">
+                <!-- אובייקט: RoomCard — שלב 2: כרטיס החדר (מוסתר עד שמתחברים). -->
                     <StackPanel Spacing="14">
+                    <!-- אובייקט: StackPanel — התוכן של כרטיס החדר. -->
                         <TextBlock x:Name="RoomTitle" FontSize="22" FontWeight="Bold" Foreground="{StaticResource RoseBrush}" />
+                        <!-- אובייקט: RoomTitle — הכותרת עם שם החדר. -->
                         <StackPanel x:Name="PlayersList" Spacing="8" />
+                        <!-- אובייקט: PlayersList — רשימת השחקנים בחדר. הקוד ממלא אותה. -->
                         <TextBlock x:Name="RoomHint"
                                    FontSize="15"
                                    Foreground="{StaticResource MutedTextBrush}"
                                    TextWrapping="Wrap" />
+                                   <!-- אובייקט: RoomHint — שורה שמסבירה מה קורה עכשיו בחדר (מחכים, מוכנים, משחק רץ). -->
 
                         <TextBlock Text="דרגת קושי לדו-קרב" FontSize="17" FontWeight="SemiBold" Foreground="{StaticResource BerryBrush}" />
+                        <!-- אובייקט: TextBlock — הכותרת "דרגת קושי לדו-קרב". -->
                         <StackPanel x:Name="DifficultyPanel" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center" />
+                        <!-- אובייקט: DifficultyPanel — שורת כפתורי רמת הקושי. הקוד ממלא אותה. -->
 
                         <CheckBox x:Name="TeamsBox"
                                   Content="👥 דו-קרב קבוצות — אדומים 🔴 נגד כחולים 🔵, הניקוד של הקבוצה מתחבר"
                                   Foreground="{StaticResource BerryBrush}" />
+                                  <!-- אובייקט: TeamsBox — תיבת סימון: לשחק בשתי קבוצות (אדומים נגד כחולים). -->
 
                         <Button x:Name="StartButton"
                                 Content="Start ▶"
@@ -69,9 +90,13 @@
                                 BorderBrush="{StaticResource RoseBrush}"
                                 Foreground="{StaticResource RoseBrush}"
                                 Click="Start_Click" />
+                                <!-- אובייקט: StartButton — כפתור Start הגדול שמתחיל את הדו-קרב לכולם (Start_Click). -->
                         <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                        <!-- אובייקט: StackPanel — שורה של שני כפתורים קטנים. -->
                             <Button Content="🏆 טבלת אלופים" FontSize="15" Padding="18,6" Click="Leaderboard_Click" />
+                            <!-- אובייקט: Button — כפתור "טבלת אלופים" (Leaderboard_Click). -->
                             <Button Content="יציאה מהחדר" FontSize="15" Padding="18,6" Click="Leave_Click" />
+                            <!-- אובייקט: Button — כפתור "יציאה מהחדר" (Leave_Click). -->
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -79,36 +104,54 @@
                 <!-- An invitation from a friend -->
                 <Border x:Name="InviteBanner" Style="{StaticResource Card}" Padding="20,14" Visibility="Collapsed"
                         Background="{StaticResource SelectedCellBrush}" BorderBrush="{StaticResource RoseBrush}" BorderThickness="2">
+                        <!-- אובייקט: InviteBanner — פס צבעוני שמופיע כשחבר מזמין אותך לחדר שלו (מוסתר עד שמגיעה הזמנה). -->
                     <StackPanel Orientation="Horizontal" Spacing="14">
+                    <!-- אובייקט: StackPanel — שורת ההזמנה: הטקסט ושני הכפתורים. -->
                         <TextBlock x:Name="InviteText" FontSize="18" FontWeight="SemiBold" Foreground="{StaticResource BerryBrush}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="330" />
+                        <!-- אובייקט: InviteText — הטקסט של ההזמנה (מי מזמין ולאיזה חדר). -->
                         <Button Content="להצטרף ▶" FontSize="16" Padding="18,6" Click="JoinInvite_Click" />
+                        <!-- אובייקט: Button — כפתור "להצטרף" (JoinInvite_Click). -->
                         <Button Content="לא עכשיו" FontSize="14" Padding="14,6" Click="DismissInvite_Click" />
+                        <!-- אובייקט: Button — כפתור "לא עכשיו" (DismissInvite_Click). -->
                     </StackPanel>
                 </Border>
 
                 <!-- Chat in the room -->
                 <Border x:Name="ChatCard" Style="{StaticResource Card}" Padding="20" Visibility="Collapsed">
+                <!-- אובייקט: ChatCard — כרטיס הצ'אט של החדר (מוסתר עד שמתחברים). -->
                     <StackPanel Spacing="10">
+                    <!-- אובייקט: StackPanel — התוכן של כרטיס הצ'אט. -->
                         <TextBlock Text="💬 צ'אט בחדר" FontSize="20" FontWeight="Bold" Foreground="{StaticResource RoseBrush}" />
+                        <!-- אובייקט: TextBlock — הכותרת "צ'אט בחדר". -->
                         <ScrollViewer x:Name="ChatScroll" Height="170" VerticalScrollBarVisibility="Auto">
+                        <!-- אובייקט: ChatScroll — אזור נגלל בגובה קבוע להודעות הצ'אט. -->
                             <StackPanel x:Name="ChatList" Spacing="4" />
+                            <!-- אובייקט: ChatList — רשימת ההודעות. הקוד מוסיף אליה שורה לכל הודעה. -->
                         </ScrollViewer>
                         <Grid ColumnSpacing="10">
+                        <!-- אובייקט: Grid — שורת הכתיבה: תיבת טקסט רחבה וכפתור שליחה. -->
                             <Grid.ColumnDefinitions>
+                            <!-- אובייקט: ColumnDefinitions — שתי עמודות: הראשונה תופסת את כל המקום הפנוי, והשנייה ברוחב של הכפתור. -->
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
                             <TextBox x:Name="ChatBox" PlaceholderText="כתבו הודעה..." MaxLength="120" CornerRadius="12" KeyDown="ChatBox_KeyDown" />
+                            <!-- אובייקט: ChatBox — תיבה לכתיבת הודעה (עד 120 תווים). Enter = שליחה (ChatBox_KeyDown). -->
                             <Button Grid.Column="1" Content="שליחה" FontSize="15" Padding="18,6" Click="SendChat_Click" />
+                            <!-- אובייקט: Button — כפתור "שליחה" (SendChat_Click). -->
                         </Grid>
                     </StackPanel>
                 </Border>
 
                 <!-- Champions table (from the server's database) -->
                 <Border x:Name="LeaderboardCard" Style="{StaticResource Card}" Visibility="Collapsed">
+                <!-- אובייקט: LeaderboardCard — כרטיס טבלת האלופים מהשרת (מוסתר עד שמבקשים אותה). -->
                     <StackPanel Spacing="10">
+                    <!-- אובייקט: StackPanel — התוכן של כרטיס האלופים. -->
                         <TextBlock Text="🏆 טבלת האלופים" FontSize="22" FontWeight="Bold" Foreground="{StaticResource RoseBrush}" />
+                        <!-- אובייקט: TextBlock — הכותרת "טבלת האלופים". -->
                         <StackPanel x:Name="LeaderboardList" Spacing="6" />
+                        <!-- אובייקט: LeaderboardList — רשימת האלופים. הקוד ממלא אותה. -->
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -121,7 +164,9 @@
                 ToolTipService.ToolTip="חזרה"
                 AutomationProperties.Name="חזרה"
                 Click="BackButton_Click">
+                <!-- אובייקט: Button — כפתור "חזרה" עגול בפינה (BackButton_Click). -->
             <FontIcon Glyph="&#xE72B;" FontSize="20" />
+            <!-- אובייקט: FontIcon — האייקון של החץ שבתוך כפתור החזרה. -->
         </Button>
     </Grid>
 </local:BasePage>

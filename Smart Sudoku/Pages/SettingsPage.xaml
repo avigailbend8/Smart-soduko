@@ -7,14 +7,21 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     Background="Transparent">
+    <!-- אובייקט: SettingsPage — העמוד עצמו. הוא יורש מ-BasePage, ולכן יש לו את כל מה שמשותף לכל העמודים. הרקע שקוף, כדי שיראו את רקע ערכת העיצוב. -->
 
     <Grid>
+    <!-- אובייקט: Grid — "מגש" שמחזיק את כל העמוד: את התוכן הנגלל ואת כפתור החזרה שמעליו. -->
         <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <!-- אובייקט: ScrollViewer — מאפשר לגלול למטה כשהתוכן ארוך מהמסך. -->
             <StackPanel Margin="24,96,24,32" Spacing="18" MaxWidth="760" FlowDirection="RightToLeft">
+            <!-- אובייקט: StackPanel — עמודה שבה כל הרכיבים מסודרים זה מתחת לזה, מימין לשמאל (עברית), ברוחב מוגבל. -->
                 <TextBlock Text="⚙️ הגדרות" Style="{StaticResource TitleText}" />
+                <!-- אובייקט: TextBlock — הכותרת הגדולה של העמוד (⚙️ הגדרות). -->
                 <TextBlock x:Name="SubtitleText" Style="{StaticResource SubtitleText}" TextWrapping="Wrap" />
+                <!-- אובייקט: SubtitleText — כותרת המשנה. הקוד כותב בה של מי ההגדרות. -->
                 <!-- Filled in code -->
                 <StackPanel x:Name="ContentPanel" Spacing="14" />
+                <!-- אובייקט: ContentPanel — עמודה שהקוד ממלא בכל ההגדרות: משחק, תמונה, סיסמה וגיבוי. -->
             </StackPanel>
         </ScrollViewer>
 
@@ -25,7 +32,9 @@
                 ToolTipService.ToolTip="חזרה"
                 AutomationProperties.Name="חזרה"
                 Click="BackButton_Click">
+                <!-- אובייקט: Button — כפתור "חזרה" עגול בפינה. לחיצה עליו (Click) מפעילה את הפעולה BackButton_Click וחוזרת לעמוד הקודם. -->
             <FontIcon Glyph="&#xE72B;" FontSize="20" />
+            <!-- אובייקט: FontIcon — האייקון של החץ שבתוך כפתור החזרה. -->
         </Button>
     </Grid>
 </local:BasePage>
